@@ -152,14 +152,11 @@ Uma ferramenta exclusiva do Mestre que centraliza os efeitos dos tokens presente
 
 ## 📦 Instalação
 
-### Instalação manual
+No Foundry: Add-on Modules > Install Module e cole em Manifest URL:
 
-1. Baixe o repositório pelo botão **Code → Download ZIP** no GitHub.
-2. Extraia a pasta do módulo e coloque-a em `Data/modules/`.
-3. Confirme que a estrutura final contém a pasta `t20-acoes-hud` e o arquivo `module.json` diretamente dentro dela.
-4. Reinicie o Foundry VTT e abra o mundo desejado.
-5. Acesse o gerenciamento de módulos e ative o **T20 — HUD de Ações e Painel de Efeitos**.
-6. Se necessário, recarregue o navegador com `Ctrl + F5` para limpar o cache.
+https://github.com/dralfin/T20-HUD-de-Acoes-e-Painel-de-Efeitos/releases/latest/download/module.json
+
+Depois ative o módulo no mundo.
 
 ### Requisitos
 
