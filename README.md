@@ -45,7 +45,7 @@ O Painel de Efeitos centraliza as condições e os efeitos ativos dos tokens da 
 </p>
 
 <p align="center">
-  <img src="assets/images/hud-efeitos.png" alt="Painel de Efeitos do Tormenta20 mostrando filtros, efeitos ativos e informações detalhadas" width="100%">
+  <img src="assets/images/hud-efeitos.png" alt="Painel de Efeitos do Tormenta20 mostrando filtros, efeitos ativos e informações detalhadas" width=50%">
 </p>
 
 <p align="center">
