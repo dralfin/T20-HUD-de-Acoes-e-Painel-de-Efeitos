@@ -5,7 +5,7 @@
 Um módulo para **Tormenta20 no Foundry Virtual Tabletop v13** que simplifica o gerenciamento de ações, recursos, deslocamento e turnos dos personagens, além de oferecer ao Mestre um painel centralizado para acompanhar os efeitos ativos da cena.
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Foundry%20VTT-v13-gold?style=for-the-badge" alt="Foundry VTT v13">
+  <img src="https://img.shields.io/badge/Foundry%20VTT-v13%20%7C%20v14-gold?style=for-the-badge" alt="Foundry VTT v13">
   <img src="https://img.shields.io/badge/Sistema-Tormenta20-red?style=for-the-badge" alt="Tormenta20">
   <img src="https://img.shields.io/badge/Idioma-Portugu%C3%AAs-blue?style=for-the-badge" alt="Português">
 </p>
