@@ -1,125 +1,252 @@
-# T20 - HUD de Ações e Painel de Efeitos
+# ⚔️ T20 — HUD de Ações e Painel de Efeitos
 
-Módulo para **Tormenta20** no **Foundry VTT v13**. Ele reúne duas ferramentas:
+**Mais agilidade nos combates. Mais controle para o Mestre. Uma experiência melhor para todos.**
 
-1. **HUD do personagem**, que segue o token selecionado e controla as ações do turno.
-2. **Painel de Efeitos**, exclusivo do Mestre, que lista os efeitos de todos os tokens da cena.
+Um módulo para **Tormenta20 no Foundry Virtual Tabletop v13** que simplifica o gerenciamento de ações, recursos, deslocamento e turnos dos personagens, além de oferecer ao Mestre um painel centralizado para acompanhar os efeitos ativos da cena.
 
----
-
-## 1. HUD do personagem
-
-Uma janela leve, arrastável e recolhível, no tema escuro com detalhes dourados.
-
-### Quando aparece
-- Para o **token selecionado**, dentro ou fora de combate. Sem token selecionado, mostra o combatente do turno.
-- Jogadores veem a HUD dos tokens que controlam. O Mestre vê a HUD de qualquer token (dá para desligar em *Mostrar a HUD para o Mestre*).
-- Arraste pelo cabeçalho para mover. **Duplo clique** no cabeçalho recentraliza. O botão ⌃ recolhe a HUD para uma barra compacta.
-- Mostra a imagem do **token** ou o **retrato (portrait)** do personagem, à sua escolha.
-
-### Recursos do personagem (sempre visíveis)
-- **PV** e **PM**, com barra, valor atual e máximo.
-- **PV temporário** e **PM temporário**, em campos próprios (ícone do recurso com uma ampulheta).
-- **Defesa total** (DEF) e **CD das magias** (10 + metade do nível + atributo de conjuração).
-- **Edição direta:** clique no campo, digite e aperte Enter (Esc cancela). Aceita um número (`12`) ou `+5` / `-5` para somar ou subtrair do valor atual. O valor atual não passa do máximo, e o PM e os temporários não ficam negativos.
-- Com a HUD recolhida, o cabeçalho mostra um resumo de PV, PM e defesa.
-
-### Ações do turno (no turno do token)
-Segue a regra **Tipos de Ações** do livro:
-- **Padrão** — gasta a ação padrão.
-- **Movimento** — o 1º clique gasta a ação de movimento; o 2º troca a ação padrão por outro movimento (2 movimentos).
-- **Completa** — gasta padrão e movimento juntos; só vale se nenhuma das duas foi gasta.
-- **Clique com o botão direito** em uma ação devolve o gasto. O botão ↺ reinicia todas.
-- Ações livres e reações não têm limite.
-- As ações voltam a ficar disponíveis no início de cada turno (feito pelo Mestre conectado).
-- Com a HUD recolhida, o punho e o boneco correndo mostram, acesos ou apagados, se a ação padrão e a de movimento ainda estão disponíveis.
-
-### Encerrar turno e timer
-- Botão **Encerrar turno** passa a vez ao próximo combatente. Se o jogador não tiver permissão, o pedido vai ao Mestre pelo socket.
-- **Timer** com contagem regressiva e barra. Nos últimos 10 segundos fica vermelho e pulsa; ao acabar, a HUD treme e toca o **som de tempo esgotado**.
-- O tempo máximo é configurável (0 = sem limite). O Mestre também pode mudar clicando no cronômetro da HUD.
-- O som pode ser qualquer arquivo de áudio. Sem arquivo, toca um sinal de três notas gerado pelo módulo. O botão de alto-falante testa o som.
-- Opcional: passar o turno automaticamente quando o tempo acaba.
-
-### Limite de movimento
-- O token anda normalmente até o **deslocamento** do personagem (lido da ficha; padrão 9 m).
-- Passar disso gasta uma **segunda ação de movimento** (no lugar da padrão). Além de dois movimentos, o token é **bloqueado** com um aviso que diz quantos metros ainda restam.
-- A distância é cobrada pelo **custo medido pelo Foundry**, o mesmo da régua. Terreno difícil e regras de diagonal contam do mesmo jeito. Arrastos divididos em vários trechos pelo Foundry são cobrados uma única vez.
-- Uma barra mostra o deslocamento usado e o máximo (por exemplo, `10,5 / 21 m`).
-- Jogadores só movem o token **no próprio turno** (configurável). O **Mestre move livremente**.
-- **Ctrl+Z** no movimento devolve a distância e a ação gastas. Cada Ctrl+Z desfaz um trecho, até a parada anterior.
-- **Devolver a ação de movimento** (botão direito) faz o token **voltar andando pelo caminho percorrido**:
-  - com 2 movimentos usados, devolver um volta até o último ponto da 1ª movimentação (o "último verde" da régua);
-  - com 1 movimento usado, o token volta ao início do turno.
-  - A volta usa o histórico de movimento do Foundry, então a régua também devolve essa distância.
-
-### Gasto de ação ao usar itens
-- Quando o card de um item vai para o **chat**, o módulo gasta a ação dele.
-- **Armas** gastam ação padrão. Poderes, magias e itens usam a execução indicada na ficha: `action` (padrão), `move` (movimento) ou `full` (completa). Livre e reação não gastam. Magia sem execução legível conta como padrão.
-- Cada item é cobrado uma vez por turno (rolar o dano depois do ataque não gasta de novo).
-- Opcional: anunciar no chat sempre que uma ação for gasta.
+<p align="center">
+  <img src="https://img.shields.io/badge/Foundry%20VTT-v13-gold?style=for-the-badge" alt="Foundry VTT v13">
+  <img src="https://img.shields.io/badge/Sistema-Tormenta20-red?style=for-the-badge" alt="Tormenta20">
+  <img src="https://img.shields.io/badge/Idioma-Portugu%C3%AAs-blue?style=for-the-badge" alt="Português">
+</p>
 
 ---
 
-## 2. Painel de Efeitos (só o Mestre)
+## 🖥️ Demonstração
 
-- Abra pelo **botão dourado na lateral esquerda** (abaixo da barra de controles da cena) ou digitando `/efeitos` no chat.
-- Lista os efeitos de todos os tokens da cena, **separados por token**. Cada efeito é uma tag só com o nome:
-  - vermelho: condição;
-  - azul: efeito vindo de um item;
-  - borda tracejada: temporário;
-  - apagado e riscado: desativado.
-- **Passe o mouse numa tag** para ver nome, descrição, duração, tempo restante, origem, condição, estado (desativado ou suprimido) e as primeiras mudanças que o efeito aplica. **Clique na tag** para abrir o efeito.
-- **Clique no nome do token** para selecioná-lo e centralizar a tela nele.
-- **Filtros** (salvos entre sessões):
-  - **Disposição:** Hostil, Neutro, Amigável e Secreto;
-  - **Ficha:** os tipos de ficha que existem na cena (Personagem, NPC, Objeto de Cena...);
-  - **Mostrar:** efeitos de itens, desativados e tokens sem efeitos (todos ocultos por padrão);
-  - **Busca** por nome de token ou de efeito.
-- A janela é arrastável e redimensionável, e atualiza sozinha quando um efeito, token, item ou o combate mudam.
+Uma HUD projetada para manter as informações importantes sempre acessíveis, sem precisar abrir constantemente a ficha do personagem.
 
----
+### ⚔️ Durante o combate
 
-## Configurações
+Acompanhe os recursos do personagem, gerencie suas ações, monitore o deslocamento e controle o tempo do turno. Alterne entre a interface completa e a versão compacta conforme sua preferência.
 
-**Mundo** (só o Mestre altera):
-- Limitar o movimento dos tokens em combate · Bloquear movimento fora do turno
-- Deslocamento padrão (metros) · Metros por quadrado (padrão 1,5)
-- Gastar ações ao usar itens · Anunciar ações no chat
-- Tempo máximo por turno · Som de tempo esgotado · Quem ouve o som · Passar o turno automaticamente ao acabar o tempo
-- Ativar o Painel de Efeitos (Mestre)
+<p align="center">
+  <img src="assets/images/durante-combate.png" alt="HUD de Ações durante o combate, mostrando recursos, ações, deslocamento e temporizador" width="100%">
+</p>
 
-**Pessoais** (cada usuário):
-- Mostrar a HUD para o Mestre · Imagem na HUD (token ou retrato) · Tamanho da HUD · Volume do som
-- Aplicar as regras também ao Mestre (teste) — o Mestre passa a ser limitado como um jogador, útil para testar
-- Depuração no console
+### 🛡️ Fora do combate
+
+Consulte rapidamente PV, PM, Defesa e CD das magias por meio de uma interface compacta que ocupa menos espaço na tela.
+
+<p align="center">
+  <img src="assets/images/fora-combate.png" alt="HUD compacta do personagem fora de combate" width="100%">
+</p>
 
 ---
 
-## Instalação
+## ✨ Funcionalidades
 
-1. Extraia a pasta `t20-acoes-hud` em `Data/modules/`.
-2. Reinicie o Foundry e ative o módulo no mundo.
-3. Dê um recarregamento forçado no navegador (Ctrl+F5) para não usar arquivos antigos em cache.
+### 🗡️ HUD do personagem
 
-**Requisitos:** Foundry VTT v13 e o sistema Tormenta20.
+Uma interface arrastável, recolhível e personalizável que acompanha o token selecionado ou o combatente do turno.
 
-## Para macros
+- **PV e PM:** acompanhe os valores atuais, máximos e as respectivas barras.
+- **Recursos temporários:** visualize e edite PV e PM temporários.
+- **Defesa e CD:** consulte a Defesa total e a CD das magias.
+- **Edição rápida:** clique em um valor para alterá-lo diretamente. Digite um número absoluto ou use `+5` e `-5` para ajustar o valor atual.
+- **Modo compacto:** recolha a HUD para manter um resumo dos recursos e das ações disponíveis.
+- **Imagem personalizável:** escolha entre a imagem do token e o retrato do personagem.
+- **Controle de acesso:** jogadores visualizam os tokens que controlam; o Mestre pode visualizar qualquer token.
 
-`game.modules.get("t20-acoes-hud").api` expõe:
-- `gastarPorItem(item)` — gasta a ação do item, como se ele tivesse ido ao chat;
-- `tipoDeAcao(item)` — devolve `"padrao"`, `"movimento"`, `"completa"` ou `null`;
-- `painelEfeitos.abrir()`, `.fechar()` e `.alternar()` — controlam o Painel de Efeitos (só para o Mestre).
+### 🎯 Gerenciamento de ações
 
-## Observações e limites
+A HUD acompanha o gasto das ações durante o turno, seguindo os tipos de ação utilizados pelo módulo.
 
-- O módulo assume estes campos do sistema Tormenta20: `system.attributes.pv` e `pm` (`value`, `max`, `temp`), `system.attributes.conjuracao` (atributo de conjuração), `system.attributes.defesa` e a execução dos itens (`action`, `move`, `full`). Se algum valor não aparecer ou vier errado, ligue a **Depuração no console** e verifique as linhas do módulo no console (F12).
-- A edição de PV e PM altera os valores diretamente, sem passar pelo cálculo de dano do sistema, então redução de dano e imunidades não são aplicadas.
-- Não há tratamento de condições que mudam o deslocamento, nem de outros tipos de deslocamento (voo, natação).
-- O timer não pausa quando o jogo está pausado.
+| Tipo de ação | Funcionamento |
+| --- | --- |
+| Padrão | Consome a ação padrão. |
+| Movimento | O primeiro uso consome a ação de movimento; o segundo utiliza a ação padrão para permitir outro movimento. |
+| Completa | Consome as ações padrão e de movimento simultaneamente. |
+| Livre e reação | Não possuem limite de uso imposto pela HUD. |
 
-## Solução de problemas
+Outros recursos:
 
-- **Um token não se move:** ligue a Depuração no console, mova o token e veja as linhas `preMoveToken`. Elas mostram se o módulo bloqueou o movimento e por quê. Lembre-se de que o Mestre só é limitado com a opção de teste ligada.
-- **A HUD não aparece:** selecione um token que você controle (ou, como Mestre, confira se *Mostrar a HUD para o Mestre* está ligada).
-- **O painel de efeitos não abre:** confira se *Ativar o Painel de Efeitos (Mestre)* está ligada e se você está logado como Mestre. Dá para abrir também com `/efeitos`.
+- Clique com o botão direito em uma ação para devolver o gasto.
+- Reinicie todas as ações com o botão de reinicialização.
+- As ações são restauradas no início de cada turno pelo Mestre conectado.
+- A interface compacta indica visualmente quais ações continuam disponíveis.
+- Ao enviar um item para o chat, o módulo pode registrar automaticamente o gasto da ação correspondente.
+- Armas consomem ação padrão; poderes, magias e outros itens utilizam o tipo de execução indicado na ficha.
+- Cada item é contabilizado uma única vez por turno.
+- Opcionalmente, anuncie no chat quando uma ação for gasta.
+
+### ⏱️ Temporizador de turno
+
+Mantenha o combate fluido com um contador configurável para cada turno.
+
+- Contagem regressiva acompanhada por uma barra de progresso.
+- Alerta visual nos últimos 10 segundos.
+- Animação e som quando o tempo termina.
+- Escolha de arquivo de áudio personalizado ou utilização do som padrão do módulo.
+- Controle de volume e teste do som.
+- Configuração de quem ouve o alerta.
+- Opção para passar o turno automaticamente ao final da contagem.
+- Possibilidade de definir o tempo máximo como zero, desativando o limite.
+
+### 🏃 Controle de deslocamento
+
+Acompanhe a movimentação dos tokens durante o combate, com limites baseados nas regras configuradas.
+
+- Utiliza o deslocamento da ficha, com padrão de 9 metros.
+- Permite ultrapassar o deslocamento normal utilizando uma segunda ação de movimento.
+- Bloqueia movimentações que ultrapassem o limite permitido.
+- Exibe uma barra com a distância utilizada e o limite disponível.
+- Utiliza o custo de movimento calculado pelo Foundry, incluindo terreno difícil e diagonais.
+- Considera arrastos divididos em vários trechos como uma única movimentação, quando aplicável.
+- Permite desfazer movimentações com `Ctrl + Z`, recuperando a distância e a ação gastas.
+- Ao devolver uma ação de movimento, o token retorna pelo caminho percorrido até o ponto correspondente.
+- Pode restringir a movimentação dos jogadores ao próprio turno, mantendo a liberdade do Mestre.
+
+### 🎭 Painel de Efeitos
+
+Uma ferramenta exclusiva do Mestre que centraliza os efeitos dos tokens presentes na cena.
+
+- **Organização por token:** visualize os efeitos agrupados por personagem ou criatura.
+- **Identificação visual:** condições em vermelho, efeitos de itens em azul, efeitos temporários com borda tracejada e efeitos desativados com aparência apagada e riscada.
+- **Detalhes rápidos:** passe o mouse sobre uma tag para consultar descrição, duração, tempo restante, origem, condição, estado e as primeiras alterações aplicadas pelo efeito.
+- **Acesso direto:** clique em uma tag para abrir o efeito correspondente.
+- **Navegação pela cena:** clique no nome de um token para selecioná-lo e centralizar a visualização.
+- **Filtros:** organize os resultados por disposição, tipo de ficha, origem e estado dos efeitos.
+- **Pesquisa:** encontre tokens ou efeitos pelo nome.
+- **Atualização automática:** acompanhe mudanças nos efeitos, tokens, itens e combate.
+- **Interface ajustável:** mova e redimensione a janela conforme sua preferência.
+- **Filtros persistentes:** mantenha suas preferências entre sessões.
+
+**Como abrir:** clique no botão dourado na lateral esquerda da interface do Foundry ou digite `/efeitos` no chat.
+
+---
+
+## 📦 Instalação
+
+### Instalação manual
+
+1. Baixe o repositório pelo botão **Code → Download ZIP** no GitHub.
+2. Extraia a pasta do módulo e coloque-a em `Data/modules/`.
+3. Confirme que a estrutura final contém a pasta `t20-acoes-hud` e o arquivo `module.json` diretamente dentro dela.
+4. Reinicie o Foundry VTT e abra o mundo desejado.
+5. Acesse o gerenciamento de módulos e ative o **T20 — HUD de Ações e Painel de Efeitos**.
+6. Se necessário, recarregue o navegador com `Ctrl + F5` para limpar o cache.
+
+### Requisitos
+
+- **Foundry Virtual Tabletop:** versão 13.
+- **Sistema de jogo:** Tormenta20.
+
+---
+
+## ⚙️ Configurações
+
+O módulo oferece configurações globais para o mundo e opções individuais para cada usuário.
+
+### Configurações do mundo
+
+Disponíveis para o Mestre:
+
+- Limitar o movimento dos tokens em combate.
+- Bloquear movimentação fora do turno.
+- Definir o deslocamento padrão em metros.
+- Configurar os metros por quadrado, com padrão de 1,5 m.
+- Ativar o gasto automático de ações ao utilizar itens.
+- Anunciar o gasto de ações no chat.
+- Definir o tempo máximo por turno.
+- Configurar o som de tempo esgotado e quem pode ouvi-lo.
+- Passar o turno automaticamente ao final do temporizador.
+- Ativar ou desativar o Painel de Efeitos.
+
+### Configurações pessoais
+
+Disponíveis individualmente:
+
+- Mostrar ou ocultar a HUD para o Mestre.
+- Escolher entre a imagem do token e o retrato do personagem.
+- Ajustar o tamanho da HUD.
+- Configurar o volume dos sons.
+- Ativar o modo de teste que aplica ao Mestre as mesmas restrições de um jogador.
+- Habilitar a depuração no console.
+
+---
+
+## 🧩 API para macros
+
+O módulo disponibiliza uma API que pode ser utilizada por macros do Foundry VTT.
+
+```javascript
+const api = game.modules.get("t20-acoes-hud")?.api;
+```
+
+### Métodos disponíveis
+
+| Método | Descrição |
+| --- | --- |
+| `gastarPorItem(item)` | Registra o gasto da ação de um item, como se ele tivesse sido enviado ao chat. |
+| `tipoDeAcao(item)` | Retorna `"padrao"`, `"movimento"`, `"completa"` ou `null`. |
+| `painelEfeitos.abrir()` | Abre o Painel de Efeitos. |
+| `painelEfeitos.fechar()` | Fecha o Painel de Efeitos. |
+| `painelEfeitos.alternar()` | Alterna entre abrir e fechar o painel. |
+
+Os métodos do Painel de Efeitos são destinados ao Mestre.
+
+---
+
+## ⚠️ Limitações conhecidas
+
+- A edição direta de PV e PM modifica os valores da ficha sem executar o cálculo de dano do sistema. Portanto, redução de dano e imunidades não são aplicadas.
+- O controle de deslocamento não considera condições que alteram a velocidade nem outros tipos de deslocamento, como voo e natação.
+- O temporizador não pausa quando o jogo está pausado.
+- A integração depende de campos específicos da ficha do Tormenta20, incluindo recursos, Defesa, atributo de conjuração e execução dos itens.
+- Magias cuja execução não pode ser identificada são tratadas como ações padrão.
+- Se algum valor não aparecer ou estiver incorreto, ative a depuração e verifique as mensagens do módulo no console do navegador (`F12`).
+
+---
+
+## 🔧 Solução de problemas
+
+<details>
+<summary><strong>A HUD não aparece</strong></summary>
+
+Selecione um token que você controla. Se estiver conectado como Mestre, confira se a opção **Mostrar a HUD para o Mestre** está ativada.
+
+</details>
+
+<details>
+<summary><strong>O Painel de Efeitos não abre</strong></summary>
+
+Verifique se você está conectado como Mestre e se a configuração **Ativar o Painel de Efeitos (Mestre)** está habilitada. Também é possível abrir o painel digitando `/efeitos` no chat.
+
+</details>
+
+<details>
+<summary><strong>Um token não consegue se mover</strong></summary>
+
+Ative a opção de depuração no console, tente mover o token e procure as mensagens `preMoveToken`. Elas ajudam a identificar se o módulo bloqueou a movimentação e por qual motivo.
+
+Verifique também se o jogador está no próprio turno, se o limite de deslocamento foi atingido e se as restrições estão habilitadas. O Mestre só fica sujeito às mesmas limitações quando o modo de teste está ativado.
+
+</details>
+
+<details>
+<summary><strong>Os valores de PV, PM ou CD estão incorretos</strong></summary>
+
+Ative a depuração no console (`F12`) e verifique os campos utilizados pelo módulo na ficha do Tormenta20. O funcionamento depende dos dados disponibilizados pelo sistema.
+
+</details>
+
+---
+
+## 🤝 Contribuições e sugestões
+
+Encontrou um problema, identificou um comportamento inesperado ou tem uma ideia para melhorar o módulo?
+
+Abra uma [issue no GitHub](https://github.com/dralfin/T20-HUD-de-Acoes-e-Painel-de-Efeitos/issues) para relatar erros e sugerir funcionalidades.
+
+Contribuições e feedbacks são bem-vindos!
+
+---
+
+<p align="center">
+  <strong>Desenvolvido para tornar os combates de Tormenta20 no Foundry VTT mais fluidos, organizados e dinâmicos.</strong>
+</p>
+
+<p align="center">
+  <strong>Desenvolvido por Olho da Tormenta</strong>
+</p>
