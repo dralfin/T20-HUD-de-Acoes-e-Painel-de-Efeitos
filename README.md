@@ -32,6 +32,37 @@ Consulte rapidamente PV, PM, Defesa e CD das magias por meio de uma interface co
   <img src="assets/images/fora-combate.png" alt="HUD compacta do personagem fora de combate" width="100%">
 </p>
 
+### 🎭 Painel de Efeitos — Interface do Mestre
+
+O Painel de Efeitos centraliza as condições e os efeitos ativos dos tokens da cena, permitindo ao Mestre consultar informações detalhadas sem precisar abrir individualmente cada ficha ou efeito.
+
+<p align="center">
+  <img src="assets/images/botao-efeitos.png" alt="Botão dourado para abrir o Painel de Efeitos" width="64">
+</p>
+
+<p align="center">
+  <em>Botão de acesso ao Painel de Efeitos, localizado na lateral esquerda da interface do Foundry VTT.</em>
+</p>
+
+<p align="center">
+  <img src="assets/images/hud-efeitos.png" alt="Painel de Efeitos do Tormenta20 mostrando filtros, efeitos ativos e informações detalhadas" width="100%">
+</p>
+
+<p align="center">
+  <em>Visualização do painel com filtros, efeitos organizados por token e detalhes exibidos ao passar o mouse sobre uma tag.</em>
+</p>
+
+**Recursos em destaque:**
+
+- **Filtros rápidos:** organize os efeitos por disposição dos tokens e tipo de ficha.
+- **Busca integrada:** encontre tokens ou efeitos pelo nome.
+- **Identificação visual:** diferencie condições, efeitos de itens, efeitos temporários e efeitos desativados.
+- **Detalhes instantâneos:** consulte duração, origem, condições e alterações aplicadas pelo efeito.
+- **Acesso direto:** clique em uma tag para abrir o efeito correspondente.
+- **Navegação rápida:** selecione um token e centralize a visualização nele.
+- **Atualização automática:** acompanhe as alterações ocorridas durante a sessão.
+
+O painel pode ser aberto pelo botão dourado na lateral esquerda ou pelo comando `/efeitos` no chat. Seu acesso é exclusivo do Mestre.
 ---
 
 ## ✨ Funcionalidades
