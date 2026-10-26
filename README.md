@@ -37,7 +37,7 @@ Consulte rapidamente PV, PM, Defesa e CD das magias por meio de uma interface co
 O Painel de Efeitos centraliza as condições e os efeitos ativos dos tokens da cena, permitindo ao Mestre consultar informações detalhadas sem precisar abrir individualmente cada ficha ou efeito.
 
 <p align="center">
-  <img src="assets/images/botao-efeitos.png" alt="Botão dourado para abrir o Painel de Efeitos" width="60">
+  <img src="assets/images/botao-efeitos.png" alt="Botão dourado para abrir o Painel de Efeitos" width="64">
 </p>
 
 <p align="center">
@@ -62,7 +62,10 @@ O Painel de Efeitos centraliza as condições e os efeitos ativos dos tokens da 
 - **Navegação rápida:** selecione um token e centralize a visualização nele.
 - **Atualização automática:** acompanhe as alterações ocorridas durante a sessão.
 
-O painel pode ser aberto pelo botão dourado na lateral esquerda ou pelo comando `/efeitos` no chat. Seu acesso é exclusivo do Mestre.
+<p align="center">
+  <em>O painel pode ser aberto pelo botão dourado na lateral esquerda ou pelo comando `/efeitos` no chat. Seu acesso é exclusivo do Mestre.</em>
+</p>
+
 ---
 
 ## ✨ Funcionalidades
