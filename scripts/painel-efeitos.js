@@ -65,15 +65,75 @@ function descricaoDoEfeito(e) {
   return textoPuro(typeof d === "string" ? d : d?.value);
 }
 
+const UNIDADES = {
+  years: "ano(s)", months: "mês(es)", days: "dia(s)", hours: "hora(s)",
+  minutes: "minuto(s)", seconds: "s", rounds: "rodada(s)", turns: "turno(s)"
+};
+
+/** Nome legível do evento de expiração (v14), quando o Foundry o conhece. */
+function nomeExpiracao(id) {
+  try {
+    const rotulo = CONFIG.ActiveEffect?.expiryEvents?.[id]?.label;
+    if (rotulo) {
+      const loc = game.i18n.localize(rotulo);
+      if (loc) return loc;
+    }
+  } catch (err) { /* ignora */ }
+  return String(id);
+}
+
+/** Duração do efeito. Funciona nos dois formatos: v13 (type/remaining/label) e v14 (value/units/expiry). */
 function duracaoDoEfeito(e) {
   const d = e.duration ?? {};
-  if (!d.type || d.type === "none") return { texto: "Permanente", restante: null };
+  if (d.units !== undefined) {
+    // Foundry v14: { value, units, expiry, remaining, label, expired }
+    const finito = Number.isFinite(d.value);
+    if (!finito && !d.expiry) return { texto: d.expired ? "Expirado" : "Permanente", restante: null, expiracao: null };
+    const un = UNIDADES[d.units] ?? d.units;
+    const texto = d.label || (finito ? `${d.value} ${un}` : "Até o evento de expiração");
+    let restante = null;
+    if (Number.isFinite(d.remaining)) {
+      const r = Math.max(0, d.remaining);
+      restante = `${d.units === "seconds" ? Math.round(r) : Math.ceil(r)} ${un}`;
+    }
+    return { texto, restante, expiracao: d.expiry ? nomeExpiracao(d.expiry) : null };
+  }
+  // Foundry v13
+  if (!d.type || d.type === "none") return { texto: "Permanente", restante: null, expiracao: null };
   let restante = null;
   if (Number.isFinite(d.remaining)) {
     const r = Math.max(0, d.remaining);
     restante = d.type === "seconds" ? `${Math.round(r)} s` : `${Math.ceil(r)} ${d.type === "turns" ? "turno(s)" : "rodada(s)"}`;
   }
-  return { texto: d.label || (d.type === "seconds" ? "Por tempo" : "Por turnos"), restante };
+  return { texto: d.label || (d.type === "seconds" ? "Por tempo" : "Por turnos"), restante, expiracao: null };
+}
+
+/** O efeito tem duração limitada? */
+function ehTemporario(e) {
+  try {
+    if (typeof e.isTemporary === "boolean") return e.isTemporary;
+  } catch (err) { /* ignora */ }
+  const d = e.duration ?? {};
+  return d.units !== undefined ? Number.isFinite(d.value) || !!d.expiry : !!d.type && d.type !== "none";
+}
+
+/** Mudanças que o efeito aplica ("chave → valor"). v14 guarda em system.changes; v13 em changes. */
+function mudancasDoEfeito(e) {
+  let lista = [];
+  try {
+    lista = Array.from(e.system?.changes ?? e.changes ?? []);
+  } catch (err) { /* ignora */ }
+  return lista.map((c) => {
+    let v = c?.value;
+    if (v && typeof v === "object") {
+      try {
+        v = JSON.stringify(v);
+      } catch (err) {
+        v = "…";
+      }
+    }
+    return `${String(c?.key ?? "").replace(/^system\./, "")} → ${v}`;
+  });
 }
 
 class PainelEfeitos {
@@ -331,7 +391,7 @@ class PainelEfeitos {
       const tags = efeitos
         .map(({ e, deItem, inativo }) => {
           this.mapa.set(e.uuid, e);
-          const cls = [inativo ? "inativo" : "", deItem ? "item" : "", e.statuses?.size ? "condicao" : "", e.isTemporary ? "temp" : ""].join(" ");
+          const cls = [inativo ? "inativo" : "", deItem ? "item" : "", e.statuses?.size ? "condicao" : "", ehTemporario(e) ? "temp" : ""].join(" ");
           return `<button type="button" class="pe-tag ${cls}" data-uid="${esc(e.uuid)}">${esc(e.name ?? e.label)}</button>`;
         })
         .join("");
@@ -363,11 +423,13 @@ class PainelEfeitos {
     const desc = descricaoDoEfeito(e);
     const origem = origemDoEfeito(e);
     const estados = [...(e.statuses ?? [])];
-    const mudancas = (e.changes ?? []).slice(0, 6).map((c) => `${String(c.key).replace(/^system\./, "")} → ${c.value}`);
-    const mais = (e.changes?.length ?? 0) - mudancas.length;
+    const todasMudancas = mudancasDoEfeito(e);
+    const mudancas = todasMudancas.slice(0, 6);
+    const mais = todasMudancas.length - mudancas.length;
     const linhas = [
       ["Duração", esc(dur.texto)],
       dur.restante ? ["Restante", esc(dur.restante)] : null,
+      dur.expiracao ? ["Expira em", esc(dur.expiracao)] : null,
       origem ? ["Origem", esc(origem)] : null,
       estados.length ? ["Condição", esc(estados.join(", "))] : null,
       e.disabled ? ["Estado", "Desativado"] : e.isSuppressed ? ["Estado", "Suprimido"] : null

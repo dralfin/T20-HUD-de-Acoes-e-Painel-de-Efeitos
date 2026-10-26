@@ -921,8 +921,10 @@ Hooks.once("init", () => {
     hint: "Escolha um arquivo de áudio. Deixe vazio para usar um sinal sonoro padrão do módulo.",
     scope: "world",
     config: true,
-    type: String,
-    filePicker: "audio",
+    // v13/v14: campo de arquivo de áudio; se o campo moderno não existir, usa o seletor antigo
+    ...(foundry.data?.fields?.FilePathField
+      ? { type: new foundry.data.fields.FilePathField({ categories: ["AUDIO"], blank: true, initial: "" }) }
+      : { type: String, filePicker: "audio" }),
     default: ""
   });
   game.settings.register(ID, "somVolume", {
@@ -1297,7 +1299,8 @@ function planejarVolta(doc, e, alvoS) {
 
 async function esperarAnimacao(doc) {
   try {
-    const pr = doc.object?.movementAnimationPromise;
+    // v14: movement.animation.ended; v13: Token#movementAnimationPromise
+    const pr = doc.movement?.animation?.ended ?? doc.object?.movementAnimationPromise;
     if (pr) await pr;
     else await new Promise((r) => setTimeout(r, 350));
   } catch (err) { /* ignora */ }
