@@ -2,10 +2,10 @@
 
 **Mais agilidade nos combates. Mais controle para o Mestre. Uma experiência melhor para todos.**
 
-Um módulo para **Tormenta20 no Foundry Virtual Tabletop v13** que simplifica o gerenciamento de ações, recursos, deslocamento e turnos dos personagens, além de oferecer ao Mestre um painel centralizado para acompanhar os efeitos ativos da cena.
+Um módulo para **Tormenta20 no Foundry Virtual Tabletop v13 e v14** que simplifica o gerenciamento de ações, recursos, deslocamento e turnos dos personagens, além de oferecer ao Mestre um painel centralizado para acompanhar os efeitos ativos da cena.
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Foundry%20VTT-v13%20%7C%20v14-gold?style=for-the-badge" alt="Foundry VTT v13">
+  <img src="https://img.shields.io/badge/Foundry%20VTT-v13%20%7C%20v14-gold?style=for-the-badge" alt="Foundry VTT v13 e v14">
   <img src="https://img.shields.io/badge/Sistema-Tormenta20-red?style=for-the-badge" alt="Tormenta20">
   <img src="https://img.shields.io/badge/Idioma-Portugu%C3%AAs-blue?style=for-the-badge" alt="Português">
 </p>
@@ -45,7 +45,7 @@ O Painel de Efeitos centraliza as condições e os efeitos ativos dos tokens da 
 </p>
 
 <p align="center">
-  <img src="assets/images/hud-efeitos.png" alt="Painel de Efeitos do Tormenta20 mostrando filtros, efeitos ativos e informações detalhadas" width=50%">
+  <img src="assets/images/hud-efeitos.png" alt="Painel de Efeitos do Tormenta20 mostrando filtros, efeitos ativos e informações detalhadas" width="50%">
 </p>
 
 <p align="center">
@@ -160,7 +160,7 @@ Depois ative o módulo no mundo.
 
 ### Requisitos
 
-- **Foundry Virtual Tabletop:** versão 13.
+- **Foundry Virtual Tabletop:** versões 13 e 14.
 - **Sistema de jogo:** Tormenta20.
 
 ---
@@ -216,6 +216,15 @@ const api = game.modules.get("t20-acoes-hud")?.api;
 | `painelEfeitos.alternar()` | Alterna entre abrir e fechar o painel. |
 
 Os métodos do Painel de Efeitos são destinados ao Mestre.
+
+---
+
+## 🔄 Compatibilidade com o Foundry
+
+- **Foundry v13 e v14:** o módulo foi atualizado para funcionar nas duas versões.
+- **Efeitos no v14:** o Foundry v14 alterou o formato dos efeitos ativos. O Painel de Efeitos lê os formatos compatíveis, incluindo duração e evento de expiração, quando disponibilizados pelo sistema.
+- **Movimentação:** as regras utilizam os recursos de movimento de token disponíveis na versão do Foundry. Se um recurso não existir, o módulo utiliza uma alternativa.
+- **Comando `/efeitos`:** depende do evento de chat do Foundry. Se não funcionar, abra o painel pelo botão dourado na lateral esquerda.
 
 ---
 
