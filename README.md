@@ -1,3 +1,5 @@
+[<img width="1707" height="282" alt="image" src="https://github.com/user-attachments/assets/4b3c724c-c53c-4272-8a79-df80d0ab9a9c" />](https://www.youtube.com/@olhodatormenta)
+
 # ⚔️ T20 — HUD de Ações e Painel de Efeitos
 
 **Mais agilidade nos combates. Mais controle para o Mestre. Uma experiência melhor para todos.**
