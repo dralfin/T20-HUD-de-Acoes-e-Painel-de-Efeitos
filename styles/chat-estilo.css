@@ -1,0 +1,205 @@
+/* =====================================================================================
+   Estilo do módulo aplicado aos cards padrão do chat (Foundry + Tormenta20).
+   Só vale com a configuração "Estilo do módulo nos cards do chat" ligada
+   (a classe t20ah-chat-estilo é colocada no <body>). É só CSS: nenhuma informação é removida.
+   Os cards do próprio módulo (.t20ah-card-message) e as linhas de anúncio não são alteradas.
+   ===================================================================================== */
+body.t20ah-chat-estilo {
+  --t20c-bg1: #1a1013;
+  --t20c-bg2: #2b1a1d;
+  --t20c-ouro: #e0b85c;
+  --t20c-texto: #f2e8d5;
+  --t20c-mudo: #9a8a7a;
+  --t20c-fonte: "Signika", sans-serif;
+  --t20c-titulo: "Modesto Condensed", "Signika", sans-serif;
+}
+
+/* ---------- moldura da mensagem ---------- */
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) {
+  overflow: hidden;
+  padding: 0;
+  margin: 0.35rem 0;
+  border-radius: 0.7em;
+  font-family: var(--t20c-fonte);
+  color: var(--t20c-texto);
+  background: linear-gradient(165deg, var(--t20c-bg2), var(--t20c-bg1));
+  border: 1px solid rgba(224, 184, 92, 0.45);
+  border-left: 4px solid var(--t20c-ouro);
+  box-shadow: 0 0.3em 0.9em rgba(0, 0, 0, 0.45);
+}
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message)::before,
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message)::after { display: none; content: none; }
+body.t20ah-chat-estilo .chat-message.whisper:not(.t20ah-card-message) { border-left-color: #a77bd6; }
+body.t20ah-chat-estilo .chat-message.blind:not(.t20ah-card-message) { border-left-color: #d64545; }
+body.t20ah-chat-estilo .chat-message.emote:not(.t20ah-card-message),
+body.t20ah-chat-estilo .chat-message.ooc:not(.t20ah-card-message) { border-left-color: #4db6e6; }
+
+/* ---------- cabeçalho (nome / flavor / hora) ---------- */
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.5em 0.75em;
+  margin: 0;
+  background: linear-gradient(90deg, rgba(224, 184, 92, 0.28), transparent 85%);
+  border-bottom: 1px solid rgba(224, 184, 92, 0.25);
+  color: var(--t20c-texto);
+}
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-sender,
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-header h4 {
+  margin: 0;
+  font-family: var(--t20c-titulo);
+  font-size: 1.25em;
+  letter-spacing: 0.03em;
+  color: var(--t20c-ouro);
+  text-shadow: 0 1px 0 #000;
+}
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-metadata,
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-timestamp,
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-delete {
+  color: var(--t20c-mudo);
+  font-size: 0.75em;
+}
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .flavor-text {
+  display: block;
+  padding: 0.3em 0.8em;
+  font-size: 0.72em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--t20c-mudo);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ---------- conteúdo ---------- */
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-content {
+  padding: 0.55em 0.8em;
+  font-size: 0.92em;
+  line-height: 1.4;
+  color: var(--t20c-texto);
+  background: transparent;
+}
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-content p { margin: 0 0 0.45em; }
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-content p:last-child { margin-bottom: 0; }
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-content a,
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-content .content-link { color: var(--t20c-ouro); }
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-content hr { border-color: rgba(255, 255, 255, 0.1); }
+
+/* ---------- cards de item / magia / poder (sistema Tormenta20) ---------- */
+body.t20ah-chat-estilo .chat-message .chat-card,
+body.t20ah-chat-estilo .chat-message .tormenta20.chat-card { color: var(--t20c-texto); font-family: var(--t20c-fonte); }
+body.t20ah-chat-estilo .chat-message .chat-card .card-header,
+body.t20ah-chat-estilo .chat-message .chat-card header {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  margin: -0.55em -0.8em 0.5em;
+  padding: 0.55em 0.8em;
+  background: linear-gradient(90deg, rgba(224, 184, 92, 0.3), transparent 85%);
+  border-bottom: 1px solid rgba(224, 184, 92, 0.25);
+}
+body.t20ah-chat-estilo .chat-message .chat-card .card-header img,
+body.t20ah-chat-estilo .chat-message .chat-card header img {
+  flex: 0 0 auto;
+  width: 2.4em;
+  height: 2.4em;
+  object-fit: cover;
+  border-radius: 0.5em;
+  border: 1px solid rgba(224, 184, 92, 0.6);
+  box-shadow: 0 0 0.5em rgba(224, 184, 92, 0.35);
+}
+body.t20ah-chat-estilo .chat-message .chat-card .card-header h3,
+body.t20ah-chat-estilo .chat-message .chat-card header h3,
+body.t20ah-chat-estilo .chat-message .chat-card .item-name {
+  margin: 0;
+  border: 0;
+  font-family: var(--t20c-titulo);
+  font-size: 1.35em;
+  letter-spacing: 0.03em;
+  color: var(--t20c-ouro);
+  text-shadow: 0 1px 0 #000;
+}
+body.t20ah-chat-estilo .chat-message .chat-card .card-content,
+body.t20ah-chat-estilo .chat-message .chat-card .card-description { font-size: 0.95em; color: var(--t20c-texto); }
+body.t20ah-chat-estilo .chat-message .chat-card .card-footer,
+body.t20ah-chat-estilo .chat-message .chat-card footer {
+  margin: 0.5em -0.8em -0.55em;
+  padding: 0.4em 0.8em;
+  font-size: 0.75em;
+  color: var(--t20c-mudo);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.25);
+}
+body.t20ah-chat-estilo .chat-message .chat-card .card-footer span,
+body.t20ah-chat-estilo .chat-message .chat-card footer span {
+  display: inline-block;
+  margin: 0 0.3em 0 0;
+  padding: 0.1em 0.5em;
+  background: rgba(224, 184, 92, 0.12);
+  border: 1px solid rgba(224, 184, 92, 0.3);
+  border-radius: 0.4em;
+  color: var(--t20c-texto);
+}
+
+/* ---------- rolagens ---------- */
+body.t20ah-chat-estilo .chat-message .dice-roll { margin: 0.3em 0; }
+body.t20ah-chat-estilo .chat-message .dice-result { color: var(--t20c-texto); }
+body.t20ah-chat-estilo .chat-message .dice-formula {
+  padding: 0.25em 0.6em;
+  border-radius: 0.5em;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--t20c-mudo);
+  font-size: 0.85em;
+}
+body.t20ah-chat-estilo .chat-message .dice-tooltip { background: transparent; color: var(--t20c-texto); }
+body.t20ah-chat-estilo .chat-message .dice-tooltip .wrapper { background: rgba(0, 0, 0, 0.25); border-radius: 0.5em; }
+body.t20ah-chat-estilo .chat-message .dice-tooltip .part-formula,
+body.t20ah-chat-estilo .chat-message .dice-tooltip .part-total { color: var(--t20c-ouro); }
+body.t20ah-chat-estilo .chat-message .dice-total {
+  margin: 0.35em 0 0;
+  padding: 0.2em 0.5em;
+  border-radius: 0.5em;
+  border: 1px solid rgba(224, 184, 92, 0.6);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--t20c-ouro);
+  font-family: var(--t20c-titulo);
+  font-size: 1.6em;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 0.5em rgba(224, 184, 92, 0.5);
+}
+body.t20ah-chat-estilo .chat-message .dice-total.critical,
+body.t20ah-chat-estilo .chat-message .dice-roll .critical { color: #ffd76a; border-color: #ffd76a; text-shadow: 0 0 0.6em rgba(255, 215, 106, 0.7); }
+body.t20ah-chat-estilo .chat-message .dice-total.fumble,
+body.t20ah-chat-estilo .chat-message .dice-roll .fumble { color: #ff9c92; border-color: #d64545; text-shadow: 0 0 0.6em rgba(214, 69, 69, 0.6); }
+body.t20ah-chat-estilo .chat-message .dice-tooltip .dice-rolls .roll,
+body.t20ah-chat-estilo .chat-message .dice-tooltip .dice-rolls li {
+  background-color: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--t20c-texto);
+  border-radius: 0.4em;
+}
+body.t20ah-chat-estilo .chat-message .dice-tooltip .dice-rolls .max { color: #9be3b0; border-color: rgba(76, 175, 106, 0.7); }
+body.t20ah-chat-estilo .chat-message .dice-tooltip .dice-rolls .min { color: #ff9c92; border-color: rgba(214, 69, 69, 0.7); }
+
+/* ---------- botões dentro das mensagens (dano, aplicar, etc.) ---------- */
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-content button {
+  font-family: var(--t20c-fonte);
+  color: var(--t20c-texto);
+  background: linear-gradient(160deg, rgba(224, 184, 92, 0.28), var(--t20c-bg1));
+  border: 1px solid rgba(224, 184, 92, 0.55);
+  border-radius: 0.5em;
+  box-shadow: none;
+  transition: filter 0.15s, transform 0.15s;
+}
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-content button:hover {
+  filter: brightness(1.25);
+  box-shadow: 0 0 0.6em rgba(224, 184, 92, 0.45);
+}
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-content button:active { transform: scale(0.97); }
+
+/* ---------- linhas de anúncio do módulo ficam discretas ---------- */
+body.t20ah-chat-estilo .chat-message:has(.t20ah-chat) { border-left-width: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  body.t20ah-chat-estilo .chat-message button { transition: none; }
+}

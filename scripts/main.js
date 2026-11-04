@@ -9,15 +9,21 @@
  * Ações livres e reações: sem limite.
  */
 
+import { CATEGORIAS_ACOES } from "./acoes-t20.js";
+
 const ID = "t20-acoes-hud";
 const FLAG = "acoes";
-const VAZIO = { std: false, mov: false, conv: false, full: false, dist: 0, hist: [] };
+const ANIM_MS = 1600; // duração das animações de perda e ganho de PV/PM
+
+const VAZIO = { std: false, mov: false, conv: false, full: false, ext: null, corrida: null, movAtividade: 0, dist: 0, hist: [] };
 // std  = ação padrão gasta
 // mov  = ação de movimento gasta
 // conv = a ação padrão foi gasta como 2º movimento
 // full = ação completa usada
+// corrida = { max: quadrados do grid que ainda podem ser corridos neste turno, dir: direção da corrida } ou null
+// ext  = ação extra (efeito Velocidade) já gasta: null | "padrao" | "movimento"
 // dist = distância já percorrida no turno (em quadrados)
-// hist = passos de movimento do turno [{ d: distância, m: gastou movimento, c: gastou 2º movimento }] (usado pelo Ctrl+Z)
+// hist = passos de movimento do turno [{ d: distância, m: gastou movimento, c: gastou 2º movimento, x: gastou a ação extra }] (usado pelo Ctrl+Z)
 
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -46,11 +52,32 @@ function quadradosPorAcao(actor) {
   return deslocamentoMetros(actor) / cfg("metrosPorQuadrado");
 }
 
+/**
+ * O ator tem um efeito ativo "Velocidade" ou "Poção de Velocidade"?
+ * Ele concede uma ação extra por turno: uma ação padrão OU uma ação de movimento.
+ */
+const EFEITOS_EXTRA = /^(pocao de )?velocidade$/;
+function temExtra(actor) {
+  if (!actor) return false;
+  let lista;
+  try {
+    lista = typeof actor.allApplicableEffects === "function" ? Array.from(actor.allApplicableEffects()) : Array.from(actor.effects ?? []);
+  } catch (err) {
+    lista = Array.from(actor.effects ?? []);
+  }
+  return lista.some((ef) => !ef.disabled && ef.isSuppressed !== true && EFEITOS_EXTRA.test(normalizar(ef.name ?? ef.label)));
+}
+
 /** Quantas ações de movimento o combatente ainda pode ter no total (já gastas + obteníveis). */
-function maxMovimentos(e) {
-  if (e.full) return 0;
-  const gastas = (e.mov ? 1 : 0) + (e.conv ? 1 : 0);
-  return gastas + (e.mov ? 0 : 1) + (e.std ? 0 : 1);
+function maxMovimentos(e, extra = false) {
+  // A ação extra (Velocidade) soma 1 movimento, a menos que já tenha sido gasta como ação padrão.
+  const bonus = extra && e.ext !== "padrao" ? 1 : 0;
+  if (e.full) return bonus && !e.ext ? 1 : 0;
+  // Ações de movimento gastas por poderes/itens/ações da HUD não podem virar deslocamento.
+  // A ação padrão só conta como segundo movimento quando foi convertida (conv).
+  const gastasPorAtividade = Math.max(0, Number(e.movAtividade) || 0);
+  const acaoPadraoNaoConvertida = e.std && !e.conv ? 1 : 0;
+  return Math.max(0, 2 + bonus - gastasPorAtividade - acaoPadraoNaoConvertida);
 }
 
 /* ---------- Itens ---------- */
@@ -198,6 +225,8 @@ const NOMES = {
 class AcoesHUD {
   static el = null;
   static _ultimo = null;
+  static _foto = null; // PV/PM do último desenho (para detectar perdas e ganhos)
+  static _anims = []; // animações de perda/ganho ainda em andamento
 
   /* ---------- Dados ---------- */
 
@@ -214,11 +243,16 @@ class AcoesHUD {
   }
 
   /** Calcula o novo estado ao gastar/devolver. Retorna null se não for possível. */
-  static aplicar(tipo, acao, estado) {
+  static aplicar(tipo, acao, estado, extra = false) {
     const e = { ...estado };
     if (acao === "gastar") {
+      const extraLivre = extra && !e.ext;
       if (tipo === "padrao") {
-        if (e.std) return null;
+        if (e.std) {
+          if (!extraLivre) return null;
+          e.ext = "padrao"; // a ação extra (Velocidade) vale como ação padrão
+          return e;
+        }
         e.std = true;
         e.conv = false;
       } else if (tipo === "movimento") {
@@ -226,7 +260,10 @@ class AcoesHUD {
         else if (!e.std) {
           e.std = true;
           e.conv = true; // padrão trocada por movimento
+        } else if (extraLivre) {
+          e.ext = "movimento"; // a ação extra (Velocidade) vale como ação de movimento
         } else return null;
+        e.movAtividade = (Number(e.movAtividade) || 0) + 1;
       } else if (tipo === "completa") {
         if (e.std || e.mov) return null;
         e.std = e.mov = e.full = true;
@@ -237,26 +274,46 @@ class AcoesHUD {
     // devolver
     if (e.full) return { ...VAZIO };
     if (tipo === "padrao") {
+      if (e.ext === "padrao") {
+        e.ext = null;
+        return e;
+      }
       if (!e.std || e.conv) return null;
       e.std = false;
     } else if (tipo === "movimento") {
+      if (e.ext === "movimento") {
+        e.ext = null;
+        e.movAtividade = Math.max(0, (Number(e.movAtividade) || 0) - 1);
+        return e;
+      }
       if (e.conv) {
         e.conv = false;
         e.std = false;
       } else if (e.mov) e.mov = false;
       else return null;
+      e.movAtividade = Math.max(0, (Number(e.movAtividade) || 0) - 1);
     } else return null;
     return e;
   }
 
-  static async usar(tipo, acao, nomeItem = null) {
+  static async usar(tipo, acao, nomeItem = null, anunciar = true) {
     const c = this.combatenteAtual();
     if (!c) return false;
     const antes = getEstado(c);
+    const extra = temExtra(c.actor);
     let novo;
     let plano = null;
-    if (acao === "devolver" && tipo === "movimento" && seguirRegras() && !antes.full &&
-        (antes.dist ?? 0) > 0.001 && (antes.mov || antes.conv)) {
+    let ajustaHist = false;
+    const capSemExtra = antes.full ? 0 : ((antes.mov ? 1 : 0) + (antes.conv ? 1 : 0)) * quadradosPorAcao(c.actor);
+    if (acao === "devolver" && tipo === "movimento" && seguirRegras() && antes.ext === "movimento" &&
+        (antes.dist ?? 0) > capSemExtra + 0.001) {
+      // A ação extra (Velocidade) foi usada andando: o token volta até onde chegaria sem ela.
+      plano = planejarVolta(c.token, antes, capSemExtra);
+      novo = { ...antes, ext: null, dist: capSemExtra, hist: plano?.histAndando ?? antes.hist };
+      ajustaHist = true;
+    } else if (acao === "devolver" && tipo === "movimento" && seguirRegras() && !antes.full &&
+        (antes.dist ?? 0) > 0.001 && (antes.mov || antes.conv) &&
+        !((Number(antes.movAtividade) || 0) > 0 && (antes.dist ?? 0) <= quadradosPorAcao(c.actor) + 0.001)) {
       // Jogador devolveu uma ação de movimento depois de andar: o token volta pelo caminho percorrido.
       // 2 movimentos usados -> volta até o máximo da 1ª movimentação; 1 movimento -> volta ao início.
       if (antes.conv) {
@@ -265,10 +322,10 @@ class AcoesHUD {
         novo = { ...antes, conv: false, std: false, dist: alvoS, hist: plano?.histAndando ?? antes.hist };
       } else {
         plano = planejarVolta(c.token, antes, 0);
-        novo = { ...antes, mov: false, dist: 0, hist: [] };
+        novo = { ...antes, mov: false, movAtividade: 0, dist: 0, hist: [] };
       }
     } else {
-      novo = this.aplicar(tipo, acao, antes);
+      novo = this.aplicar(tipo, acao, antes, extra);
     }
     if (!novo) {
       if (acao === "gastar") ui.notifications.warn(`${c.name} não tem ${NOMES[tipo]} disponível.`);
@@ -276,7 +333,7 @@ class AcoesHUD {
     }
     if (acao === "devolver") USO_ITEM.itens.clear();
     if (acao === "devolver" && tipo !== "padrao") {
-      const gastas = (novo.mov ? 1 : 0) + (novo.conv ? 1 : 0);
+      const gastas = (novo.mov ? 1 : 0) + (novo.conv ? 1 : 0) + (novo.ext === "movimento" ? 1 : 0);
       novo.dist = Math.min(novo.dist ?? 0, gastas * quadradosPorAcao(c.actor));
     }
     try {
@@ -286,11 +343,14 @@ class AcoesHUD {
       }
       if (plano) {
         const modo = await executarVolta(c.token, plano);
-        if (antes.conv) novo.hist = modo === "nativo" ? plano.histNativo : plano.histAndando;
+        if (antes.conv || ajustaHist) novo.hist = modo === "nativo" ? plano.histNativo : plano.histAndando;
       }
       await c.setFlag(ID, FLAG, novo);
-      if (acao === "gastar" && game.settings.get(ID, "anunciarChat")) {
-        const usada = tipo === "movimento" && novo.conv ? "uma 2ª ação de movimento (no lugar da padrão)" : `uma ${NOMES[tipo]}`;
+      if (acao === "gastar" && anunciar && game.settings.get(ID, "anunciarChat")) {
+        const usouExtra = novo.ext && !antes.ext;
+        const usada = usouExtra
+          ? `a ação extra da Velocidade (como ${NOMES[novo.ext]})`
+          : tipo === "movimento" && novo.conv ? "uma 2ª ação de movimento (no lugar da padrão)" : `uma ${NOMES[tipo]}`;
         ChatMessage.create({
           speaker: { alias: c.name },
           flags: { [ID]: { anuncio: true } },
@@ -326,7 +386,7 @@ class AcoesHUD {
     }
     if (USO_ITEM.itens.has(item.uuid)) return false;
 
-    const novo = this.aplicar(tipo, "gastar", getEstado(c));
+    const novo = this.aplicar(tipo, "gastar", getEstado(c), temExtra(c.actor));
     if (!novo) {
       ui.notifications.warn(`${c.name} não tem ${NOMES[tipo]} disponível para usar ${item.name}.`);
       return false;
@@ -365,7 +425,9 @@ class AcoesHUD {
     el.addEventListener("click", (ev) => {
       const b = ev.target.closest("button");
       if (!b || !el.contains(b)) return;
-      if (b.dataset.tipo) this.usar(b.dataset.tipo, "gastar");
+      if (b.dataset.i !== undefined) MenuAcoes.executar(b.dataset.cat, Number(b.dataset.i));
+      else if (b.dataset.aa) MenuAcoes.alternarCategoria(b.dataset.aa);
+      else if (b.dataset.tipo) this.usar(b.dataset.tipo, "gastar");
       else if (b.dataset.acao === "reset") this.reiniciar();
       else if (b.dataset.acao === "passar") this.passarTurno();
       else if (b.dataset.acao === "tempo") this.definirTempo();
@@ -400,6 +462,13 @@ class AcoesHUD {
         setTimeout(() => this.render(), 80);
       }
     });
+    // regra da ação ao passar o mouse (painel de ações do layout largo)
+    el.addEventListener("mousemove", (ev) => {
+      const a = ev.target.closest?.("[data-i]");
+      if (!a) return MenuAcoes.esconderTip();
+      MenuAcoes.dicaPara(a, ev);
+    });
+    el.addEventListener("mouseleave", () => MenuAcoes.esconderTip());
     el.addEventListener("pointerdown", (ev) => {
       if (ev.button === 0 && ev.target.closest(".t20ah-cabeca")) this.iniciarArraste(ev);
     });
@@ -410,6 +479,7 @@ class AcoesHUD {
     });
 
     this.el = el;
+    new ResizeObserver(() => MenuAcoes.posicionar()).observe(el); // acompanha recolher/expandir
     return el;
   }
 
@@ -448,18 +518,51 @@ class AcoesHUD {
     this._t = setTimeout(() => this.render(), 40);
   }
 
-  static linhaRecurso(actor, chave, icone, rotulo) {
+  static linhaRecurso(actor, chave, icone, rotulo, anims = []) {
     const r = lerRecurso(actor, chave);
     if (!r) return "";
     const pct = r.max > 0 ? clamp((r.value / r.max) * 100, 0, 100) : 0;
     const campo = (nome, valor, dica) =>
       `<input type="text" inputmode="numeric" autocomplete="off" data-rec="${chave}" data-campo="${nome}" value="${valor}" title="${dica}">`;
+
+    // animações de perda e ganho (continuam de onde pararam se a HUD for redesenhada no meio delas)
+    const agora = Date.now();
+    const doValor = anims.filter((x) => x.rec === chave && x.campo === "value");
+    const doTemp = anims.filter((x) => x.rec === chave && x.campo === "temp");
+    const flutua = (lista) =>
+      lista
+        .map((x) => {
+          const ganho = x.tipo === "ganho";
+          return `<span class="rec-flutua ${x.campo}${ganho ? " ganho" : ""}" style="--atraso:-${Math.max(0, agora - x.t0)}ms">${ganho ? "+" : "−"}${x.delta}</span>`;
+        })
+        .join("");
+    const maisRecente = (lista) => [...lista].sort((a, b) => b.t0 - a.t0)[0];
+    const aV = maisRecente(doValor);
+    const aT = maisRecente(doTemp);
+    const perdaValor = aV?.tipo === "perda";
+    const ganhoValor = aV?.tipo === "ganho";
+    const ghost = perdaValor
+      ? `<div class="ghost" style="--de:${r.max > 0 ? clamp((aV.de / r.max) * 100, 0, 100) : 0}%;--para:${pct}%;--atraso:-${Math.max(0, agora - aV.t0)}ms"></div>`
+      : "";
+    // ganho: a barra enche do valor antigo até o novo
+    const estiloFill = ganhoValor
+      ? ` style="width:${pct}%;--de:${r.max > 0 ? clamp((aV.de / r.max) * 100, 0, 100) : 0}%;--para:${pct}%;--atraso:-${Math.max(0, agora - aV.t0)}ms"`
+      : ` style="width:${pct}%"`;
+    const recente = maisRecente([...doValor, ...doTemp]);
+    const classes = [
+      perdaValor ? "dano-valor" : "",
+      ganhoValor ? "cura-valor" : "",
+      aT?.tipo === "perda" ? "dano-temp" : "",
+      aT?.tipo === "ganho" ? "cura-temp" : ""
+    ].join(" ");
+    const estiloLinha = recente ? ` style="--atraso-linha:-${Math.max(0, agora - recente.t0)}ms"` : "";
+
     return `
-      <div class="t20ah-rec ${chave}">
+      <div class="t20ah-rec ${chave} ${classes}"${estiloLinha}>
         <i class="fa-solid ${icone} rec-ico" title="${rotulo}"></i>
-        <div class="trilho" title="${rotulo}: ${r.value} / ${r.max}"><div class="fill" style="width:${pct}%"></div></div>
-        <span class="rec-val">${campo("value", r.value, `${rotulo} atual — digite um número, ou +5 / -5 para somar ou subtrair`)}<span class="max">/ ${r.max}</span></span>
-        <span class="rec-temp" title="${rotulo} temporário"><span class="temp-ico"><i class="fa-solid ${icone}"></i><i class="fa-solid fa-hourglass-half badge"></i></span>${campo("temp", r.temp, `${rotulo} temporário`)}</span>
+        <div class="trilho" title="${rotulo}: ${r.value} / ${r.max}">${ghost}<div class="fill"${estiloFill}></div></div>
+        <span class="rec-val">${campo("value", r.value, `${rotulo} atual — digite um número, ou +5 / -5 para somar ou subtrair`)}<span class="max">/ ${r.max}</span>${flutua(doValor)}</span>
+        <span class="rec-temp" title="${rotulo} temporário"><span class="temp-ico"><i class="fa-solid ${icone}"></i><i class="fa-solid fa-hourglass-half badge"></i></span>${campo("temp", r.temp, `${rotulo} temporário`)}${flutua(doTemp)}</span>
       </div>`;
   }
 
@@ -499,10 +602,13 @@ class AcoesHUD {
     if (!t) {
       el.classList.add("oculto");
       this._ultimo = null;
+      this._foto = null;
+      this._anims = [];
+      MenuAcoes.sincronizar();
       return;
     }
     // não reconstrói a HUD enquanto o jogador digita
-    if (el.contains(document.activeElement) && document.activeElement.matches?.("input")) {
+    if (el.contains(document.activeElement) && document.activeElement?.matches?.("input")) {
       this._pendente = true;
       return;
     }
@@ -526,14 +632,58 @@ class AcoesHUD {
       def != null ? `<span class="chip def" title="Defesa total"><i class="fa-solid fa-shield"></i> DEF ${def}</span>` : "",
       cd != null ? `<span class="chip cd" title="CD das magias"><i class="fa-solid fa-wand-sparkles"></i> CD ${cd}</span>` : ""
     ].join("");
-    const recursos = this.linhaRecurso(actor, "pv", "fa-heart", "PV") + this.linhaRecurso(actor, "pm", "fa-wand-sparkles", "PM");
+    // ----- perdas e ganhos de PV/PM (e temporários): comparam com o último desenho do mesmo personagem -----
+    const agoraAnim = Date.now();
+    const foto = {
+      pv: pv ? { v: pv.value, t: pv.temp, max: pv.max } : null,
+      pm: pm ? { v: pm.value, t: pm.temp, max: pm.max } : null
+    };
+    const idAtor = actor.uuid ?? actor.id ?? actor.name;
+    if (this._foto && this._foto.ator === idAtor) {
+      for (const k of ["pv", "pm"]) {
+        const antes = this._foto[k];
+        const agoraV = foto[k];
+        if (!antes || !agoraV) continue;
+        for (const [campo, a, b] of [["value", antes.v, agoraV.v], ["temp", antes.t, agoraV.t]]) {
+          if (a === b) continue;
+          const tipo = b < a ? "perda" : "ganho";
+          // uma mudança no sentido contrário substitui a animação anterior do mesmo campo
+          this._anims = this._anims.filter((x) => !(x.rec === k && x.campo === campo && x.tipo !== tipo));
+          this._anims.push({ rec: k, campo, tipo, delta: Math.abs(b - a), de: a, para: b, t0: agoraAnim });
+        }
+      }
+    } else {
+      this._anims = [];
+    }
+    this._foto = { ator: idAtor, ...foto };
+    this._anims = this._anims.filter((x) => agoraAnim - x.t0 < ANIM_MS);
+    const danoResumo = (k) => {
+      const recente = this._anims.filter((x) => x.rec === k).sort((a, b) => b.t0 - a.t0)[0];
+      return recente ? ` ${recente.tipo === "ganho" ? "cura" : "dano"}" style="--atraso:-${Math.max(0, agoraAnim - recente.t0)}ms` : "";
+    };
+
+    const recursos =
+      this.linhaRecurso(actor, "pv", "fa-heart", "PV", this._anims) +
+      this.linhaRecurso(actor, "pm", "fa-wand-sparkles", "PM", this._anims);
     const resumoRec = [
-      pv ? `<span class="pv"><i class="fa-solid fa-heart"></i> ${pv.value}${pv.temp ? `+${pv.temp}` : ""}/${pv.max}</span>` : "",
-      pm ? `<span class="pm"><i class="fa-solid fa-wand-sparkles"></i> ${pm.value}${pm.temp ? `+${pm.temp}` : ""}/${pm.max}</span>` : "",
+      pv ? `<span class="pv${danoResumo("pv")}"><i class="fa-solid fa-heart"></i> ${pv.value}${pv.temp ? `+${pv.temp}` : ""}/${pv.max}</span>` : "",
+      pm ? `<span class="pm${danoResumo("pm")}"><i class="fa-solid fa-wand-sparkles"></i> ${pm.value}${pm.temp ? `+${pm.temp}` : ""}/${pm.max}</span>` : "",
       def != null ? `<span class="def"><i class="fa-solid fa-shield"></i> ${def}</span>` : ""
     ].join("");
 
     // ----- ações (só no turno do token) -----
+    // Em combate (no turno ou não): layout largo, com o painel de ações ao lado, tudo numa HUD só.
+    const largo = !!c && MenuAcoes.habilitado() && cfg("layoutCombate") === "largo";
+    if (largo) MenuAcoes.catAberta = null; // o menu flutuante não é usado neste layout
+    const menuLinha = MenuAcoes.habilitado() && !largo
+      ? `<div class="t20ah-livro">${CATEGORIAS_ACOES.map(
+          (cat) => `
+          <button type="button" class="lv-btn ${MenuAcoes.catAberta === cat.id ? "ativo" : ""}" data-aa="${cat.id}"
+                  style="--cor:${cat.cor}" title="${esc(cat.nome)}: consultar e usar">
+            <i class="fa-solid ${cat.icone}"></i><span>${esc(cat.curto)}</span>
+          </button>`
+        ).join("")}</div>`
+      : "";
     let acoes = "";
     let resumoAcoes = "";
     let btnsTurno = "";
@@ -541,7 +691,8 @@ class AcoesHUD {
       const e = getEstado(c);
       const limitar = cfg("limitarMovimento");
       const porAcao = quadradosPorAcao(actor);
-      const capQuad = maxMovimentos(e) * porAcao;
+      const extra = temExtra(actor);
+      const capQuad = e.corrida ? e.corrida.max : maxMovimentos(e, extra) * porAcao;
       const mQuad = cfg("metrosPorQuadrado");
       const usadoM = (e.dist ?? 0) * mQuad;
       const capM = capQuad * mQuad;
@@ -576,11 +727,19 @@ class AcoesHUD {
           pips: this.pip(e.full ? "on" : "") + this.pip(e.full ? "on" : "")
         })
       ].join("");
+      const tileExtra = extra
+        ? `<div class="t20ah-tile extra ${e.ext ? "gasto" : ""}" title="Velocidade: uma ação padrão ou de movimento extra. Gasta sozinha quando a padrão ou o movimento acabam.">
+             <i class="fa-solid fa-bolt"></i>
+             <span class="t20ah-rotulo">Extra${e.ext ? ` (${e.ext === "padrao" ? "padrão" : "mov."})` : ""}</span>
+             <span class="t20ah-pips">${this.pip(e.ext ? "on" : "")}</span>
+           </div>`
+        : "";
       acoes = `
         <div class="t20ah-sep"></div>
-        <div class="t20ah-botoes">${tiles}</div>
+        <div class="t20ah-botoes ${extra ? "com-extra" : ""}">${tiles}${tileExtra}</div>
         ${tempoHtml}
         ${barra}
+        ${menuLinha}
         <button type="button" class="t20ah-passar" data-acao="passar" title="Passa a vez para o próximo combatente">
           <i class="fa-solid fa-forward-step"></i> Encerrar turno
         </button>
@@ -588,19 +747,23 @@ class AcoesHUD {
       resumoAcoes = `
         <i class="fa-solid fa-hand-fist ico-acao padrao ${!e.std ? "livre" : ""}" title="Ação padrão"></i>
         <i class="fa-solid fa-person-running ico-acao movimento ${!e.mov || !e.std ? "livre" : ""}" title="Ação de movimento"></i>
+        ${extra ? `<i class="fa-solid fa-bolt ico-acao extra ${!e.ext ? "livre" : ""}" title="Ação extra (Velocidade)"></i>` : ""}
         <span class="t20ah-tempo-mini js-tempo-txt"></span>`;
       btnsTurno = `
         <button type="button" class="t20ah-mini passar-mini" data-acao="passar" title="Encerrar turno"><i class="fa-solid fa-forward-step"></i></button>
         <button type="button" class="t20ah-mini" data-acao="reset" title="Reiniciar ações"><i class="fa-solid fa-rotate-left"></i></button>`;
     } else if (c) {
-      acoes = `<div class="t20ah-espera"><i class="fa-solid fa-hourglass-start"></i> Aguardando o turno</div>`;
+      acoes = `<div class="t20ah-espera"><i class="fa-solid fa-hourglass-start"></i> Aguardando o turno</div>${menuLinha}`;
+    } else if (menuLinha) {
+      acoes = `<div class="t20ah-sep"></div>${menuLinha}`;
     }
 
     const sub = turno ? "Turno de" : c ? "Em combate" : "Selecionado";
     el.style.setProperty("--esc", escala);
     el.classList.toggle("recolhido", recolhido);
     el.classList.toggle("em-turno", turno);
-    el.innerHTML = `
+    el.classList.toggle("largo", largo);
+    const cabecalho = `
       <header class="t20ah-cabeca" title="Arraste para mover • Duplo clique para recentralizar">
         <img class="t20ah-retrato" src="${esc(img || "icons/svg/mystery-man.svg")}" alt="" draggable="false">
         <div class="t20ah-titulo">
@@ -610,12 +773,14 @@ class AcoesHUD {
         <span class="t20ah-resumo"><span class="t20ah-resumo-rec">${resumoRec}</span>${resumoAcoes}</span>
         ${btnsTurno}
         <button type="button" class="t20ah-mini recolher" data-acao="recolher" title="Recolher / expandir"><i class="fa-solid fa-chevron-up"></i></button>
-      </header>
-      <div class="t20ah-corpo">
+      </header>`;
+    const esq = `
         <div class="t20ah-recursos">${recursos}</div>
         ${chips ? `<div class="t20ah-chips">${chips}</div>` : ""}
-        ${acoes}
-      </div>`;
+        ${acoes}`;
+    el.innerHTML = largo
+      ? `${cabecalho}<div class="t20ah-corpo grade"><div class="t20ah-esq">${esq}</div><aside class="t20ah-dir">${MenuAcoes.htmlPainel()}</aside></div>`
+      : `${cabecalho}<div class="t20ah-corpo">${esq}</div>`;
 
     const chaveVisual = `${doc.id}:${turno}`;
     const estavaOculto = el.classList.contains("oculto");
@@ -626,8 +791,10 @@ class AcoesHUD {
       el.classList.add("entra");
     }
     this._ultimo = chaveVisual;
+    el.querySelectorAll?.(".rec-flutua").forEach((n) => n.addEventListener("animationend", () => n.remove(), { once: true }));
     this.aplicarPosicao();
     this.atualizarTempo();
+    MenuAcoes.sincronizar();
   }
 
   /* ---------- Turno, timer e som ---------- */
@@ -779,6 +946,7 @@ class AcoesHUD {
     } else {
       el.style.left = el.style.top = el.style.bottom = el.style.translate = "";
     }
+    MenuAcoes.posicionar();
   }
 
   static iniciarArraste(ev) {
@@ -796,6 +964,7 @@ class AcoesHUD {
         top: clamp(e.clientY - dy, 0, window.innerHeight - el.offsetHeight)
       };
       this.posicionar(pos.left, pos.top);
+      MenuAcoes.posicionar();
     };
     const soltar = () => {
       window.removeEventListener("pointermove", mover);
@@ -807,7 +976,975 @@ class AcoesHUD {
   }
 }
 
+/* ---------- Botões de Ações (dentro da HUD): regras, gasto e card no chat ---------- */
+
+const paragrafos = (txt) =>
+  String(txt ?? "").split("\n").filter(Boolean).map((p) => `<p>${esc(p)}</p>`).join("");
+
+/** Texto da regra (parágrafos + tópicos) em HTML, usado no tooltip e no card. */
+const htmlRegra = (a) =>
+  paragrafos(a.desc) +
+  (a.topicos?.length
+    ? `<ul class="rg-topicos">${a.topicos.map((t) => `<li><b>${esc(t.t)}.</b> ${esc(t.d)}</li>`).join("")}</ul>`
+    : "");
+
+/* ---------- Condições (Caído) e armas (Golpe de Misericórdia) ---------- */
+
+const CONDICOES = { caido: /caid|prone/, fatigado: /fatigad|fatigue/, exausto: /exaust/ };
+
+/** Id da condição nos efeitos de status do Foundry (procura pelo id e pelo nome). */
+function acharCondicao(chave) {
+  const re = CONDICOES[chave];
+  if (!re) return null;
+  for (const e of CONFIG.statusEffects ?? []) {
+    let nome = "";
+    try {
+      nome = game.i18n.localize(e.name ?? e.label ?? "");
+    } catch (err) { /* ignora */ }
+    if (re.test(normalizar(e.id)) || re.test(normalizar(nome))) return e.id;
+  }
+  return null;
+}
+
+/** Aplica ou remove a condição no ator. Retorna { id, tinha } (id = null se a condição não existe no sistema). */
+function estadoCondicao(actor, chave) {
+  const id = acharCondicao(chave);
+  return { id, tinha: !!id && !!actor.statuses?.has?.(id) };
+}
+
+async function definirCondicao(actor, id, ativo) {
+  await actor.toggleStatusEffect(id, { active: ativo });
+}
+
+/** A arma está equipada? Aceita os formatos mais comuns de campo "equipado". */
+function estaEquipada(item) {
+  const s = item.system ?? {};
+  return [s.equipado, s.equipado2?.equipado, s.equipado?.value, s.equipped].some(
+    (v) => v === true || v === 1 || (typeof v === "string" && /^(true|sim|1|equipad|mao|maos)/i.test(normalizar(v)))
+  );
+}
+
+/** "corpo" | "distancia" | "desconhecido" */
+function tipoDeArma(item) {
+  const s = item.system ?? {};
+  const prop = normalizar(s.proposito ?? s.tipoUso ?? "");
+  if (/corpo|melee|cac|^mel/.test(prop)) return "corpo";
+  if (/dist|ranged|dispar/.test(prop)) return "distancia";
+  const alc = normalizar(typeof s.alcance === "object" ? s.alcance?.value : s.alcance ?? "");
+  if (alc && !/(^0|adjac|corpo|toque|pessoal)/.test(alc)) return "distancia";
+  return "desconhecido";
+}
+
+/** Armas equipadas que podem dar o Golpe de Misericórdia (corpo a corpo, ou de tipo não identificado). */
+function armasCorpoACorpo(actor) {
+  const armas = actor.items.filter((i) => normalizar(i.type) === "arma" && estaEquipada(i));
+  dbg("armas equipadas", armas.map((a) => [a.name, tipoDeArma(a)]));
+  return armas.filter((a) => tipoDeArma(a) !== "distancia");
+}
+
+/* ---------- Corrida ---------- */
+
+/** Bônus total de uma perícia da ficha (Tormenta20: system.pericias.<chave>), ou null se não achar. */
+function bonusPericia(actor, chave, nome) {
+  const per = actor?.system?.pericias;
+  if (!per) return null;
+  let p = per[chave];
+  if (!p) p = Object.values(per).find((v) => normalizar(v?.label ?? v?.nome) === normalizar(nome));
+  if (!p) return null;
+  for (const v of [p.value, p.total, p.bonus, p.mod]) {
+    const n = numOuNulo(v);
+    if (n !== null) return n;
+  }
+  return null;
+}
+
+/** Modificador de um atributo (ex.: "con"). */
+function modAtributo(actor, chave) {
+  let rd = {};
+  try { rd = actor.getRollData?.() ?? {}; } catch (err) { /* ignora */ }
+  const at = actor?.system?.atributos?.[chave];
+  for (const v of [rd?.[chave], rd?.atributos?.[chave]?.value, at?.value, at?.mod, at?.total, at?.final]) {
+    const n = numOuNulo(v);
+    if (n !== null) return n;
+  }
+  return 0;
+}
+
+/** Os pontos formam uma linha reta, sem voltar atrás e (se já houver) na mesma direção da corrida? */
+function corridaEmLinhaReta(pts, dir) {
+  if (!pts || pts.length < 2) return true;
+  const o = pts[0];
+  const f = pts.at(-1);
+  const L = Math.hypot(f.x - o.x, f.y - o.y);
+  if (L < 1) return true;
+  const u = { x: (f.x - o.x) / L, y: (f.y - o.y) / L };
+  const tol = (canvas?.grid?.size || 100) * 0.35;
+  for (const q of pts) if (Math.abs((q.x - o.x) * u.y - (q.y - o.y) * u.x) > tol) return false;
+  for (let i = 1; i < pts.length; i++) if ((pts[i].x - pts[i - 1].x) * u.x + (pts[i].y - pts[i - 1].y) * u.y < -1) return false;
+  if (dir && u.x * dir.x + u.y * dir.y < 0.9) return false;
+  return true;
+}
+
+const NOMES_PERICIAS = {
+  acro: "Acrobacia", ades: "Adestramento", atle: "Atletismo", atua: "Atuação", cava: "Cavalgar", conh: "Conhecimento",
+  cura: "Cura", dipl: "Diplomacia", enga: "Enganação", fort: "Fortitude", furt: "Furtividade", guer: "Guerra",
+  inic: "Iniciativa", inti: "Intimidação", intu: "Intuição", inve: "Investigação", joga: "Jogatina", ladi: "Ladinagem",
+  luta: "Luta", mist: "Misticismo", nobr: "Nobreza", ocul: "Ocultismo", perc: "Percepção", pilo: "Pilotagem",
+  pont: "Pontaria", refl: "Reflexos", reli: "Religião", sobr: "Sobrevivência", vont: "Vontade"
+};
+
+/** Perícias da ficha: [{ chave, nome, bonus }] em ordem alfabética (usa a lista padrão se a ficha não expuser nenhuma). */
+function listarPericias(actor) {
+  const per = actor?.system?.pericias;
+  const lista = [];
+  const entradas = per && typeof per === "object" ? Object.entries(per).filter(([, v]) => v && typeof v === "object") : [];
+  for (const [chave, v] of entradas) {
+    let nome = v.label ?? v.nome ?? "";
+    try { if (/^[\w-]+(\.[\w-]+)+$/.test(nome)) nome = game.i18n.localize(nome); } catch (err) { /* ignora */ }
+    nome = String(nome || NOMES_PERICIAS[chave] || chave);
+    lista.push({ chave, nome, bonus: bonusPericia(actor, chave, nome) });
+  }
+  if (!lista.length) for (const [chave, nome] of Object.entries(NOMES_PERICIAS)) lista.push({ chave, nome, bonus: null });
+  return lista.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+}
+
+/**
+ * Rola a perícia pela rotina da própria ficha do Tormenta20 (com o diálogo e os efeitos de uso do sistema).
+ * Retorna { roll, mensagem } ou null se o teste foi cancelado ou não pôde ser lido.
+ */
+async function rolarPericiaNativa(actor, chave) {
+  const fn = ["rollPericia", "rollSkill"].map((m) => actor?.[m]).find((f) => typeof f === "function");
+  if (!fn) {
+    ui.notifications.error("Não encontrei a rolagem de perícias na ficha deste personagem.");
+    return null;
+  }
+  let capturada = null;
+  const hookId = Hooks.on("createChatMessage", (msg) => {
+    if (capturada || !msg.rolls?.length) return;
+    if ((msg.author?.id ?? msg.user?.id) !== game.user.id) return;
+    capturada = msg;
+  });
+  let retorno;
+  try {
+    retorno = await fn.call(actor, chave);
+    // a mensagem pode chegar um instante depois do fim da rotina
+    for (let i = 0; i < 15 && !capturada && !(retorno?.total !== undefined || retorno?.rolls?.length); i++) {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  } catch (err) {
+    console.error(`${ID} | erro ao rolar a perícia`, err);
+    ui.notifications.error("Não foi possível rolar a perícia. Veja o console (F12).");
+    return null;
+  } finally {
+    Hooks.off("createChatMessage", hookId);
+  }
+  const candidatos = [retorno, retorno?.[0], retorno?.roll, capturada?.rolls?.[0], retorno?.rolls?.[0]];
+  const roll = candidatos.find((r) => r && Number.isFinite(Number(r.total)));
+  if (!roll) return null;
+  return { roll, mensagem: capturada ?? (retorno?.rolls ? retorno : null) };
+}
+
+class MenuAcoes {
+  static el = null; // menu flutuante com as ações da categoria escolhida
+  static tip = null;
+  static catAberta = null;
+
+  static habilitado() {
+    return game.settings.get(ID, "menuAcoes");
+  }
+
+  static garantir() {
+    if (this.el?.isConnected) return this.el;
+    const el = document.createElement("div");
+    el.id = "t20ah-acoes";
+    el.classList.add("oculto");
+    document.body.appendChild(el);
+
+    el.addEventListener("click", (ev) => {
+      const acao = ev.target.closest("[data-i]");
+      if (acao) this.executar(acao.dataset.cat, Number(acao.dataset.i));
+    });
+    // tooltip com a descrição ao passar o mouse
+    el.addEventListener("mousemove", (ev) => {
+      const alvo = ev.target.closest?.("[data-i]");
+      if (!alvo) return this.esconderTip();
+      if (alvo !== this._alvoTip) {
+        this._alvoTip = alvo;
+        this.mostrarTip(alvo.dataset.cat, Number(alvo.dataset.i));
+      }
+      this.posicionarTip(ev.clientX, ev.clientY);
+    });
+    el.addEventListener("mouseleave", () => this.esconderTip());
+    document.addEventListener("pointerdown", (ev) => {
+      if (!this.catAberta) return;
+      if (this.el.contains(ev.target) || ev.target.closest?.("[data-aa]")) return;
+      this.fechar();
+    });
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape" && this.catAberta) this.fechar();
+    });
+
+    const tip = document.createElement("div");
+    tip.id = "t20ah-acoes-tip";
+    tip.classList.add("oculto");
+    document.body.appendChild(tip);
+
+    this.el = el;
+    this.tip = tip;
+    return el;
+  }
+
+  static atualizarBotoes() {
+    AcoesHUD.el?.querySelectorAll?.("[data-aa]").forEach((b) => b.classList.toggle("ativo", b.dataset.aa === this.catAberta));
+  }
+
+  static alternarCategoria(id) {
+    this.catAberta = this.catAberta === id ? null : id;
+    this.esconderTip();
+    this.atualizarBotoes();
+    this.renderPainel();
+    this.posicionar();
+  }
+
+  static fechar() {
+    this.catAberta = null;
+    this.esconderTip();
+    this.atualizarBotoes();
+    this.renderPainel();
+    this.posicionar();
+  }
+
+  /** Lista de ações da categoria aberta. */
+  static renderPainel() {
+    const el = this.el;
+    if (!el) return;
+    const cat = CATEGORIAS_ACOES.find((c) => c.id === this.catAberta) ?? null;
+    if (!cat) {
+      el.innerHTML = "";
+      return;
+    }
+    el.style.setProperty("--cor", cat.cor);
+    el.innerHTML = this.htmlCategoria(cat);
+  }
+
+  /** Botões das ações de uma categoria. */
+  static htmlAcoes(cat) {
+    return cat.acoes
+      .map(
+        (a, i) => `
+        <button type="button" class="aa-acao ${a.auto ? "auto" : ""}" data-cat="${cat.id}" data-i="${i}">
+          <span>${esc(a.nome)}</span>${a.auto ? '<em class="aa-auto" title="O módulo já gasta esta ação sozinho">auto</em>' : ""}
+        </button>`
+      )
+      .join("");
+  }
+
+  /** Título + lista de ações + dica de uma categoria (menu flutuante do layout compacto). */
+  static htmlCategoria(cat) {
+    const temAuto = cat.acoes.some((a) => a.auto);
+    return `
+      <div class="aa-cab"><i class="fa-solid ${cat.icone}"></i> ${esc(cat.nome)}</div>
+      <div class="aa-lista">${this.htmlAcoes(cat)}</div>
+      <div class="aa-dica">${
+        cat.gasta ? `Clique para usar: gasta a ${NOMES[cat.gasta]} e envia ao chat.` : "Clique para usar: sem custo, envia ao chat."
+      }${temAuto ? "<br>Ações com <em>auto</em> já são gastas pelo módulo; o clique só consulta a regra." : ""}</div>`;
+  }
+
+  /** Painel do layout largo: as quatro categorias, uma abaixo da outra, separadas por uma linha. */
+  static htmlPainel() {
+    const secoes = CATEGORIAS_ACOES.map(
+      (cat) => `
+      <section class="aa-sec ${cat.id}" style="--cor:${cat.cor}">
+        <div class="aa-cab"><i class="fa-solid ${cat.icone}"></i> ${esc(cat.nome)}</div>
+        <div class="aa-lista">${this.htmlAcoes(cat)}</div>
+      </section>`
+    ).join("");
+    return `${secoes}<div class="aa-dica">Clique numa ação para usá-la: ela gasta a ação do tipo e envia um card ao chat. Ações com <em>auto</em> já são gastas pelo módulo; o clique só consulta a regra.</div>`;
+  }
+
+  /** Mostra a regra da ação sob o mouse (botões que ficam dentro da HUD). */
+  static dicaPara(alvo, ev) {
+    this.garantir();
+    if (alvo !== this._alvoTip) {
+      this._alvoTip = alvo;
+      this.mostrarTip(alvo.dataset.cat, Number(alvo.dataset.i));
+    }
+    this.posicionarTip(ev.clientX, ev.clientY);
+  }
+
+  /** Janela (no estilo da HUD) para escolher a arma do Golpe de Misericórdia. Resolve com o item ou null. */
+  static escolherArma(actor, armas) {
+    return new Promise((resolve) => {
+      const ov = document.createElement("div");
+      ov.id = "t20ah-escolha";
+      const info = (a) => {
+        const m = Number(a.system?.criticoM);
+        const x = Number(a.system?.criticoX);
+        const crit = Number.isFinite(m) && Number.isFinite(x) ? `Crítico ${m >= 20 ? "20" : `${m}–20`} ×${x}` : "";
+        const tipo = tipoDeArma(a) === "desconhecido" ? "tipo não identificado" : "";
+        return [crit, a.system?.empunhadura, tipo].filter(Boolean).join(" · ");
+      };
+      ov.innerHTML = `
+        <div class="ec-fundo"></div>
+        <div class="ec-janela">
+          <header>
+            <i class="fa-solid fa-burst"></i>
+            <div><small>Ação Completa</small><strong>Golpe de Misericórdia</strong></div>
+            <button type="button" class="ec-x" data-ec="cancelar" title="Cancelar"><i class="fa-solid fa-xmark"></i></button>
+          </header>
+          <p>Escolha a arma corpo a corpo do golpe. O ataque é um <b>20 natural automático</b> (acerto crítico).</p>
+          <div class="ec-lista">${armas
+            .map(
+              (a, i) => `
+            <button type="button" class="ec-arma" data-ec-i="${i}">
+              <img src="${esc(a.img || "icons/svg/sword.svg")}" alt="" draggable="false">
+              <span class="ec-n">${esc(a.name)}</span>
+              <span class="ec-d">${esc(info(a))}</span>
+            </button>`
+            )
+            .join("")}</div>
+          <footer><button type="button" class="ec-cancelar" data-ec="cancelar">Cancelar</button></footer>
+        </div>`;
+      const fim = (item) => {
+        document.removeEventListener("keydown", tecla, true);
+        ov.remove();
+        resolve(item);
+      };
+      const tecla = (ev) => {
+        if (ev.key === "Escape") {
+          ev.stopPropagation();
+          fim(null);
+        }
+      };
+      ov.addEventListener("click", (ev) => {
+        const b = ev.target.closest("[data-ec-i]");
+        if (b) return fim(armas[Number(b.dataset.ecI)]);
+        if (ev.target.closest("[data-ec]") || ev.target.classList.contains("ec-fundo")) fim(null);
+      });
+      document.addEventListener("keydown", tecla, true);
+      document.body.appendChild(ov);
+    });
+  }
+
+  /** Golpe de Misericórdia: rolagem de morte privada ao Mestre e ataque automático em 20 natural. */
+  static async golpeDeMisericordia(alvo, arma) {
+    const morte = await new Roll("1d4").evaluate();
+    const v = morte.total;
+    const importante = v <= 1; // 25%: personagens e NPCs importantes
+    const secundario = v <= 3; // 75%: NPCs secundários
+    const x = Number(arma.system?.criticoX);
+    const alvoSelecionado = [...(game.user.targets ?? [])];
+    const alvoNome = alvoSelecionado.length === 1 ? alvoSelecionado[0].name : "Alvo não especificado";
+    // Nunca enviar o resultado como mensagem pública: resolve explicitamente
+    // os usuários com permissão de Mestre. Uma lista vazia em `whisper`
+    // pode fazer a mensagem ser publicada para todos.
+    const destinatarios = game.users.filter((u) => u.isGM).map((u) => u.id);
+    if (!destinatarios.length) {
+      console.warn(`${ID} | nenhum Mestre conectado; resultado privado não enviado.`);
+      ui.notifications.warn("Não há nenhum Mestre disponível para receber o resultado privado do Golpe de Misericórdia.");
+    }
+
+    const veredito = (titulo, morre) =>
+      `<div class="tc-vd ${morre ? "morre" : "vive"}"><em>${titulo}</em><b><i class="fa-solid ${morre ? "fa-skull" : "fa-heart"}"></i> ${morre ? "MORRE" : "SOBREVIVE"}</b></div>`;
+
+    const cardMestre = `
+      <div class="t20ah-card t20ah-misericordia-gm" style="--cor:#e0b85c">
+        <div class="tc-topo">
+          <i class="fa-solid fa-skull-crossbones tc-ico"></i>
+          <div class="tc-tit"><small>Golpe de Misericórdia · Privado</small><strong>Teste de morte instantânea</strong></div>
+        </div>
+        <div class="tc-desc">
+          <p><b>Ator:</b> ${esc(alvo.actor.name)} · <b>Alvo:</b> ${esc(alvoNome)}</p>
+          <p><b>Arma:</b> ${esc(arma.name)}</p>
+          <p><b>Morte instantânea (1d4):</b> <b class="tc-dado">${v}</b></p>
+          <div class="tc-vereditos">
+            ${veredito("Personagens e NPCs importantes (1 em 1d4)", importante)}
+            ${veredito("NPCs secundários (1 a 3 em 1d4)", secundario)}
+          </div>
+        </div>
+      </div>`;
+
+    if (destinatarios.length) {
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ token: alvo.doc }),
+        content: cardMestre,
+        rolls: [morte],
+        whisper: destinatarios,
+        blind: true,
+        flags: { [ID]: { card: true, misericordiaGM: true } }
+      });
+    }
+
+    // Usa a rotina nativa de uso da arma do Tormenta20 (ItemT20.roll),
+    // preservando o diálogo de efeitos de uso e todos os cálculos do sistema.
+    // ItemT20.roll() cria uma cópia interna do item; por isso, interceptamos
+    // clone() para aplicar o 20 natural na cópia que realmente fará o ataque.
+    const armaParaRolar = arma.clone({ keepId: true });
+    const rolagemAtaque = armaParaRolar.system.rolls?.find((r) => r.type === "ataque");
+    if (!rolagemAtaque) {
+      ui.notifications.error(`A arma ${arma.name} não possui uma rolagem de ataque configurada.`);
+      return { morte, ataque: null };
+    }
+
+    const clonarOriginal = armaParaRolar.clone.bind(armaParaRolar);
+    armaParaRolar.clone = (...args) => {
+      const copia = clonarOriginal(...args);
+      const rolarAtaqueOriginal = copia.rollAttack.bind(copia);
+      copia.rollAttack = async (opcoes = {}) => {
+        await rolarAtaqueOriginal(opcoes);
+
+        for (const rolagem of Object.values(copia.system.rolled ?? {})) {
+          if (rolagem?.options?.type !== "attack") continue;
+
+          // A rolagem nativa do T20 usa o primeiro termo como d20.
+          const dadoD20 = rolagem.terms?.find((termo) => termo.faces === 20);
+          if (!dadoD20) continue;
+
+          const totalAnterior = Number(rolagem.total ?? 0);
+          const resultadoAnterior = Number(dadoD20.total ?? 0);
+          const diferenca = 20 - resultadoAnterior;
+
+          // Altera o resultado do próprio dado, não apenas o total do ataque.
+          dadoD20.results = (dadoD20.results ?? []).map((resultado, indice) => ({
+            ...resultado,
+            result: indice === 0 ? 20 : resultado.result,
+            active: indice === 0 ? true : resultado.active
+          }));
+          dadoD20._total = 20;
+          rolagem._total = totalAnterior + diferenca;
+          rolagem._critical = true;
+          rolagem._fumble = false;
+        }
+      };
+      return copia;
+    };
+    // A ação completa do Golpe já foi gasta: marca a arma como "já cobrada neste turno" para que o card nativo
+    // do ataque não tente gastar (nem avise sobre) a ação padrão de novo.
+    if (game.combat?.started) {
+      const chaveTurno = AcoesHUD.chaveTurno(game.combat);
+      if (USO_ITEM.chave !== chaveTurno) {
+        USO_ITEM.chave = chaveTurno;
+        USO_ITEM.itens = new Set();
+      }
+      USO_ITEM.itens.add(arma.uuid);
+    }
+    await armaParaRolar.roll({ configureDialog: true });
+    return { morte, ataque: armaParaRolar.system.rolled };
+  }
+
+  /**
+   * Janela do Atrasar: escolha depois de quem agir ou digite uma Iniciativa.
+   * Retorna { nova, rotulo } ou null se cancelou.
+   */
+  static escolherAtraso(alvo, combat) {
+    return new Promise((resolve) => {
+      const c = alvo.c;
+      const atual = Number(c.initiative);
+      const bonusInic = bonusPericia(alvo.actor, "inic", "Iniciativa") ?? 0;
+      const limite = -10 - bonusInic;
+      const apos = combat.turns.slice(combat.turn + 1).filter((x) => x.id !== c.id && (game.user.isGM || !x.hidden));
+      const fmt = (n) => (Math.round(n * 100) / 100).toString().replace(".", ",");
+      const ov = document.createElement("div");
+      ov.id = "t20ah-escolha";
+      ov.innerHTML = `
+        <div class="ec-fundo"></div>
+        <div class="ec-janela">
+          <header>
+            <i class="fa-solid fa-hourglass-half"></i>
+            <div><small>Ação Livre</small><strong>Atrasar</strong></div>
+            <button type="button" class="ec-x" data-ec="cancelar" title="Cancelar"><i class="fa-solid fa-xmark"></i></button>
+          </header>
+          <p>Sua Iniciativa atual é <b>${fmt(atual)}</b> (limite para atrasar: <b>${fmt(limite)}</b>). Escolha <b>depois de quem</b> você vai agir ou informe uma Iniciativa. Ela vale pelo resto do combate.</p>
+          ${apos.length ? `<div class="ec-lista">${apos
+            .map(
+              (x, i) => `
+            <button type="button" class="ec-arma" data-ec-i="${i}">
+              <img src="${esc(x.img || x.actor?.img || "icons/svg/mystery-man.svg")}" alt="" draggable="false">
+              <span class="ec-n">Depois de ${esc(x.name)}</span>
+              <span class="ec-d">Iniciativa ${esc(fmt(Number(x.initiative)))}</span>
+            </button>`
+            )
+            .join("")}</div>` : '<p class="ec-nota">Ninguém age depois de você nesta rodada.</p>'}
+          <div class="ec-valor">
+            <label>Iniciativa específica <input type="number" step="1" min="${limite}" max="${fmt(atual - 1)}" placeholder="${fmt(Math.max(limite, atual - 5))}"></label>
+            <button type="button" class="ec-rolar" data-ec="valor">Atrasar</button>
+          </div>
+          <footer><button type="button" class="ec-cancelar" data-ec="cancelar">Cancelar</button></footer>
+        </div>`;
+      const fim = (v) => {
+        document.removeEventListener("keydown", tecla, true);
+        ov.remove();
+        resolve(v);
+      };
+      const tecla = (ev) => {
+        if (ev.key === "Escape") {
+          ev.stopPropagation();
+          fim(null);
+        }
+      };
+      const usarValor = () => {
+        const inp = ov.querySelector(".ec-valor input");
+        const n = Number(inp.value);
+        if (inp.value === "" || !Number.isFinite(n)) return ui.notifications.warn("Informe uma Iniciativa.");
+        if (n >= atual) return ui.notifications.warn(`A nova Iniciativa precisa ser menor que ${fmt(atual)}.`);
+        if (n < limite) return ui.notifications.warn(`O limite para atrasar é ${fmt(limite)}.`);
+        fim({ nova: n, rotulo: `Iniciativa ${fmt(n)}` });
+      };
+      ov.addEventListener("click", (ev) => {
+        const b = ev.target.closest("[data-ec-i]");
+        if (b) {
+          const x = apos[Number(b.dataset.ecI)];
+          const nova = Math.max(limite, Number(x.initiative) - 0.01);
+          return fim({ nova, rotulo: `depois de ${x.name}` });
+        }
+        if (ev.target.closest('[data-ec="valor"]')) return usarValor();
+        if (ev.target.closest('[data-ec="cancelar"]') || ev.target.classList.contains("ec-fundo")) fim(null);
+      });
+      ov.querySelector(".ec-valor input").addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") {
+          ev.preventDefault();
+          ev.stopPropagation();
+          usarValor();
+        }
+      });
+      document.addEventListener("keydown", tecla, true);
+      document.body.appendChild(ov);
+    });
+  }
+
+  /**
+   * Janela para escolher a perícia de um teste. A perícia padrão fica marcada (e selecionada de início).
+   * Retorna a chave da perícia ou null se cancelou (não cancela se `obrigatorio`).
+   */
+  static escolherPericia(actor, { padrao, titulo, subtitulo = "Teste", texto = "", icone = "fa-dice-d20", obrigatorio = false }) {
+    return new Promise((resolve) => {
+      const lista = listarPericias(actor);
+      let sel = lista.some((p) => p.chave === padrao) ? padrao : lista[0]?.chave;
+      const ov = document.createElement("div");
+      ov.id = "t20ah-escolha";
+      const fmtB = (n) => (n === null ? "" : `${n < 0 ? "−" : "+"}${Math.abs(n)}`);
+      ov.innerHTML = `
+        <div class="ec-fundo"></div>
+        <div class="ec-janela ec-larga">
+          <header>
+            <i class="fa-solid ${icone}"></i>
+            <div><small>${esc(subtitulo)}</small><strong>${esc(titulo)}</strong></div>
+            ${obrigatorio ? "" : '<button type="button" class="ec-x" data-ec="cancelar" title="Cancelar"><i class="fa-solid fa-xmark"></i></button>'}
+          </header>
+          ${texto ? `<p>${texto}</p>` : ""}
+          <div class="ec-pericias">${lista
+            .map(
+              (p) => `
+            <button type="button" class="ec-per ${p.chave === sel ? "sel" : ""} ${p.chave === padrao ? "padrao" : ""}" data-ec-p="${esc(p.chave)}">
+              <span class="ec-pn">${esc(p.nome)}</span>
+              <span class="ec-pb">${esc(fmtB(p.bonus))}</span>
+              ${p.chave === padrao ? '<span class="ec-badge" title="Perícia padrão deste teste"><i class="fa-solid fa-star"></i> padrão</span>' : ""}
+            </button>`
+            )
+            .join("")}</div>
+          <footer>
+            ${obrigatorio ? "" : '<button type="button" class="ec-cancelar" data-ec="cancelar">Cancelar</button>'}
+            <button type="button" class="ec-rolar" data-ec="rolar"><i class="fa-solid fa-dice-d20"></i> Rolar</button>
+          </footer>
+        </div>`;
+      const fim = (v) => {
+        document.removeEventListener("keydown", tecla, true);
+        ov.remove();
+        resolve(v);
+      };
+      const marcar = (chave) => {
+        sel = chave;
+        ov.querySelectorAll(".ec-per").forEach((b) => b.classList.toggle("sel", b.dataset.ecP === chave));
+      };
+      const tecla = (ev) => {
+        if (ev.key === "Escape" && !obrigatorio) {
+          ev.stopPropagation();
+          fim(null);
+        } else if (ev.key === "Enter") {
+          ev.stopPropagation();
+          ev.preventDefault();
+          fim(sel ?? null);
+        }
+      };
+      ov.addEventListener("click", (ev) => {
+        const b = ev.target.closest("[data-ec-p]");
+        if (b) return marcar(b.dataset.ecP);
+        if (ev.target.closest('[data-ec="rolar"]')) return fim(sel ?? null);
+        if (!obrigatorio && (ev.target.closest('[data-ec="cancelar"]') || ev.target.classList.contains("ec-fundo"))) fim(null);
+      });
+      ov.addEventListener("dblclick", (ev) => {
+        const b = ev.target.closest("[data-ec-p]");
+        if (b) fim(b.dataset.ecP);
+      });
+      document.addEventListener("keydown", tecla, true);
+      document.body.appendChild(ov);
+      ov.querySelector(".ec-per.sel")?.scrollIntoView?.({ block: "center" });
+    });
+  }
+
+  /**
+   * Corrida: teste de Atletismo (rolado pela ficha, com os efeitos de uso do sistema) + 2 por 1,5m de deslocamento
+   * acima de 9m (–2 abaixo); avança tantos quadrados de 1,5m quanto o resultado. Controla o fôlego
+   * (1 + Constituição rodadas; depois, Fortitude CD 15 +1 por teste, falha = fatigado).
+   * Retorna { html, rolls, max } (max em quadrados do grid) ou null se o teste foi cancelado.
+   */
+  static async corrida(alvo, chave) {
+    const actor = alvo.actor;
+    const nomeDe = (k) => listarPericias(actor).find((p) => p.chave === k)?.nome ?? NOMES_PERICIAS[k] ?? k;
+    const desloc = deslocamentoMetros(actor);
+    const modDesloc = 2 * Math.round((desloc - 9) / 1.5);
+    const teste = await rolarPericiaNativa(actor, chave);
+    if (!teste) return null;
+    const total = Number(teste.roll.total) + modDesloc;
+    const nat = teste.roll.dice?.find?.((d) => d.faces === 20)?.total ?? teste.roll.dice?.[0]?.total;
+    const sinal = (n) => `${n < 0 ? "−" : "+"} ${Math.abs(n)}`;
+    const quadrados = Math.max(0, Math.floor(total));
+    const metros = quadrados * 1.5;
+    const fmt = (n) => (Math.round(n * 10) / 10).toString().replace(".", ",");
+    const max = metros / cfg("metrosPorQuadrado");
+
+    const linhas = [];
+    linhas.push(
+      `<div class="tc-linha"><i class="fa-solid fa-dice-d20"></i><span><b>${esc(nomeDe(chave))}:</b> ` +
+        `${nat !== undefined ? `<b class="tc-dado">${nat}</b> ` : ""}<small>(rolagem da ficha = ${teste.roll.total})</small>` +
+        `${modDesloc ? ` ${sinal(modDesloc)} <small>(deslocamento ${fmt(desloc)} m)</small>` : ""}` +
+        ` = <b>${total}</b></span></div>`
+    );
+    linhas.push(
+      `<div class="tc-linha"><i class="fa-solid fa-person-running"></i><span>Avança <b>${quadrados} ${quadrados === 1 ? "quadrado" : "quadrados"}</b> de 1,5 m (<b>${fmt(metros)} m</b>) em linha reta.</span></div>`
+    );
+
+    // fôlego: rodadas seguidas correndo
+    const combat = game.combat;
+    const c = alvo.c;
+    if (c && combat?.started) {
+      const ctl = c.getFlag(ID, "corridaCtl") ?? {};
+      const seguida = ctl.rodada === combat.round - 1 || ctl.rodada === combat.round;
+      const seq = seguida ? (ctl.seq ?? 0) + (ctl.rodada === combat.round ? 0 : 1) : 1;
+      let testes = seguida ? ctl.testes ?? 0 : 0;
+      const limite = Math.max(0, 1 + modAtributo(actor, "con"));
+      linhas.push(
+        `<div class="tc-linha"><i class="fa-solid fa-lungs"></i><span>Fôlego: rodada <b>${seq}</b> de corrida (aguenta <b>${limite}</b> sem teste).</span></div>`
+      );
+      if (seq > limite) {
+        const cd = 15 + testes;
+        const k = await this.escolherPericia(actor, {
+          padrao: "fort",
+          titulo: `Fortitude · CD ${cd}`,
+          subtitulo: "Fôlego da corrida",
+          texto: `${esc(alvo.actor.name)} correu além do fôlego: faça um teste de <b>Fortitude contra CD ${cd}</b>. Se falhar, fica fatigado.`,
+          icone: "fa-lungs",
+          obrigatorio: true
+        });
+        const rf = await rolarPericiaNativa(actor, k ?? "fort");
+        if (!rf) {
+          linhas.push(`<div class="tc-nota">O teste de Fortitude (CD ${cd}) foi cancelado e não foi contado. O Mestre decide como resolver.</div>`);
+        } else {
+          const falhou = Number(rf.roll.total) < cd;
+          testes += 1;
+          let resultado = "";
+          if (falhou) {
+            try {
+              const jaFatigado = !!estadoCondicao(actor, "fatigado").tinha;
+              const id = acharCondicao(jaFatigado ? "exausto" : "fatigado");
+              if (id) {
+                await definirCondicao(actor, id, true);
+                resultado = `Condição <b>${jaFatigado ? "Exausto" : "Fatigado"}</b> aplicada${jaFatigado ? " (fadiga cumulativa)" : ""}.`;
+              } else resultado = "A condição Fatigado não foi encontrada no sistema; aplique-a manualmente.";
+            } catch (err) {
+              console.error(`${ID} | não foi possível aplicar a fadiga`, err);
+              resultado = "Sem permissão para aplicar a condição; aplique-a manualmente.";
+            }
+          }
+          linhas.push(
+            `<div class="tc-vereditos"><div class="tc-vd ${falhou ? "morre" : "vive"}"><em>${esc(nomeDe(k ?? "fort"))} CD ${cd}: <b class="tc-dado">${rf.roll.total}</b></em>` +
+              `<b><i class="fa-solid ${falhou ? "fa-face-tired" : "fa-shield-heart"}"></i> ${falhou ? "FALHOU" : "PASSOU"}</b></div></div>` +
+              (resultado ? `<div class="tc-linha"><i class="fa-solid fa-battery-quarter"></i><span>${resultado}</span></div>` : "")
+          );
+        }
+      }
+      try {
+        await c.setFlag(ID, "corridaCtl", { rodada: combat.round, seq, testes });
+      } catch (err) {
+        console.warn(`${ID} | não foi possível registrar o fôlego`, err);
+      }
+    }
+    return { html: `<div class="tc-bloco">${linhas.join("")}</div>`, rolls: [], max };
+  }
+
+  /** Usa a ação: gasta o tipo correspondente na HUD (se estiver no turno), aplica efeitos e manda o card ao chat. */
+  static async executar(catId, i) {
+    const cat = CATEGORIAS_ACOES.find((c) => c.id === catId);
+    const acao = cat?.acoes[i];
+    const alvo = AcoesHUD.alvo();
+    if (!acao || !alvo) return;
+    const nome = alvo.doc.name ?? alvo.actor.name;
+
+    // 1) pode usar? (turno e ação disponível) -- nada é gasto ainda
+    let gastar = false;
+    let custo = "Ação livre: sem custo";
+    if (acao.auto) {
+      custo = "Já é gasta automaticamente ao usar a arma, a magia ou o item pela ficha";
+    } else if (cat.gasta) {
+      if (alvo.c && alvo.turno) {
+        if (!AcoesHUD.aplicar(cat.gasta, "gastar", getEstado(alvo.c), temExtra(alvo.actor))) {
+          ui.notifications.warn(`${nome} não tem ${NOMES[cat.gasta]} disponível.`);
+          return;
+        }
+        gastar = true;
+      } else if (alvo.c) {
+        ui.notifications.warn(`${nome} só pode usar ${acao.nome} no próprio turno.`);
+        return;
+      } else {
+        custo = "Fora de combate: nenhuma ação foi gasta";
+      }
+    }
+
+    // 2) regras da própria ação
+    let condicao = null; // { id, aplicar }
+    if (acao.efeito) {
+      const est = estadoCondicao(alvo.actor, acao.efeito.condicao);
+      if (est.id && acao.efeito.aplicar && est.tinha) return ui.notifications.warn(`${nome} já está caído.`);
+      if (est.id && !acao.efeito.aplicar && !est.tinha) return ui.notifications.warn(`${nome} não está caído.`);
+      if (!est.id) ui.notifications.warn("A condição Caído não foi encontrada no sistema; a ação será registrada sem o efeito.");
+      else condicao = { id: est.id, aplicar: acao.efeito.aplicar };
+    }
+    let arma = null;
+    if (acao.especial === "misericordia") {
+      const armas = armasCorpoACorpo(alvo.actor);
+      if (!armas.length) return ui.notifications.warn(`${nome} precisa ter uma arma corpo a corpo equipada para o Golpe de Misericórdia.`);
+      arma = await this.escolherArma(alvo.actor, armas);
+      if (!arma) return; // cancelou: nada é gasto
+    }
+
+    let atraso = null;
+    if (acao.especial === "atrasar") {
+      const combat = game.combat;
+      if (!alvo.c || !alvo.turno || !combat?.started) return ui.notifications.warn(`${nome} só pode atrasar no próprio turno, em combate.`);
+      if (!Number.isFinite(Number(alvo.c.initiative))) return ui.notifications.warn(`${nome} ainda não tem Iniciativa rolada.`);
+      atraso = await this.escolherAtraso(alvo, combat);
+      if (!atraso) return; // cancelou
+    }
+    let periciaCorrida = null;
+    if (acao.especial === "corrida") {
+      periciaCorrida = await this.escolherPericia(alvo.actor, {
+        padrao: "atle",
+        titulo: "Corrida",
+        subtitulo: "Ação Completa · escolha a perícia",
+        texto: "O teste é rolado pela ficha, como de costume. <b>Atletismo</b> é a perícia padrão da corrida."
+      });
+      if (!periciaCorrida) return; // cancelou: nada é gasto
+    }
+
+    // 3) gasta a ação
+    let restam = null;
+    let estadoAntes = null;
+    if (gastar) {
+      const antes = getEstado(alvo.c);
+      estadoAntes = antes;
+      const depois = AcoesHUD.aplicar(cat.gasta, "gastar", antes, temExtra(alvo.actor));
+      const ok = await AcoesHUD.usar(cat.gasta, "gastar", acao.nome, false);
+      if (!ok) return;
+      const extraAtivo = temExtra(alvo.actor);
+      custo = depois?.ext && !antes.ext
+        ? `Gastou a ação extra (Velocidade) como ${NOMES[depois.ext]}`
+        : cat.gasta === "movimento" && antes.mov ? "Gastou a ação padrão (2º movimento)" : `Gastou a ${NOMES[cat.gasta]}`;
+      if (depois) {
+        const extraLivre = extraAtivo && !depois.ext;
+        restam = { padrao: !depois.std || extraLivre, movimento: !depois.mov || !depois.std || extraLivre };
+      }
+    }
+
+    // 4) efeitos da ação
+    let extra = "";
+    let rolls = [];
+    if (acao.especial === "corrida") {
+      try {
+        const r = await this.corrida(alvo, periciaCorrida);
+        if (!r) {
+          // teste cancelado: devolve a ação completa
+          if (gastar && alvo.c && estadoAntes) {
+            ESTADO_RECENTE.delete(alvo.c.id);
+            await alvo.c.setFlag(ID, FLAG, estadoAntes);
+          }
+          ui.notifications.warn("Corrida cancelada: o teste não foi realizado e a ação completa foi devolvida.");
+          return;
+        }
+        extra += r.html;
+        rolls = r.rolls;
+        if (gastar && alvo.c) {
+          // libera o deslocamento da corrida (em linha reta) pelo resto do turno
+          ESTADO_RECENTE.delete(alvo.c.id);
+          await alvo.c.setFlag(ID, FLAG, { ...getEstado(alvo.c), corrida: { max: r.max, dir: null } });
+        }
+      } catch (err) {
+        console.error(`${ID} | erro na Corrida`, err);
+        ui.notifications.error("Não foi possível concluir a Corrida. Veja o console (F12).");
+      }
+    }
+    if (condicao) {
+      try {
+        await definirCondicao(alvo.actor, condicao.id, condicao.aplicar);
+        extra = `<div class="tc-bloco"><div class="tc-linha"><i class="fa-solid fa-person-falling"></i><span>${
+          condicao.aplicar ? "Condição <b>Caído</b> aplicada" : "Condição <b>Caído</b> removida"
+        }.</span></div></div>`;
+      } catch (err) {
+        console.error(`${ID} | não foi possível alterar a condição`, err);
+        ui.notifications.error("Sem permissão para alterar a condição deste personagem.");
+      }
+    }
+    if (arma) {
+      // O card público contém somente o texto da ação. As rolagens seguem separadas.
+      if (game.settings.get(ID, "cardAcoes")) {
+        await this.enviarCard(alvo, cat, acao, custo, restam, "", []);
+      }
+      await this.golpeDeMisericordia(alvo, arma);
+    } else {
+      if (atraso) {
+        const de = Number(alvo.c.initiative);
+        const fmt = (n) => (Math.round(n * 100) / 100).toString().replace(".", ",");
+        extra += `<div class="tc-bloco"><div class="tc-linha"><i class="fa-solid fa-hourglass-half"></i><span>Atrasa a ação ${esc(atraso.rotulo)}. Iniciativa <b>${fmt(de)}</b> → <b>${fmt(atraso.nova)}</b> pelo resto do combate.</span></div></div>`;
+      }
+      if (game.settings.get(ID, "cardAcoes")) await this.enviarCard(alvo, cat, acao, custo, restam, extra, rolls);
+    }
+    if (atraso) {
+      try {
+        if (game.user.isGM) await executarAtraso(game.combat, alvo.c, atraso.nova);
+        else game.socket.emit(`module.${ID}`, { tipo: "atrasar", combatId: game.combat.id, combatenteId: alvo.c.id, nova: atraso.nova });
+      } catch (err) {
+        console.error(`${ID} | não foi possível atrasar`, err);
+        ui.notifications.error("Não foi possível alterar a Iniciativa. Peça ao Mestre.");
+      }
+    }
+    this.fechar();
+  }
+
+  static async enviarCard(alvo, cat, acao, custo, restam, extra = "", rolls = []) {
+    const ico = (classe, livre) => `<i class="fa-solid ${classe} tc-disp ${livre ? "livre" : ""}"></i>`;
+    const restantes = restam
+      ? `<span class="tc-restam">Restam ${ico("fa-hand-fist", restam.padrao)}${ico("fa-person-running", restam.movimento)}</span>`
+      : "";
+    // Identificação do personagem e do jogador dentro do próprio card.
+    const actor = alvo.actor;
+    const actorNome = actor?.name ?? alvo.doc?.name ?? "Personagem";
+    const jogadorDesignado = game.users?.find((u) => u.character?.id === actor?.id);
+    const jogadoresProprietarios = actor
+      ? [...game.users].filter((u) => !u.isGM && actor.testUserPermission?.(u, "OWNER"))
+      : [];
+    const jogador = jogadorDesignado
+      ?? jogadoresProprietarios[0]
+      ?? (game.user?.isGM ? null : game.user);
+    const jogadorNome = jogador?.name ?? "Mestre";
+    const retrato = actor?.img ?? alvo.doc?.texture?.src ?? "";
+    const retratoHtml = retrato
+      ? `<img class="tc-retrato" src="${esc(retrato)}" alt="">`
+      : `<span class="tc-retrato tc-retrato-vazio"><i class="fa-solid fa-user"></i></span>`;
+
+    const content = `
+      <div class="t20ah-card" style="--cor:${cat.cor}">
+        <div class="tc-identidade">
+          ${retratoHtml}
+          <div class="tc-identidade-texto">
+            <strong>${esc(actorNome)}</strong>
+            <small>Jogador: ${esc(jogadorNome)}</small>
+          </div>
+        </div>
+        <div class="tc-topo">
+          <i class="fa-solid ${cat.icone} tc-ico"></i>
+          <div class="tc-tit"><small>${esc(cat.singular)}</small><strong>${esc(acao.nome)}</strong></div>
+        </div>
+        <div class="tc-desc">${htmlRegra(acao)}</div>
+        ${extra}
+        <div class="tc-rodape"><span>${esc(custo)}</span>${restantes}</div>
+      </div>`;
+    let speaker;
+    try {
+      speaker = ChatMessage.getSpeaker({ token: alvo.doc });
+    } catch (err) {
+      speaker = { alias: alvo.doc.name };
+    }
+    try {
+      await ChatMessage.create({ speaker, content, rolls, flags: { [ID]: { card: true } } });
+    } catch (err) {
+      console.error(`${ID} | não foi possível enviar o card ao chat`, err);
+    }
+  }
+
+  /* tooltip */
+  static mostrarTip(cat, i) {
+    const c = CATEGORIAS_ACOES.find((x) => x.id === cat);
+    const a = c?.acoes[i];
+    if (!a) return this.esconderTip();
+    this.tip.style.setProperty("--cor", c.cor);
+    this.tip.innerHTML = `
+      <div class="tp-nome">${esc(a.nome)}</div>
+      <div class="tp-cat">${esc(c.singular)}</div>
+      <div class="tp-desc">${htmlRegra(a)}</div>`;
+    this.tip.classList.remove("oculto");
+  }
+
+  static posicionarTip(x, y) {
+    const tip = this.tip;
+    if (!tip || tip.classList.contains("oculto")) return;
+    const w = tip.offsetWidth;
+    const h = tip.offsetHeight;
+    let left = x + 18;
+    let top = y - h / 2;
+    if (left + w > window.innerWidth - 8) left = x - w - 18;
+    tip.style.left = `${Math.max(8, left)}px`;
+    tip.style.top = `${clamp(top, 8, window.innerHeight - h - 8)}px`;
+  }
+
+  static esconderTip() {
+    this._alvoTip = null;
+    this.tip?.classList.add("oculto");
+  }
+
+  /** O menu abre colado ao botão da categoria (acima dele; se não couber, abaixo). */
+  static posicionar() {
+    const el = this.el;
+    if (!el) return;
+    const hud = AcoesHUD.el;
+    const visivel = !!this.catAberta && this.habilitado() && !!hud?.isConnected && !hud.classList.contains("oculto");
+    const btn = visivel ? hud.querySelector(`[data-aa="${this.catAberta}"]`) : null;
+    const r = btn?.getBoundingClientRect();
+    if (!btn || !r || (r.width === 0 && r.height === 0)) {
+      // HUD escondida ou recolhida: fecha o menu
+      if (this.catAberta && (!btn || !r || (r.width === 0 && r.height === 0))) this.catAberta = null;
+      el.classList.add("oculto");
+      this.esconderTip();
+      return;
+    }
+    el.classList.remove("oculto");
+    el.style.setProperty("--esc", hud.style.getPropertyValue("--esc") || 1);
+    const w = el.offsetWidth || 300;
+    const h = el.offsetHeight || 200;
+    const left = clamp(r.left + r.width / 2 - w / 2, 8, window.innerWidth - w - 8);
+    const top = r.top - h - 10 > 8 ? r.top - h - 10 : r.bottom + 10;
+    el.style.left = `${left}px`;
+    el.style.top = `${clamp(top, 8, window.innerHeight - h - 8)}px`;
+  }
+
+  static sincronizar() {
+    if (!this.habilitado()) {
+      this.catAberta = null;
+      this.el?.classList.add("oculto");
+      return;
+    }
+    this.garantir();
+    this.renderPainel();
+    this.posicionar();
+  }
+}
+
 /* ---------- Configurações ---------- */
+
+/** Liga/desliga o estilo do módulo nas mensagens padrão do chat (classe no <body>). */
+function aplicarEstiloChat() {
+  let ligado = false;
+  try { ligado = !!game.settings.get(ID, "estiloChat"); } catch (err) { /* ainda não registrada */ }
+  document.body.classList.toggle("t20ah-chat-estilo", ligado);
+}
 
 Hooks.once("init", () => {
   game.settings.register(ID, "mostrarGM", {
@@ -828,6 +1965,42 @@ Hooks.once("init", () => {
     choices: { token: "Token", portrait: "Retrato (portrait)" },
     default: "token",
     onChange: () => AcoesHUD.render()
+  });
+  game.settings.register(ID, "menuAcoes", {
+    name: "Mostrar os botões de Ações (regras rápidas)",
+    hint: "Quatro botões acima da HUD (padrão, movimento, completa e livre) que listam as ações de combate, mostram o que cada uma faz e, ao clicar, gastam a ação e enviam um card ao chat. Apenas para você.",
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: true,
+    onChange: () => MenuAcoes.sincronizar()
+  });
+  game.settings.register(ID, "layoutCombate", {
+    name: "Layout da HUD em combate",
+    hint: "Largo: em combate, o painel com as ações (Padrão, Movimento, Completa e Livre) fica ao lado da HUD. Compacto: a HUD fica estreita e as ações abrem num menu flutuante. Apenas para você.",
+    scope: "client",
+    config: true,
+    type: String,
+    choices: { largo: "Largo, com painel de ações ao lado", compacto: "Compacto, com menu flutuante" },
+    default: "largo",
+    onChange: () => AcoesHUD.render()
+  });
+  game.settings.register(ID, "cardAcoes", {
+    name: "Enviar o card da ação ao chat",
+    hint: "Ao usar uma ação pelos botões de Ações, envia ao chat um card com o nome, a descrição e o custo da ação.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true
+  });
+  game.settings.register(ID, "estiloChat", {
+    name: "Estilo do módulo nos cards do chat",
+    hint: "Aplica o visual da HUD (tons escuros, moldura dourada, títulos e botões) às mensagens padrão do chat: cards de itens, magias e poderes, rolagens e mensagens comuns. Todas as informações são mantidas; só muda o estilo. Apenas para você.",
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: false,
+    onChange: () => aplicarEstiloChat()
   });
   game.settings.register(ID, "escala", {
     name: "Tamanho da HUD",
@@ -975,6 +2148,7 @@ Hooks.once("init", () => {
 /* ---------- Hooks de combate ---------- */
 
 Hooks.once("ready", () => {
+  aplicarEstiloChat();
   const mod = game.modules.get(ID);
   if (mod) mod.api = Object.assign(mod.api ?? {}, { gastarPorItem: (item) => AcoesHUD.aoUsarItem(item), tipoDeAcao });
   AcoesHUD.render();
@@ -982,11 +2156,13 @@ Hooks.once("ready", () => {
 
   // Jogador sem permissão para avançar o combate pede ao Mestre
   game.socket.on(`module.${ID}`, (data, userId) => {
-    if (data?.tipo !== "passar" || !game.user.isActiveGM) return;
+    if (!["passar", "atrasar"].includes(data?.tipo) || !game.user.isActiveGM) return;
     const combat = game.combats.get(data.combatId);
     const atual = combat?.combatant;
     const quem = game.users.get(userId);
-    if (atual?.id === data.combatenteId && quem && atual.testUserPermission(quem, "OWNER")) combat.nextTurn();
+    if (!(atual?.id === data.combatenteId && quem && atual.testUserPermission(quem, "OWNER"))) return;
+    if (data.tipo === "passar") combat.nextTurn();
+    else if (Number.isFinite(Number(data.nova)) && Number(data.nova) < Number(atual.initiative)) executarAtraso(combat, atual, Number(data.nova));
   });
 });
 Hooks.on("canvasReady", () => AcoesHUD.render());
@@ -1002,19 +2178,35 @@ for (const hook of ["createActiveEffect", "updateActiveEffect", "deleteActiveEff
   Hooks.on(hook, () => AcoesHUD.renderSoon());
 }
 
-Hooks.on("updateCombat", async (combat, changes) => {
-  // Só o Mestre ativo renova as ações no início de cada turno.
-  if (game.user.isActiveGM && combat.started && ("turn" in changes || "round" in changes)) {
-    combat.setFlag(ID, "turno", { chave: AcoesHUD.chaveTurno(combat), inicio: Date.now() }).catch(() => {});
-    const c = combat.combatant;
-    if (c && (() => { const x = getEstado(c); return x.std || x.mov || x.conv || x.full || x.dist || x.hist?.length; })()) {
-      try {
-        await c.setFlag(ID, FLAG, { ...VAZIO });
-      } catch (err) {
-        console.error(`${ID} |`, err);
-      }
+/** Início de turno (só o Mestre ativo chama): reinicia o timer e renova as ações do combatente da vez. */
+async function renovarAcoesDoTurno(combat) {
+  combat.setFlag(ID, "turno", { chave: AcoesHUD.chaveTurno(combat), inicio: Date.now() }).catch(() => {});
+  const c = combat.combatant;
+  if (c && (() => { const x = getEstado(c); return x.std || x.mov || x.conv || x.full || x.ext || x.corrida || x.dist || x.hist?.length; })()) {
+    try {
+      await c.setFlag(ID, FLAG, { ...VAZIO });
+    } catch (err) {
+      console.error(`${ID} |`, err);
     }
   }
+}
+
+/**
+ * Atrasar (Mestre ativo executa): baixa a Iniciativa do combatente da vez e mantém o turno no ponto em que estava,
+ * de modo que quem vinha depois dele passa a agir agora e ele age quando a nova Iniciativa chegar.
+ */
+async function executarAtraso(combat, c, nova) {
+  if (!combat?.started || combat.combatant?.id !== c?.id) return false;
+  const t = combat.turn;
+  await combat.setInitiative(c.id, nova);
+  if (combat.turn !== t) await combat.update({ turn: t });
+  if (combat.combatant?.id !== c.id) await renovarAcoesDoTurno(combat);
+  return true;
+}
+
+Hooks.on("updateCombat", async (combat, changes) => {
+  // Só o Mestre ativo renova as ações no início de cada turno.
+  if (game.user.isActiveGM && combat.started && ("turn" in changes || "round" in changes)) await renovarAcoesDoTurno(combat);
   AcoesHUD.render();
 });
 
@@ -1389,6 +2581,7 @@ function desfazerPassos(e, k) {
   for (const h of removidos.reverse()) {
     novo.dist = Math.max(0, (novo.dist ?? 0) - h.d);
     if (h.m) novo.mov = false;
+    if (h.x) novo.ext = null;
     if (h.c) {
       novo.conv = false;
       novo.std = false;
@@ -1498,12 +2691,31 @@ Hooks.on("preMoveToken", (doc, movement) => {
   const porAcao = quadradosPorAcao(c.actor);
   const total = (e.dist ?? 0) + pend;
   const necessarias = Math.max(1, Math.ceil(total / porAcao - 0.01));
-  const maximo = maxMovimentos(e);
+  const maximo = maxMovimentos(e, temExtra(c.actor));
   dbg({ continuacao, pend, porAcao, total, necessarias, maximo, estado: e, deslocamentoM: deslocamentoMetros(c.actor) });
 
   // trechos seguintes da mesma jogada já foram validados no primeiro trecho
   const jaValidado = continuacao && TETO.has(doc.id);
-  if (!jaValidado && necessarias > maximo) {
+  if (e.corrida) {
+    // Corrida: só em linha reta, sem terreno difícil, até a distância tirada no teste de Atletismo
+    if (!jaValidado) {
+      if (!corridaEmLinhaReta(pontosDoMovimento(doc, movement), e.corrida.dir)) {
+        ui.notifications.warn(`${c.name} só pode correr em linha reta.`);
+        return false;
+      }
+      const custo = Number(movement?.pending?.cost);
+      const geom = Number(movement?.pending?.distance);
+      if (Number.isFinite(custo) && Number.isFinite(geom) && custo > geom + 0.01) {
+        ui.notifications.warn(`${c.name} não pode correr através de terreno difícil.`);
+        return false;
+      }
+      if (total > e.corrida.max + 0.01) {
+        const resta = Math.max(0, e.corrida.max - (e.dist ?? 0)) * cfg("metrosPorQuadrado");
+        ui.notifications.warn(`Corrida: ${c.name} só pode correr mais ${(Math.round(resta * 10) / 10).toString().replace(".", ",")} m.`);
+        return false;
+      }
+    }
+  } else if (!jaValidado && necessarias > maximo) {
     const resta = Math.max(0, maximo * porAcao - (e.dist ?? 0)) * cfg("metrosPorQuadrado");
     const txt = (Math.round(resta * 10) / 10).toString().replace(".", ",");
     ui.notifications.warn(
@@ -1545,16 +2757,34 @@ Hooks.on("moveToken", async (doc, movement, operation, user) => {
   const total = (e.dist ?? 0) + real;
   const necessarias = Math.max(1, Math.ceil(total / quadradosPorAcao(c.actor) - 0.01));
   const novo = { ...e, dist: total };
-  if (necessarias >= 1) novo.mov = true;
-  if (necessarias >= 2 && !novo.conv) {
-    novo.conv = true; // 2º movimento usa a ação padrão
-    novo.std = true;
+  // Ações de movimento já gastas por atividades (poderes, itens, Levantar-se...) contam como movimentos usados:
+  // o deslocamento andado só pode usar as ações de movimento que sobraram (inclusive a padrão convertida).
+  const usadas = necessarias + Math.max(0, Number(e.movAtividade) || 0);
+  const extra = temExtra(c.actor);
+  if (e.corrida) {
+    // Corrida: o deslocamento sai do resultado do teste, não das ações de movimento
+    const q = movement?.destination;
+    const o = p.a;
+    const L = q && o ? Math.hypot(q.x - o.x, q.y - o.y) : 0;
+    if (!e.corrida.dir && L > 1) novo.corrida = { ...e.corrida, dir: { x: (q.x - o.x) / L, y: (q.y - o.y) / L } };
+  } else if (e.full) {
+    // completa já gastou padrão + movimento: andar só é possível com a ação extra (Velocidade)
+    if (extra && !novo.ext) novo.ext = "movimento";
+  } else {
+    if (usadas >= 1) novo.mov = true;
+    const stdLivre = !e.std || e.conv; // a ação padrão ainda pode virar movimento?
+    if (usadas >= 2 && !novo.conv && !e.std) {
+      novo.conv = true; // 2º movimento usa a ação padrão
+      novo.std = true;
+    }
+    // 3º movimento (ou 2º, se a padrão já foi usada em outra coisa) usa a ação extra (Velocidade)
+    if (extra && !novo.ext && (usadas >= 3 || (usadas >= 2 && !stdLivre))) novo.ext = "movimento";
   }
   const b = { x: doc.x, y: doc.y };
   const pts = pontosReais(doc, movement?.id, p.a, b);
   novo.hist = [
     ...(e.hist ?? []),
-    { d: real, m: !e.mov && novo.mov, c: !e.conv && novo.conv, a: p.a, b, p: pts, mid: movement?.id ?? null }
+    { d: real, m: !e.mov && novo.mov, c: !e.conv && novo.conv, x: !e.ext && !!novo.ext, a: p.a, b, p: pts, mid: movement?.id ?? null }
   ].slice(-40);
   ESTADO_RECENTE.set(c.id, { estado: novo, t: Date.now() });
   try {
@@ -1629,10 +2859,20 @@ function itemDaMensagem(message) {
 Hooks.on("createChatMessage", (message) => {
   if (!cfg("gastarPorItem")) return;
   if ((message.author ?? message.user)?.id !== game.user.id) return; // só quem enviou
-  if (message.flags?.[ID]?.anuncio) return;
+  if (message.flags?.[ID]?.anuncio || message.flags?.[ID]?.card) return;
   const item = itemDaMensagem(message);
   dbg("chat", message.id, item?.name ?? "(sem item)");
   if (item) AcoesHUD.aoUsarItem(item);
 });
 
 window.addEventListener("resize", () => AcoesHUD.el?.isConnected && AcoesHUD.aplicarPosicao());
+
+// Cards de ação: a identificação já está dentro do HTML do card; oculta o cabeçalho padrão do chat.
+// "renderChatMessage" existe no v13 (antigo); "renderChatMessageHTML" é o atual (v13 em diante). Os dois são seguros juntos.
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  Hooks.on(hook, (message, html) => {
+    if (!message.flags?.[ID]?.card) return;
+    const element = html?.[0] ?? html;
+    element?.classList?.add("t20ah-card-message");
+  });
+}

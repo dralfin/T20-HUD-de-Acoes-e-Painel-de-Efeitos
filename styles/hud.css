@@ -103,7 +103,8 @@
 
 /* ---------- Corpo ---------- */
 #t20ah .t20ah-corpo { padding: 0.7em 0.7em 0.55em; }
-#t20ah.recolhido .t20ah-corpo { display: none; }
+#t20ah.recolhido .t20ah-corpo,
+#t20ah.recolhido .t20ah-corpo.grade { display: none; }
 #t20ah.recolhido .t20ah-cabeca { border-bottom: none; }
 
 #t20ah .t20ah-botoes {
@@ -130,6 +131,9 @@
 }
 #t20ah .t20ah-tile.movimento { --cor: #3aa0c9; }
 #t20ah .t20ah-tile.completa { --cor: #e0b85c; }
+#t20ah .t20ah-tile.extra { --cor: #9be15d; cursor: default; }
+#t20ah .t20ah-botoes.com-extra { grid-template-columns: repeat(4, 1fr); }
+#t20ah .ico-acao.extra { color: #9be15d; }
 
 #t20ah .t20ah-tile i {
   font-size: 1.7em;
@@ -377,3 +381,520 @@
 @media (prefers-reduced-motion: reduce) {
   #t20ah, #t20ah * { animation: none !important; transition: none !important; }
 }
+
+/* ================= Botões de Ações (dentro da HUD) ================= */
+#t20ah .t20ah-livro { display: flex; gap: 0.4em; margin-top: 0.65em; }
+#t20ah .lv-btn {
+  all: unset;
+  box-sizing: border-box;
+  --cor: #e0b85c;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15em;
+  padding: 0.35em 0.2em 0.3em;
+  cursor: pointer;
+  border-radius: 0.6em;
+  font-family: "Modesto Condensed", "Signika", sans-serif;
+  font-size: 0.78em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--cor) 22%, #1a1013), #1a1013);
+  border: 1px solid color-mix(in srgb, var(--cor) 55%, transparent);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+#t20ah .lv-btn i { font-size: 1.25em; color: color-mix(in srgb, var(--cor) 85%, white); filter: drop-shadow(0 0 0.3em var(--cor)); }
+#t20ah .lv-btn:hover { transform: translateY(-1px); box-shadow: 0 0.25em 0.8em color-mix(in srgb, var(--cor) 40%, transparent); }
+#t20ah .lv-btn.ativo { background: linear-gradient(160deg, color-mix(in srgb, var(--cor) 55%, #1a1013), color-mix(in srgb, var(--cor) 22%, #1a1013)); border-color: var(--cor); }
+
+/* menu flutuante com as ações da categoria */
+#t20ah-acoes {
+  --cor: #e0b85c;
+  position: fixed;
+  z-index: 80; /* acima da HUD (70) */
+  width: 23em;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 0.6em;
+  font-size: calc(14px * var(--esc, 1));
+  font-family: "Signika", sans-serif;
+  color: #f2e8d5;
+  border-radius: 0.8em;
+  background: linear-gradient(165deg, #2b1a1d, #1a1013);
+  border: 1px solid color-mix(in srgb, var(--cor) 65%, transparent);
+  box-shadow: 0 0.6em 1.6em rgba(0, 0, 0, 0.55);
+  animation: t20ah-sobe 0.16s ease-out;
+}
+#t20ah-acoes.oculto { display: none; }
+@keyframes t20ah-sobe { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+#t20ah-acoes .aa-cab, #t20ah .aa-cab { padding: 0 0.2em 0.45em; font-family: "Modesto Condensed", "Signika", sans-serif; font-size: 1.1em; letter-spacing: 0.06em; color: var(--cor); }
+#t20ah-acoes .aa-cab i, #t20ah .aa-cab i { margin-right: 0.4em; }
+#t20ah-acoes .aa-lista, #t20ah .aa-lista { display: grid; grid-template-columns: repeat(auto-fit, minmax(10em, 1fr)); gap: 0.3em; }
+#t20ah-acoes .aa-acao, #t20ah .aa-acao {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5em;
+  cursor: pointer;
+  padding: 0.35em 0.75em;
+  border-radius: 0.55em;
+  font-size: 0.92em;
+  background: color-mix(in srgb, var(--cor) 16%, #1a1013);
+  border: 1px solid color-mix(in srgb, var(--cor) 55%, transparent);
+  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s, background 0.12s;
+}
+#t20ah-acoes .aa-acao:hover, #t20ah .aa-acao:hover { transform: translateY(-1px); border-color: var(--cor); background: color-mix(in srgb, var(--cor) 32%, #1a1013); box-shadow: 0 0.2em 0.7em color-mix(in srgb, var(--cor) 40%, transparent); }
+#t20ah-acoes .aa-acao:active, #t20ah .aa-acao:active { transform: scale(0.98); }
+#t20ah-acoes .aa-auto, #t20ah .aa-auto { flex: none; font-style: normal; font-size: 0.68em; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.05em 0.45em; border-radius: 0.8em; color: #9a8a7a; border: 1px solid rgba(255, 255, 255, 0.2); }
+#t20ah-acoes .aa-dica, #t20ah .aa-dica { margin-top: 0.5em; font-size: 0.72em; color: #9a8a7a; font-style: italic; text-align: center; line-height: 1.35; }
+#t20ah-acoes .aa-dica em, #t20ah .aa-dica em { font-style: normal; color: #f2e8d5; }
+
+/* tooltip das ações (descrição completa) */
+#t20ah-acoes-tip {
+  --cor: #e0b85c;
+  position: fixed;
+  z-index: 210;
+  max-width: 30em;
+  min-width: 14em;
+  padding: 0.7em 0.9em;
+  pointer-events: none;
+  font-family: "Signika", sans-serif;
+  font-size: 13px;
+  color: #f2e8d5;
+  background: linear-gradient(165deg, #2b1a1d, #1a1013);
+  border: 1px solid var(--cor);
+  border-radius: 0.7em;
+  box-shadow: 0 0.6em 1.4em rgba(0, 0, 0, 0.6);
+}
+#t20ah-acoes-tip.oculto { display: none; }
+#t20ah-acoes-tip .tp-nome { font-family: "Modesto Condensed", "Signika", sans-serif; font-size: 1.3em; color: var(--cor); }
+#t20ah-acoes-tip .tp-cat { font-size: 0.7em; letter-spacing: 0.12em; text-transform: uppercase; color: #9a8a7a; margin-bottom: 0.4em; }
+#t20ah-acoes-tip .tp-desc p, .t20ah-card .tc-desc p { margin: 0 0 0.45em; line-height: 1.4; }
+#t20ah-acoes-tip .tp-desc p:last-child, .t20ah-card .tc-desc p:last-child { margin-bottom: 0; }
+.rg-topicos { margin: 0.5em 0 0; padding-left: 1.1em; }
+.rg-topicos li { margin-bottom: 0.35em; line-height: 1.4; }
+.rg-topicos b { color: var(--cor); }
+
+/* ================= Card da ação no chat (mesmo estilo da HUD) ================= */
+.t20ah-card {
+  --cor: #e0b85c;
+  overflow: hidden;
+  border-radius: 0.7em;
+  font-family: "Signika", sans-serif;
+  color: #f2e8d5;
+  background: linear-gradient(165deg, #2b1a1d, #1a1013);
+  border: 1px solid color-mix(in srgb, var(--cor) 70%, transparent);
+  border-left: 4px solid var(--cor);
+  box-shadow: 0 0.3em 0.9em rgba(0, 0, 0, 0.45);
+}
+.t20ah-card .tc-topo {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  padding: 0.55em 0.75em;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--cor) 30%, transparent), transparent 85%);
+  border-bottom: 1px solid rgba(224, 184, 92, 0.25);
+}
+.t20ah-card .tc-ico { font-size: 1.7em; color: var(--cor); filter: drop-shadow(0 0 0.35em var(--cor)); }
+.t20ah-card .tc-tit { display: flex; flex-direction: column; line-height: 1.1; }
+.t20ah-card .tc-tit small { font-size: 0.68em; letter-spacing: 0.16em; text-transform: uppercase; color: #9a8a7a; }
+.t20ah-card .tc-tit strong { font-family: "Modesto Condensed", "Signika", sans-serif; font-size: 1.45em; letter-spacing: 0.03em; color: var(--cor); text-shadow: 0 1px 0 #000; }
+.t20ah-card .tc-desc { padding: 0.6em 0.8em; font-size: 0.9em; }
+.t20ah-card .tc-rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6em;
+  padding: 0.4em 0.8em;
+  font-size: 0.75em;
+  color: #9a8a7a;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.25);
+}
+.t20ah-card .tc-restam { white-space: nowrap; }
+.t20ah-card .tc-disp { margin-left: 0.35em; opacity: 0.3; filter: grayscale(1); }
+.t20ah-card .tc-disp.livre { opacity: 1; filter: none; }
+.t20ah-card .tc-disp.fa-hand-fist.livre { color: #ff6b6b; }
+.t20ah-card .tc-disp.fa-person-running.livre { color: #4db6e6; }
+
+@media (prefers-reduced-motion: reduce) {
+  #t20ah-acoes, #t20ah-acoes * { transition: none !important; animation: none !important; }
+}
+
+/* ---- blocos extras do card (condição, golpe de misericórdia) ---- */
+.t20ah-card .tc-bloco { padding: 0.5em 0.8em; border-top: 1px solid rgba(255, 255, 255, 0.08); background: rgba(0, 0, 0, 0.2); font-size: 0.88em; }
+.t20ah-card .tc-linha { display: flex; align-items: flex-start; gap: 0.6em; margin-bottom: 0.35em; line-height: 1.35; }
+.t20ah-card .tc-linha > i { color: var(--cor); margin-top: 0.2em; width: 1.1em; text-align: center; }
+.t20ah-card .tc-nat { color: #ffd76a; text-shadow: 0 0 0.5em rgba(255, 215, 106, 0.6); }
+.t20ah-card .tc-dado { display: inline-block; min-width: 1.6em; text-align: center; padding: 0 0.3em; border-radius: 0.4em; color: #1a1013; background: var(--cor); }
+.t20ah-card .tc-vereditos { display: flex; flex-direction: column; gap: 0.3em; margin: 0.4em 0; }
+.t20ah-card .tc-vd { display: flex; align-items: center; justify-content: space-between; gap: 0.6em; padding: 0.3em 0.6em; border-radius: 0.5em; border: 1px solid transparent; }
+.t20ah-card .tc-vd em { font-style: normal; font-size: 0.9em; }
+.t20ah-card .tc-vd b { letter-spacing: 0.08em; white-space: nowrap; }
+.t20ah-card .tc-vd.morre { background: rgba(214, 69, 69, 0.2); border-color: rgba(214, 69, 69, 0.7); color: #ff9c92; }
+.t20ah-card .tc-vd.vive { background: rgba(76, 175, 106, 0.16); border-color: rgba(76, 175, 106, 0.6); color: #9be3b0; }
+.t20ah-card .tc-nota { font-size: 0.82em; color: #9a8a7a; font-style: italic; }
+
+/* ---- janela de escolha da arma (Golpe de Misericórdia) ---- */
+#t20ah-escolha { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; font-family: "Signika", sans-serif; }
+#t20ah-escolha .ec-fundo { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(2px); }
+#t20ah-escolha .ec-janela {
+  --cor: #e0b85c;
+  position: relative;
+  width: min(26em, 92vw);
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 0.8em;
+  color: #f2e8d5;
+  font-size: 15px;
+  border-radius: 0.9em;
+  background: linear-gradient(165deg, #2b1a1d, #1a1013);
+  border: 1px solid rgba(224, 184, 92, 0.6);
+  box-shadow: 0 1em 2.4em rgba(0, 0, 0, 0.7);
+  animation: t20ah-sobe 0.18s ease-out;
+}
+#t20ah-escolha header { display: flex; align-items: center; gap: 0.7em; padding-bottom: 0.6em; border-bottom: 1px solid rgba(224, 184, 92, 0.3); }
+#t20ah-escolha header > i { font-size: 1.7em; color: var(--cor); filter: drop-shadow(0 0 0.35em var(--cor)); }
+#t20ah-escolha header > div { flex: 1; display: flex; flex-direction: column; line-height: 1.1; }
+#t20ah-escolha header small { font-size: 0.68em; letter-spacing: 0.16em; text-transform: uppercase; color: #9a8a7a; }
+#t20ah-escolha header strong { font-family: "Modesto Condensed", "Signika", sans-serif; font-size: 1.5em; color: var(--cor); text-shadow: 0 1px 0 #000; }
+#t20ah-escolha .ec-x { all: unset; cursor: pointer; width: 1.8em; height: 1.8em; display: grid; place-items: center; border-radius: 0.45em; color: #9a8a7a; }
+#t20ah-escolha .ec-x:hover { color: var(--cor); background: rgba(255, 255, 255, 0.08); }
+#t20ah-escolha p { margin: 0.7em 0; font-size: 0.9em; line-height: 1.4; }
+#t20ah-escolha p b { color: #ffd76a; }
+#t20ah-escolha .ec-lista { display: flex; flex-direction: column; gap: 0.4em; }
+#t20ah-escolha .ec-arma {
+  all: unset;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 2.6em 1fr;
+  grid-template-areas: "img n" "img d";
+  column-gap: 0.7em;
+  align-items: center;
+  cursor: pointer;
+  padding: 0.45em 0.6em;
+  border-radius: 0.6em;
+  background: color-mix(in srgb, var(--cor) 14%, #1a1013);
+  border: 1px solid color-mix(in srgb, var(--cor) 50%, transparent);
+  transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s, background 0.12s;
+}
+#t20ah-escolha .ec-arma:hover { transform: translateY(-1px); border-color: var(--cor); background: color-mix(in srgb, var(--cor) 28%, #1a1013); box-shadow: 0 0.3em 1em color-mix(in srgb, var(--cor) 35%, transparent); }
+#t20ah-escolha .ec-arma img { grid-area: img; width: 2.6em; height: 2.6em; object-fit: cover; border-radius: 0.4em; border: 1px solid rgba(224, 184, 92, 0.5); background: #000; }
+#t20ah-escolha .ec-n { grid-area: n; font-family: "Modesto Condensed", "Signika", sans-serif; font-size: 1.15em; }
+#t20ah-escolha .ec-d { grid-area: d; font-size: 0.78em; color: #9a8a7a; }
+#t20ah-escolha footer { display: flex; justify-content: flex-end; margin-top: 0.7em; }
+#t20ah-escolha .ec-cancelar { all: unset; cursor: pointer; padding: 0.3em 1em; border-radius: 0.5em; font-size: 0.85em; color: #9a8a7a; border: 1px solid rgba(255, 255, 255, 0.15); }
+#t20ah-escolha .ec-cancelar:hover { color: #f2e8d5; border-color: #e0b85c; }
+
+/* ================= Cartões de ação (sutis) ================= */
+#t20ah .t20ah-botoes { gap: 0.4em; }
+#t20ah .t20ah-tile {
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4em;
+  min-width: 0;
+  padding: 0.28em 0.5em;
+  border-radius: 0.55em;
+}
+#t20ah .t20ah-tile i { font-size: 1.05em; }
+#t20ah .t20ah-rotulo { font-size: 0.78em; letter-spacing: 0.06em; }
+#t20ah .t20ah-pips {gap: 0.2em; height: auto; }
+#t20ah .pip { width: 0.5em; height: 0.5em; }
+#t20ah .t20ah-tile:hover:not(.gasto) { transform: translateY(-1px); }
+
+/* ================= Layout largo (em combate): uma HUD só ================= */
+#t20ah.largo .t20ah-nome { max-width: 24em; }
+#t20ah .t20ah-corpo.grade {
+  display: grid;
+  grid-template-columns: 18.5em minmax(0, 1fr);
+  column-gap: 1.1em;
+  align-items: start;
+  width: 50em;
+  max-width: calc(100vw - 2em);
+}
+#t20ah .t20ah-esq { min-width: 0; }
+#t20ah.largo .t20ah-recursos { gap: 0.35em; }
+#t20ah.largo .t20ah-chips { margin-top: 0.4em; }
+#t20ah.largo .t20ah-sep { margin: 0.5em 0 0.45em; }
+#t20ah.largo .t20ah-tempo,
+#t20ah.largo .t20ah-desloc { margin-top: 0.45em; }
+#t20ah.largo .t20ah-passar { margin-top: 0.5em; padding: 0.4em; }
+#t20ah.largo .t20ah-espera { margin-top: 0.6em; }
+#t20ah.largo .t20ah-rodape { display: none; }
+
+#t20ah .t20ah-dir { min-width: 0; display: flex; flex-direction: column; gap: 0.5em; }
+#t20ah .aa-sec { --cor: #e0b85c; }
+#t20ah .aa-sec + .aa-sec {
+  padding-top: 0.5em;
+  border-top: 1px solid transparent;
+  border-image: linear-gradient(90deg, rgba(224, 184, 92, 0), rgba(224, 184, 92, 0.45), rgba(224, 184, 92, 0)) 1;
+}
+#t20ah .aa-sec .aa-cab { padding: 0 0 0.3em; font-size: 0.82em; letter-spacing: 0.14em; text-transform: uppercase; }
+#t20ah .aa-sec .aa-lista { display: flex; flex-wrap: wrap; gap: 0.3em; }
+#t20ah .aa-sec .aa-acao { padding: 0.17em 0.6em; font-size: 0.82em; }
+#t20ah .t20ah-dir > .aa-dica { margin-top: 0.1em; text-align: left; }
+/* fora do turno, só as ações livres podem ser usadas */
+#t20ah:not(.em-turno) .aa-sec:not(.livre) .aa-acao { opacity: 0.5; }
+
+
+/* ---- identificação incorporada aos cards de ação ---- */
+.chat-message.t20ah-card-message .message-header,
+.chat-message.t20ah-card-message > .message-header {
+  display: none !important;
+}
+.t20ah-card .tc-identidade {
+  display: flex;
+  align-items: center;
+  gap: 0.65em;
+  min-height: 3.2em;
+  padding: 0.45em 0.65em;
+  background: rgba(0, 0, 0, 0.28);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.t20ah-card .tc-retrato {
+  display: block;
+  flex: 0 0 2.6em;
+  width: 2.6em;
+  height: 2.6em;
+  object-fit: cover;
+  object-position: center;
+  border: 1px solid rgba(224, 184, 92, 0.55);
+  border-radius: 0.25em;
+}
+.t20ah-card .tc-retrato-vazio {
+  display: grid;
+  place-items: center;
+  color: var(--cor);
+  background: rgba(255, 255, 255, 0.06);
+}
+.t20ah-card .tc-identidade-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+  min-width: 0;
+  line-height: 1.15;
+}
+.t20ah-card .tc-identidade-texto strong {
+  overflow: hidden;
+  color: #f2e8d5;
+  font-size: 0.98em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.t20ah-card .tc-identidade-texto small {
+  color: #b9ad9e;
+  font-size: 0.75em;
+}
+
+
+/* ---- remove o invólucro visual padrão do Foundry apenas nos cards deste módulo ---- */
+.chat-message.t20ah-card-message {
+  background: transparent !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0.35rem 0 !important;
+}
+.chat-message.t20ah-card-message::before,
+.chat-message.t20ah-card-message::after {
+  display: none !important;
+  content: none !important;
+}
+.chat-message.t20ah-card-message .message-content {
+  background: transparent !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+.chat-message.t20ah-card-message .message-header,
+.chat-message.t20ah-card-message .message-metadata {
+  display: none !important;
+}
+
+/* ================= Animações de perda e ganho de PV / PM (e temporários) ================= */
+#t20ah .t20ah-rec .rec-val,
+#t20ah .t20ah-rec .rec-temp { position: relative; }
+#t20ah .t20ah-rec .trilho { position: relative; }
+#t20ah .t20ah-rec .fill { position: relative; z-index: 1; }
+
+/* rastro claro que "escorre" até o novo valor */
+#t20ah .t20ah-rec .ghost {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 0;
+  width: var(--para, 0%);
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ffd2cc, #fff);
+  animation: t20ah-dreno 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(0.3s + var(--atraso, 0ms));
+}
+#t20ah .t20ah-rec.pm .ghost { background: linear-gradient(90deg, #bfdcff, #fff); }
+@keyframes t20ah-dreno { from { width: var(--de, 100%); } to { width: var(--para, 0%); } }
+
+/* a linha treme, a barra pisca e o ícone "bate" */
+#t20ah .t20ah-rec.dano-valor { animation: t20ah-treme-linha 0.45s ease-out; animation-delay: var(--atraso-linha, 0ms); }
+@keyframes t20ah-treme-linha {
+  0%, 100% { transform: none; }
+  15% { transform: translateX(-4px); }
+  35% { transform: translateX(4px); }
+  55% { transform: translateX(-3px); }
+  75% { transform: translateX(2px); }
+}
+#t20ah .t20ah-rec.dano-valor .fill { animation: t20ah-flash-barra 0.6s ease-out; animation-delay: var(--atraso-linha, 0ms); }
+@keyframes t20ah-flash-barra { 0% { filter: brightness(2.4) saturate(1.6); } 100% { filter: none; } }
+#t20ah .t20ah-rec.dano-valor .rec-ico,
+#t20ah .t20ah-rec.dano-temp .temp-ico { animation: t20ah-batida 0.6s ease-out; animation-delay: var(--atraso-linha, 0ms); }
+@keyframes t20ah-batida { 0% { transform: scale(1.6); filter: brightness(2.5); } 45% { transform: scale(0.85); } 100% { transform: none; filter: none; } }
+#t20ah .t20ah-rec.dano-temp .rec-temp input { animation: t20ah-campo-dano 0.8s ease-out; animation-delay: var(--atraso-linha, 0ms); }
+#t20ah .t20ah-rec.dano-valor .rec-val input { animation: t20ah-campo-dano 0.8s ease-out; animation-delay: var(--atraso-linha, 0ms); }
+@keyframes t20ah-campo-dano {
+  0% { border-color: #ff6b6b; box-shadow: 0 0 0.9em #ff6b6b; background: rgba(214, 69, 69, 0.45); }
+  100% { border-color: rgba(255, 255, 255, 0.12); box-shadow: none; background: rgba(0, 0, 0, 0.35); }
+}
+
+/* número flutuante: -8 */
+#t20ah .rec-flutua {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  z-index: 6;
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  font-family: "Modesto Condensed", "Signika", sans-serif;
+  font-size: 1.3em;
+  font-weight: 700;
+  text-shadow: 0 0 0.5em currentColor, 0 1px 0 #000;
+  animation: t20ah-flutua 1.25s ease-out forwards;
+  animation-delay: var(--atraso, 0ms);
+}
+#t20ah .t20ah-rec.pv .rec-flutua.value { color: #ff6b6b; }
+#t20ah .t20ah-rec.pm .rec-flutua.value { color: #5ab4ff; }
+#t20ah .t20ah-rec.pv .rec-flutua.temp { color: #ffc2b8; }
+#t20ah .t20ah-rec.pm .rec-flutua.temp { color: #bcd6ff; }
+/* ganho: número verde/ciano, mais claro nos temporários */
+#t20ah .t20ah-rec.pv .rec-flutua.value.ganho { color: #6bff9a; }
+#t20ah .t20ah-rec.pm .rec-flutua.value.ganho { color: #6fe3ff; }
+#t20ah .t20ah-rec.pv .rec-flutua.temp.ganho { color: #c4ffd8; }
+#t20ah .t20ah-rec.pm .rec-flutua.temp.ganho { color: #c8f4ff; }
+@keyframes t20ah-flutua {
+  0% { opacity: 0; transform: translate(-50%, 0.3em) scale(0.7); }
+  12% { opacity: 1; transform: translate(-50%, -0.5em) scale(1.3); }
+  100% { opacity: 0; transform: translate(-50%, -2.4em) scale(1); }
+}
+
+/* ganho: a barra enche com um brilho, o ícone pulsa e o campo acende */
+#t20ah .t20ah-rec.cura-valor { animation: t20ah-brilho-linha 0.9s ease-out; animation-delay: var(--atraso-linha, 0ms); border-radius: 6px; }
+@keyframes t20ah-brilho-linha {
+  0% { background: rgba(107, 255, 154, 0.28); box-shadow: 0 0 0.8em rgba(107, 255, 154, 0.45); }
+  100% { background: transparent; box-shadow: none; }
+}
+#t20ah .t20ah-rec.pm.cura-valor { animation-name: t20ah-brilho-linha-pm; }
+@keyframes t20ah-brilho-linha-pm {
+  0% { background: rgba(111, 227, 255, 0.28); box-shadow: 0 0 0.8em rgba(111, 227, 255, 0.45); }
+  100% { background: transparent; box-shadow: none; }
+}
+#t20ah .t20ah-rec.cura-valor .fill {
+  animation: t20ah-enche 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--atraso, 0ms);
+}
+@keyframes t20ah-enche {
+  0% { width: var(--de, 0%); filter: brightness(2.2) saturate(1.5); box-shadow: 0 0 0.9em rgba(255, 255, 255, 0.9); }
+  70% { filter: brightness(1.6) saturate(1.3); }
+  100% { width: var(--para, 100%); filter: none; box-shadow: none; }
+}
+#t20ah .t20ah-rec.cura-valor .rec-ico,
+#t20ah .t20ah-rec.cura-temp .temp-ico { animation: t20ah-pulso-cura 0.7s ease-out; animation-delay: var(--atraso-linha, 0ms); }
+@keyframes t20ah-pulso-cura { 0% { transform: scale(0.8); filter: brightness(2.4); } 40% { transform: scale(1.5); filter: brightness(2); } 100% { transform: none; filter: none; } }
+#t20ah .t20ah-rec.cura-valor .rec-val input,
+#t20ah .t20ah-rec.cura-temp .rec-temp input { animation: t20ah-campo-cura 0.9s ease-out; animation-delay: var(--atraso-linha, 0ms); }
+@keyframes t20ah-campo-cura {
+  0% { border-color: #6bff9a; box-shadow: 0 0 0.9em #6bff9a; background: rgba(60, 190, 110, 0.45); }
+  100% { border-color: rgba(255, 255, 255, 0.12); box-shadow: none; background: rgba(0, 0, 0, 0.35); }
+}
+#t20ah .t20ah-rec.pm.cura-valor .rec-val input,
+#t20ah .t20ah-rec.pm.cura-temp .rec-temp input { animation-name: t20ah-campo-cura-pm; }
+@keyframes t20ah-campo-cura-pm {
+  0% { border-color: #6fe3ff; box-shadow: 0 0 0.9em #6fe3ff; background: rgba(60, 150, 200, 0.45); }
+  100% { border-color: rgba(255, 255, 255, 0.12); box-shadow: none; background: rgba(0, 0, 0, 0.35); }
+}
+
+/* HUD recolhida: o resumo de PV/PM pisca */
+#t20ah .t20ah-resumo-rec .dano { animation: t20ah-flash-resumo 0.9s ease-out; animation-delay: var(--atraso, 0ms); }
+#t20ah .t20ah-resumo-rec .cura { animation: t20ah-flash-resumo-cura 0.9s ease-out; animation-delay: var(--atraso, 0ms); }
+@keyframes t20ah-flash-resumo-cura {
+  0% { color: #6bff9a; transform: scale(1.25); text-shadow: 0 0 0.6em #6bff9a; }
+  100% { color: inherit; transform: none; text-shadow: none; }
+}
+@keyframes t20ah-flash-resumo {
+  0% { color: #ff6b6b; transform: scale(1.25); text-shadow: 0 0 0.6em #ff6b6b; }
+  100% { color: inherit; transform: none; text-shadow: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #t20ah .rec-flutua, #t20ah .t20ah-rec .ghost { display: none; }
+  #t20ah .t20ah-rec.dano-valor, #t20ah .t20ah-rec.dano-valor *, #t20ah .t20ah-rec.dano-temp *,
+  #t20ah .t20ah-rec.cura-valor, #t20ah .t20ah-rec.cura-valor *, #t20ah .t20ah-rec.cura-temp *,
+  #t20ah .t20ah-resumo-rec .dano, #t20ah .t20ah-resumo-rec .cura { animation: none !important; }
+}
+
+/* ---- janela de escolha de perícia ---- */
+#t20ah-escolha .ec-janela.ec-larga { width: min(34em, 94vw); }
+#t20ah-escolha .ec-pericias { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.35em; max-height: 46vh; overflow-y: auto; padding-right: 0.2em; }
+#t20ah-escolha .ec-per {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.1em 0.5em;
+  padding: 0.4em 0.65em;
+  border-radius: 0.5em;
+  color: #f2e8d5;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--cor) 14%, #1a1013), #1a1013);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+#t20ah-escolha .ec-per:hover { border-color: var(--cor); }
+#t20ah-escolha .ec-per.sel { border-color: var(--cor); background: color-mix(in srgb, var(--cor) 30%, #1a1013); box-shadow: 0 0 0.8em color-mix(in srgb, var(--cor) 40%, transparent); }
+#t20ah-escolha .ec-pn { font-family: "Modesto Condensed", "Signika", sans-serif; font-size: 1.1em; }
+#t20ah-escolha .ec-pb { font-variant-numeric: tabular-nums; color: #ffd76a; font-size: 0.9em; }
+#t20ah-escolha .ec-badge { grid-column: 1 / -1; font-size: 0.68em; letter-spacing: 0.1em; text-transform: uppercase; color: #e0b85c; }
+#t20ah-escolha .ec-per.padrao { border-color: rgba(224, 184, 92, 0.7); }
+#t20ah-escolha footer { gap: 0.5em; }
+#t20ah-escolha .ec-rolar {
+  all: unset;
+  cursor: pointer;
+  padding: 0.3em 1.1em;
+  border-radius: 0.5em;
+  font-size: 0.9em;
+  font-weight: 600;
+  color: #1a1013;
+  background: linear-gradient(160deg, #f1cf7a, #e0b85c);
+  border: 1px solid #e0b85c;
+}
+#t20ah-escolha .ec-rolar:hover { filter: brightness(1.1); box-shadow: 0 0 0.8em rgba(224, 184, 92, 0.5); }
+
+/* ---- janela do Atrasar ---- */
+#t20ah-escolha .ec-nota { color: #9a8a7a; font-style: italic; }
+#t20ah-escolha .ec-valor { display: flex; align-items: flex-end; justify-content: space-between; gap: 0.6em; margin-top: 0.7em; padding-top: 0.6em; border-top: 1px solid rgba(255, 255, 255, 0.1); }
+#t20ah-escolha .ec-valor label { display: flex; flex-direction: column; gap: 0.25em; font-size: 0.8em; color: #9a8a7a; }
+#t20ah-escolha .ec-valor input {
+  width: 7em;
+  padding: 0.3em 0.5em;
+  border-radius: 0.4em;
+  color: #f2e8d5;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 1.1em;
+}
+#t20ah-escolha .ec-valor input:focus { outline: none; border-color: #e0b85c; box-shadow: 0 0 0.6em rgba(224, 184, 92, 0.4); }
