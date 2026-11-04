@@ -1,5 +1,3 @@
-[<img width="1707" height="282" alt="image" src="https://github.com/user-attachments/assets/4b3c724c-c53c-4272-8a79-df80d0ab9a9c" />](https://www.youtube.com/@olhodatormenta)
-
 # ⚔️ T20 — HUD de Ações e Painel de Efeitos
 
 **Mais agilidade nos combates. Mais controle para o Mestre. Uma experiência melhor para todos.**
@@ -80,6 +78,7 @@ Uma interface arrastável, recolhível e personalizável que acompanha o token s
 - **Recursos temporários:** visualize e edite PV e PM temporários.
 - **Defesa e CD:** consulte a Defesa total e a CD das magias.
 - **Edição rápida:** clique em um valor para alterá-lo diretamente. Digite um número absoluto ou use `+5` e `-5` para ajustar o valor atual.
+- **Animação de perda e ganho:** quando PV, PM, PV temporário ou PM temporário diminuem (por dano, gasto de PM ou edição na HUD, não importa a origem), a linha treme, a barra pisca, o ícone "bate", um rastro claro escorre até o novo valor e um número flutuante (por exemplo, **−8**) sobe a partir do campo. Cada recurso tem a sua cor: vermelho para vida e azul para mana, em tom mais claro para os temporários. Com a HUD recolhida, o resumo de PV e PM pisca. Nos ganhos (cura, recuperação de PM, PV/PM temporários) a linha acende em verde (PV) ou ciano (PM), a barra enche com um brilho até o novo valor, o ícone pulsa e um número flutuante (por exemplo, **+8**) sobe a partir do campo. A animação é desligada para quem usa a opção de reduzir movimento do sistema.
 - **Modo compacto:** recolha a HUD para manter um resumo dos recursos e das ações disponíveis.
 - **Imagem personalizável:** escolha entre a imagem do token e o retrato do personagem.
 - **Controle de acesso:** jogadores visualizam os tokens que controlam; o Mestre pode visualizar qualquer token.
@@ -95,6 +94,14 @@ A HUD acompanha o gasto das ações durante o turno, seguindo os tipos de ação
 | Completa | Consome as ações padrão e de movimento simultaneamente. |
 | Livre e reação | Não possuem limite de uso imposto pela HUD. |
 
+**Ação extra (efeito Velocidade):** se o personagem tiver um efeito ativo chamado **"Velocidade"** ou **"Poção de Velocidade"** (inclusive vindo de um item), ele ganha uma ação extra por turno, que vale como **uma ação padrão ou uma ação de movimento**.
+
+- A HUD mostra um cartão **Extra** (e um ícone de raio na versão recolhida).
+- A ação extra é gasta sozinha quando a padrão ou o movimento já foram usados, seja pelos botões, por itens ou andando. O gasto aparece no card e no anúncio do chat.
+- Andar com a ação extra aumenta o limite de deslocamento em mais um movimento.
+- Botão direito em Padrão ou Movimento devolve a ação extra primeiro; o `Ctrl + Z` também a devolve.
+- Efeitos desativados ou suprimidos não contam.
+
 Outros recursos:
 
 - Clique com o botão direito em uma ação para devolver o gasto.
@@ -105,6 +112,43 @@ Outros recursos:
 - Armas consomem ação padrão; poderes, magias e outros itens utilizam o tipo de execução indicado na ficha.
 - Cada item é contabilizado uma única vez por turno.
 - Opcionalmente, anuncie no chat quando uma ação for gasta.
+
+### 📖 Botões de Ações (regras rápidas)
+
+Quatro categorias **dentro da HUD** (**Padrão**, **Movimento**, **Completa** e **Livre**) para consultar e usar as ações de combate sem abrir o livro.
+
+- **Layout largo (padrão, em combate):** para **todos os combatentes**, no turno ou fora dele, a HUD vira uma só, mais larga, com duas colunas sob um único cabeçalho. À esquerda ficam os recursos, a Defesa e a CD, os cartões de ação, o deslocamento, o timer e o botão de encerrar turno. À direita ficam **as quatro categorias de ações ao mesmo tempo** (Padrão, Movimento, Completa e Livre), uma abaixo da outra, separadas por uma linha. Os botões de recolher e de reiniciar ações ficam no canto direito do cabeçalho.
+  - Fora do turno, as ações padrão, de movimento e completas aparecem esmaecidas, e só as ações livres podem ser usadas.
+- **Layout compacto:** fora de combate, ou com a opção "Compacto" ligada, a HUD fica estreita e mostra uma linha com os quatro botões. Clicar em um deles abre a lista de ações num menu flutuante, junto ao botão.
+- A lista de cada categoria é esta:
+  - **Ações Padrão:** Agredir, Lançar uma Magia, Atropelar, Fintar, Preparar e Usar Habilidade ou Item.
+  - **Ações de Movimento:** Levantar-se, Manipular Item, Mirar e Sacar ou Guardar Item.
+  - **Ações Completas:** Corrida, Golpe de Misericórdia, Investida e Lançar uma Magia.
+  - **Ações Livres:** Atrasar, Falar, Jogar-se no Chão e Largar um Item.
+- **Passe o mouse** sobre uma ação para ler a regra completa.
+- **Clique em uma ação para usá-la:** o módulo **gasta a ação correspondente** na HUD (padrão, movimento ou completa; ações livres não gastam nada) e envia ao chat um **card no mesmo estilo da HUD**, com o nome, a regra, o custo e as ações que restam.
+  - No turno do personagem, a ação é gasta. Se já não houver ação disponível, aparece um aviso e o card não é enviado.
+  - Em combate, fora do turno, só as ações livres podem ser usadas.
+  - Fora de combate, o card é enviado e nada é gasto.
+- **Ações marcadas com `auto`** (Agredir, Lançar uma Magia e Usar Habilidade ou Item) já são gastas pelo módulo quando você ataca, lança a magia ou usa o item pela ficha, e andar já gasta a ação de movimento. Nelas, o clique só consulta a regra e envia o card, sem gastar a ação de novo.
+- **Corrida:** abre uma janela para **escolher a perícia** do teste (a **padrão**, Atletismo, já vem marcada), gasta a ação completa e rola a perícia **pela própria ficha**, com o diálogo e os efeitos de uso do sistema. Ao resultado soma-se +/–2 para cada 1,5 m de deslocamento acima ou abaixo de 9 m, e o personagem avança tantos quadrados de 1,5 m quanto o total. O card mostra a conta e a distância, e a barra de deslocamento da HUD passa a usar esse limite. Cancelar a janela (ou o diálogo da ficha) não gasta nada.
+  - Só se corre **em linha reta** (sem curvas nem voltas) e **sem terreno difícil**; movimentos fora disso são bloqueados com um aviso.
+  - **Fôlego:** o personagem aguenta **1 + Constituição** rodadas seguidas de corrida. Depois disso, cada nova rodada pede um teste de **Fortitude** (CD 15, +1 por teste anterior). O teste de Fortitude também abre a janela de perícia (com Fortitude marcada) e é rolado pela ficha. Se falhar, recebe **Fatigado**; uma nova falha estando fatigado aplica **Exausto**.
+  - As rolagens usam `actor.rollPericia(chave)` do sistema. O bônus mostrado na janela é lido de `system.pericias`.
+- **Atrasar:** só no próprio turno, em combate. Abre uma janela para escolher **depois de quem** o personagem vai agir (a Iniciativa vira a do escolhido menos 0,01) ou para digitar uma **Iniciativa específica** (menor que a atual e até o limite de –10 menos o bônus de Iniciativa). A nova Iniciativa vale pelo resto do combate, o card informa a mudança e o turno passa para quem vinha depois. Se o personagem não é o Mestre, o pedido é executado pelo Mestre conectado. O novo valor não pode ser fixado "em tempo real" no turno de outra criatura; escolha o valor ou a criatura de antemão.
+- **Condição Caído:** **Jogar-se no Chão** aplica a condição Caído ao personagem, e **Levantar-se** a remove. Se o personagem já estiver caído, Jogar-se no Chão avisa e não faz nada. Se não estiver caído, Levantar-se avisa e não gasta a ação de movimento.
+- **Golpe de Misericórdia:** ao clicar, abre uma janela no estilo da HUD para escolher uma **arma corpo a corpo equipada**. Sem arma corpo a corpo equipada, a ação não é permitida e nada é gasto. Escolhida a arma, o módulo gasta a ação completa e envia ao chat um card com:
+  - o ataque, que é sempre um **20 natural automático** (acerto crítico), com o multiplicador de crítico da arma;
+  - uma rolagem de **1d4** para a morte instantânea, com o resultado para **personagens e NPCs importantes** (25%: morre com 1) e para **NPCs secundários** (75%: morre com 1 a 3), cada um marcado como MORRE ou SOBREVIVE;
+  - o nome do alvo, se houver um token marcado como alvo.
+
+  O dano do acerto crítico não é rolado automaticamente: o card avisa para rolar o dano da arma pela ficha.
+- O menu fecha ao clicar fora, ao apertar Esc ou quando a HUD é recolhida.
+- Os textos ficam no arquivo `scripts/acoes-t20.js`, onde você pode ajustar uma regra ou incluir outra ação.
+
+### 💬 Estilo do módulo nos cards do chat
+
+Opção pessoal (**Estilo do módulo nos cards do chat**, desligada por padrão) que aplica o visual da HUD às mensagens padrão do chat: moldura dourada, fundo escuro, cabeçalho em degradê, títulos, rolagens (fórmula, total, crítico e falha desastrosa) e botões. É só CSS (`styles/chat-estilo.css`), então todas as informações continuam nas mensagens. Os cards do próprio módulo não são alterados.
 
 ### ⏱️ Temporizador de turno
 
@@ -181,6 +225,7 @@ Disponíveis para o Mestre:
 - Configurar os metros por quadrado, com padrão de 1,5 m.
 - Ativar o gasto automático de ações ao utilizar itens.
 - Anunciar o gasto de ações no chat.
+- Enviar o card da ação ao chat ao usar os botões de Ações.
 - Definir o tempo máximo por turno.
 - Configurar o som de tempo esgotado e quem pode ouvi-lo.
 - Passar o turno automaticamente ao final do temporizador.
@@ -191,6 +236,8 @@ Disponíveis para o Mestre:
 Disponíveis individualmente:
 
 - Mostrar ou ocultar a HUD para o Mestre.
+- Mostrar ou ocultar os botões de Ações (regras rápidas).
+- Escolher o layout da HUD no turno do personagem (largo, com painel de ações ao lado, ou compacto).
 - Escolher entre a imagem do token e o retrato do personagem.
 - Ajustar o tamanho da HUD.
 - Configurar o volume dos sons.
