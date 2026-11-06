@@ -244,7 +244,9 @@
   place-items: center;
   padding: 0;
   font-size: 16px;
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
   color: #e0b85c;
   background: rgba(26, 16, 19, 0.92);
   border: 1px solid rgba(224, 184, 92, 0.5);
@@ -255,3 +257,4 @@
 #t20pe-botao:hover { background: rgba(60, 36, 42, 0.95); box-shadow: 0 0 10px rgba(224, 184, 92, 0.45); }
 #t20pe-botao:active { transform: scale(0.94); }
 #t20pe-botao.ativo { color: #1a1013; background: linear-gradient(180deg, #f0cf7c, #c9a041); border-color: #f7e2a6; }
+#t20pe-botao.arrastando { cursor: grabbing; transition: none; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6), 0 0 10px rgba(224, 184, 92, 0.5); transform: scale(1.08); }

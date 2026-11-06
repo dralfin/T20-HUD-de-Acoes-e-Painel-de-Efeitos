@@ -888,7 +888,7 @@
 #t20ah-escolha .ec-nota { color: #9a8a7a; font-style: italic; }
 #t20ah-escolha .ec-valor { display: flex; align-items: flex-end; justify-content: space-between; gap: 0.6em; margin-top: 0.7em; padding-top: 0.6em; border-top: 1px solid rgba(255, 255, 255, 0.1); }
 #t20ah-escolha .ec-valor label { display: flex; flex-direction: column; gap: 0.25em; font-size: 0.8em; color: #9a8a7a; }
-#t20ah-escolha .ec-valor input {
+#t20ah-escolha .ec-valor input[type="number"] {
   width: 7em;
   padding: 0.3em 0.5em;
   border-radius: 0.4em;
@@ -897,4 +897,391 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
   font-size: 1.1em;
 }
-#t20ah-escolha .ec-valor input:focus { outline: none; border-color: #e0b85c; box-shadow: 0 0 0.6em rgba(224, 184, 92, 0.4); }
+#t20ah-escolha .ec-valor label.ec-todos { flex-direction: row; align-items: center; gap: 0.5em; font-size: 0.85em; cursor: pointer; }
+#t20ah-escolha .ec-valor label.ec-todos input { width: auto; padding: 0; accent-color: #e0b85c; }
+#t20ah-escolha .ec-valor input[type="number"]:focus { outline: none; border-color: #e0b85c; box-shadow: 0 0 0.6em rgba(224, 184, 92, 0.4); }
+
+/* ---- Fintar (Mestre): arrastar um ator da lista de Atores ---- */
+#t20ah-escolha.ec-arrastavel { pointer-events: none; }
+#t20ah-escolha.ec-arrastavel .ec-fundo { display: none; }
+#t20ah-escolha.ec-arrastavel .ec-janela { pointer-events: auto; box-shadow: 0 0.8em 2.4em rgba(0, 0, 0, 0.7); }
+#t20ah-escolha .ec-drop {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  margin-top: 0.7em;
+  padding: 0.7em 0.8em;
+  border-radius: 0.6em;
+  border: 2px dashed rgba(224, 184, 92, 0.5);
+  color: #9a8a7a;
+  font-size: 0.85em;
+  line-height: 1.35;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+#t20ah-escolha .ec-drop > i { font-size: 1.6em; color: #e0b85c; }
+#t20ah-escolha .ec-drop b { color: #ffd76a; }
+#t20ah-escolha .ec-drop.sobre { border-color: #e0b85c; background: rgba(224, 184, 92, 0.18); color: #f2e8d5; }
+
+/* ================= RD, bônus de defesa e menu de dano ================= */
+#t20ah .t20ah-chips { flex-wrap: wrap; align-items: center; }
+#t20ah .chip.rd { color: #d7f0dc; border-color: rgba(107, 255, 154, 0.45); }
+#t20ah .chip.rd i { color: #6bff9a; }
+#t20ah .chip.rd.zero { opacity: 0.55; }
+#t20ah .chip.defb { padding-right: 0.3em; }
+#t20ah .chip.defb i { color: #b9c3d9; }
+#t20ah .chip.defb.ativo { border-color: #e0b85c; color: #ffd76a; }
+#t20ah .chip.defb input {
+  all: unset;
+  width: 2.2em;
+  text-align: center;
+  color: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: text;
+}
+#t20ah .chip.defb input:focus { box-shadow: 0 0 0 1px #e0b85c; border-radius: 0.3em; user-select: text; }
+
+#t20ah-gaveta .t20ah-dano {
+  margin-top: 0.55em;
+  padding: 0.55em 0.65em;
+  border-radius: 0.6em;
+  border: 1px solid rgba(255, 107, 107, 0.4);
+  background: linear-gradient(165deg, rgba(214, 69, 69, 0.16), rgba(0, 0, 0, 0.25));
+  animation: t20ah-sobe 0.16s ease-out;
+}
+#t20ah-gaveta .dn-linha { display: grid; grid-template-columns: 4.5em 1fr; gap: 0.4em; }
+#t20ah-gaveta .t20ah-dano input[type="text"], #t20ah-gaveta .t20ah-dano select {
+  box-sizing: border-box;
+  padding: 0.3em 0.45em;
+  border-radius: 0.4em;
+  color: #f2e8d5;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font: inherit;
+  user-select: text;
+}
+#t20ah-gaveta .t20ah-dano select option { background: #1a1013; color: #f2e8d5; }
+#t20ah-gaveta .t20ah-dano input[type="text"] { text-align: center; font-variant-numeric: tabular-nums; }
+#t20ah-gaveta .t20ah-dano input:focus, #t20ah-gaveta .t20ah-dano select:focus { outline: none; border-color: #ff6b6b; box-shadow: 0 0 0.6em rgba(255, 107, 107, 0.4); }
+#t20ah-gaveta .dn-ign { display: flex; align-items: center; gap: 0.4em; margin-top: 0.4em; font-size: 0.78em; color: #9a8a7a; cursor: pointer; }
+#t20ah-gaveta .dn-ign input { accent-color: #e0b85c; }
+#t20ah-gaveta .dn-previa { margin-top: 0.4em; font-size: 0.8em; color: #c9bba8; min-height: 1.2em; }
+#t20ah-gaveta .dn-previa b { color: #ff9c92; font-size: 1.15em; }
+#t20ah-gaveta .dn-previa small { color: #9a8a7a; }
+#t20ah-gaveta .dn-botoes { display: flex; flex-wrap: wrap; gap: 0.4em; margin-top: 0.5em; }
+#t20ah-gaveta .dn-botoes button {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  padding: 0.35em 0.7em;
+  border-radius: 0.5em;
+  font-size: 0.82em;
+  font-weight: 600;
+  color: #f2e8d5;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+  transition: filter 0.15s, transform 0.15s;
+}
+#t20ah-gaveta .dn-botoes button:hover { filter: brightness(1.25); }
+#t20ah-gaveta .dn-botoes button:active { transform: scale(0.97); }
+#t20ah-gaveta .dn-botoes .dn-aplicar { color: #1a1013; background: linear-gradient(160deg, #ff9c92, #d64545); border-color: #ff6b6b; }
+#t20ah-gaveta .dn-botoes .dn-zerar { color: #ff9c92; border-color: rgba(255, 107, 107, 0.6); background: rgba(214, 69, 69, 0.18); }
+#t20ah-gaveta .dn-botoes .dn-curar { color: #9be3b0; border-color: rgba(76, 175, 106, 0.7); background: rgba(76, 175, 106, 0.18); }
+
+/* ================= Gaveta de dano (colada na esquerda da HUD) ================= */
+#t20ah.com-gaveta { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+#t20ah-gaveta {
+  --esc: 1;
+  position: fixed;
+  z-index: 69; /* um pouco abaixo da HUD (70): o 1px de sobreposição fica escondido */
+  display: flex;
+  align-items: stretch;
+  font-size: calc(14px * var(--esc));
+  font-family: "Signika", sans-serif;
+  color: #f2e8d5;
+}
+#t20ah-gaveta.oculto { display: none; }
+#t20ah-gaveta .gv-corpo {
+  width: 0;
+  overflow: hidden;
+  transition: width 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+#t20ah-gaveta.aberta .gv-corpo { width: 19em; }
+#t20ah-gaveta .gv-interno {
+  box-sizing: border-box;
+  width: 19em;
+  height: 100%;
+  overflow-y: auto;
+  padding: 0.75em 0.85em;
+  background: linear-gradient(165deg, #2b1a1d, #1a1013);
+  border: 1px solid rgba(224, 184, 92, 0.45);
+  border-right: none;
+  border-radius: 0.9em 0 0 0.9em;
+  box-shadow: 0 0.6em 1.6em rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  scrollbar-width: thin;
+}
+#t20ah-gaveta .gv-interno .t20ah-dano { margin: 0; padding: 0; border: 0; background: none; animation: none; border-radius: 0; }
+#t20ah-gaveta .dn-titulo {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 0.55em;
+  padding-bottom: 0.45em;
+  font-family: "Modesto Condensed", "Signika", sans-serif;
+  font-size: 1.15em;
+  letter-spacing: 0.04em;
+  color: #e0b85c;
+  border-bottom: 1px solid rgba(224, 184, 92, 0.25);
+}
+/* aba: fica na ponta esquerda do painel (ou colada na HUD, com a gaveta fechada) */
+#t20ah-gaveta .gv-aba {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  align-self: flex-start;
+  margin-top: 1.1em;
+  margin-right: -1px;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55em;
+  padding: 0.75em 0.45em;
+  font-size: 0.85em;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #e0b85c;
+  background: linear-gradient(90deg, #1a1013, #2b1a1d);
+  border: 1px solid rgba(224, 184, 92, 0.45);
+  border-right: none;
+  border-radius: 0.7em 0 0 0.7em;
+  box-shadow: -0.2em 0.3em 0.9em rgba(0, 0, 0, 0.45);
+  transition: color 0.15s, filter 0.15s;
+}
+#t20ah-gaveta .gv-txt { writing-mode: vertical-rl; transform: rotate(180deg); } /* texto de baixo para cima */
+#t20ah-gaveta .gv-aba:hover { filter: brightness(1.25); color: #fff; }
+#t20ah-gaveta .gv-seta { font-size: 0.9em; transition: transform 0.28s; }
+#t20ah-gaveta.aberta .gv-seta { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) {
+  #t20ah-gaveta .gv-corpo, #t20ah-gaveta .gv-seta { transition: none; }
+}
+
+/* conteúdo da gaveta */
+#t20ah-gaveta .dn-botoes { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4em; margin-top: 0.5em; }
+#t20ah-gaveta .dn-botoes.dn-mestre { padding-top: 0.5em; border-top: 1px dashed rgba(255, 255, 255, 0.15); }
+#t20ah-gaveta .dn-botoes .dn-cura { color: #9be3b0; border-color: rgba(76, 175, 106, 0.7); background: rgba(76, 175, 106, 0.2); }
+#t20ah-gaveta .dn-botoes .dn-pm-gasta { color: #9ccfff; border-color: rgba(90, 180, 255, 0.7); background: rgba(58, 143, 214, 0.2); }
+#t20ah-gaveta .dn-botoes .dn-pm-ganha { color: #1a1013; border-color: #5ab4ff; background: linear-gradient(160deg, #9ccfff, #3a8fd6); }
+#t20ah-gaveta .dn-linha { grid-template-columns: 4.5em minmax(0, 1fr); }
+#t20ah-gaveta .dn-linha select { width: 100%; min-width: 0; text-overflow: ellipsis; }
+
+/* ================= Escudo de defesa, RD e imunidades ================= */
+#t20ah .t20ah-chips { gap: 0.4em; }
+#t20ah .def-escudo {
+  position: relative;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 2.2em;
+  height: 2.5em;
+  cursor: help;
+}
+#t20ah .def-escudo svg {
+  grid-area: 1 / 1;
+  width: 2.1em;
+  height: 2.45em;
+  overflow: visible;
+  fill: #3d4660;
+  stroke: #b9c3d9;
+  stroke-width: 1.3;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0.1em 0.2em rgba(0, 0, 0, 0.6));
+}
+#t20ah .def-escudo b {
+  grid-area: 1 / 1;
+  position: relative;
+  top: -0.05em;
+  font-family: "Modesto Condensed", "Signika", sans-serif;
+  font-size: 1.05em;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 1px 0 #000, 0 0 0.3em rgba(0, 0, 0, 0.8);
+  font-variant-numeric: tabular-nums;
+}
+#t20ah .def-escudo.n3 b { font-size: 0.88em; }
+#t20ah .def-escudo.n4 b { font-size: 0.72em; }
+#t20ah .chip.rd.tipo { color: #d7f0dc; }
+#t20ah .chip.imu { color: #ffe3b0; border-color: rgba(255, 190, 90, 0.5); }
+#t20ah .chip.imu i { color: #ffbe5a; }
+#t20ah .t20ah-chips .chip { white-space: nowrap; }
+
+
+/* ---- retrato nos cards padrão do chat (opção de estilo ligada) ---- */
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .t20ah-retrato-msg {
+  flex: 0 0 2em;
+  width: 2em;
+  height: 2em;
+  object-fit: cover;
+  border: 2px solid var(--cor-user, rgba(224, 184, 92, 0.55));
+  border-radius: 0.25em;
+}
+body:not(.t20ah-chat-estilo) .chat-message .t20ah-retrato-msg { display: none; }
+
+
+/* ---------- janela de configurações do módulo ---------- */
+.t20ah-sec {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin: 1.2em 0 0.4em;
+  padding-bottom: 0.25em;
+  font-size: 1.05em;
+  border-bottom: 1px solid #9a7b3c;
+}
+.t20ah-sec i { color: #9a7b3c; }
+.t20ah-esc {
+  display: inline-block;
+  margin-left: 0.3em;
+  padding: 0 0.5em;
+  font-size: 0.7em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  opacity: 0.8;
+}
+.t20ah-esc.mundo { color: #9a6a1c; }
+.t20ah-esc.cliente { color: #4a6a8a; }
+
+
+/* ---------- escudos de RD / imunidade (ícone do tipo em cima, valor dentro) ---------- */
+#t20ah .rd-escudo {
+  --cor-rd: #9fb0d0;
+  flex: none;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.05em;
+  cursor: help;
+}
+#t20ah .rd-escudo .rd-tipo { font-size: 0.8em; line-height: 1; color: var(--cor-rd); filter: drop-shadow(0 0 0.25em var(--cor-rd)); }
+#t20ah .rd-escudo .rd-corpo { position: relative; display: inline-grid; place-items: center; width: 2.2em; height: 2.5em; }
+#t20ah .rd-escudo svg {
+  grid-area: 1 / 1;
+  width: 2.1em;
+  height: 2.45em;
+  overflow: visible;
+  fill: #3d4660;
+  stroke: var(--cor-rd);
+  stroke-width: 1.3;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0.1em 0.2em rgba(0, 0, 0, 0.6));
+}
+#t20ah .rd-escudo b {
+  grid-area: 1 / 1;
+  position: relative;
+  top: -0.05em;
+  font-family: "Modesto Condensed", "Signika", sans-serif;
+  font-size: 1.05em;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 1px 0 #000, 0 0 0.3em rgba(0, 0, 0, 0.8);
+  font-variant-numeric: tabular-nums;
+}
+#t20ah .rd-escudo b.n3 { font-size: 0.88em; }
+#t20ah .rd-escudo b.n4 { font-size: 0.72em; }
+#t20ah .rd-escudo .rd-ban { grid-area: 1 / 1; position: relative; top: -0.05em; font-size: 1.05em; color: #ff8a7a; text-shadow: 0 1px 0 #000; }
+#t20ah .rd-escudo.imune svg { fill: #4a2a2e; }
+#t20ah .rd-escudo.t-corte, #t20ah .rd-escudo.t-impacto, #t20ah .rd-escudo.t-perfuracao { --cor-rd: #c3c9d4; }
+#t20ah .rd-escudo.t-acido { --cor-rd: #a6d84a; }
+#t20ah .rd-escudo.t-eletricidade { --cor-rd: #ffd84a; }
+#t20ah .rd-escudo.t-essencia { --cor-rd: #c77dff; }
+#t20ah .rd-escudo.t-fogo { --cor-rd: #ff7a45; }
+#t20ah .rd-escudo.t-frio { --cor-rd: #7fd3ff; }
+#t20ah .rd-escudo.t-luz { --cor-rd: #fff0a0; }
+#t20ah .rd-escudo.t-mental { --cor-rd: #ff8fd0; }
+#t20ah .rd-escudo.t-trevas { --cor-rd: #9a86d6; }
+#t20ah .rd-escudo.t-veneno { --cor-rd: #5ed67a; }
+
+/* ---------- linha de defesa / RD / CD mais compacta e alinhada ---------- */
+#t20ah .t20ah-chips { flex-wrap: wrap; align-items: center; gap: 0.35em 0.45em; }
+#t20ah .t20ah-chips > * { align-self: center; }
+/* ícone do tipo vira um selo no canto do escudo: todos os escudos têm a mesma altura da Defesa */
+#t20ah .rd-escudo { position: relative; display: inline-grid; flex: none; }
+#t20ah .rd-escudo .rd-tipo {
+  position: absolute;
+  z-index: 2;
+  top: -0.15em;
+  right: -0.45em;
+  display: grid;
+  place-items: center;
+  width: 1.35em;
+  height: 1.35em;
+  font-size: 0.72em;
+  border-radius: 50%;
+  background: #14101c;
+  border: 1px solid var(--cor-rd);
+  filter: none;
+  box-shadow: 0 0 0.4em rgba(0, 0, 0, 0.6);
+}
+#t20ah .rd-escudo { margin-right: 0.3em; }
+/* bônus de defesa: pílula pequena, não ocupa espaço de um chip inteiro */
+#t20ah .chip.defb { flex: none; padding: 0.15em 0.3em; font-size: 0.78em; display: inline-flex; align-items: center; gap: 0.1em; }
+#t20ah .chip.defb i { margin: 0; font-size: 0.85em; opacity: 0.8; }
+#t20ah .chip.defb input { width: 1.8em; }
+/* CD ocupa o espaço que sobrar */
+#t20ah .chip.cd { flex: 1 1 auto; min-width: 4.5em; white-space: nowrap; }
+
+/* CD das magias: hexágono roxo com o valor e o ícone de magia como selo */
+#t20ah .rd-escudo.cd-selo { --cor-rd: #a98ae6; }
+#t20ah .rd-escudo.cd-selo svg { fill: #3a2f5e; }
+/* CD separada do grupo de defesa/RD: vai para a direita, com um divisor */
+#t20ah .rd-escudo.cd-selo {
+  margin-left: auto;
+  margin-right: 0.45em;
+  position: relative;
+}
+#t20ah .rd-escudo.cd-selo::before {
+  content: "";
+  position: absolute;
+  left: -0.9em;
+  top: 0.35em;
+  bottom: 0.1em;
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+/* vulnerabilidade: escudo rachado, vermelho, com seta para baixo (fraco contra o tipo) */
+#t20ah .rd-escudo.vulneravel { --cor-rd: #ff5a4d; }
+#t20ah .rd-escudo.vulneravel > .rd-corpo > svg:not(.rd-rachadura) { fill: #3a1518; stroke-dasharray: 3 1.6; }
+#t20ah .rd-escudo.vulneravel .rd-rachadura {
+  grid-area: 1 / 1;
+  width: 2.1em;
+  height: 2.45em;
+  fill: none;
+  stroke: #ff9c8f;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 0.2em rgba(255, 90, 77, 0.8));
+}
+#t20ah .rd-escudo.vulneravel .rd-frac {
+  grid-area: 1 / 1;
+  position: relative;
+  top: 0.05em;
+  font-size: 0.9em;
+  color: #ff8a7a;
+  text-shadow: 0 1px 0 #000;
+}
+#t20ah .rd-escudo.t-psiquico { --cor-rd: #ff8fd0; }
+#t20ah .rd-escudo.t-perda { --cor-rd: #e03c4e; }
+
+/* tags de defesa/RD: a largura vem da HUD, não do número de tags; muitas resistências pulam de linha */
+#t20ah .t20ah-chips { contain: inline-size; flex-wrap: wrap; row-gap: 0.5em; }

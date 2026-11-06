@@ -16,15 +16,15 @@ body.t20ah-chat-estilo {
 
 /* ---------- moldura da mensagem ---------- */
 body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) {
-  overflow: hidden;
+  overflow: visible; /* o menu de botão direito do Foundry é desenhado dentro da mensagem: não pode ser cortado */
   padding: 0;
   margin: 0.35rem 0;
   border-radius: 0.7em;
   font-family: var(--t20c-fonte);
   color: var(--t20c-texto);
   background: linear-gradient(165deg, var(--t20c-bg2), var(--t20c-bg1));
-  border: 1px solid rgba(224, 184, 92, 0.45);
-  border-left: 4px solid var(--t20c-ouro);
+  border: 1px solid color-mix(in srgb, var(--cor-user, var(--t20c-ouro)) 70%, transparent);
+  border-left: 4px solid var(--cor-user, var(--t20c-ouro));
   box-shadow: 0 0.3em 0.9em rgba(0, 0, 0, 0.45);
 }
 body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message)::before,
@@ -41,8 +41,8 @@ body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-header {
   gap: 0.6em;
   padding: 0.5em 0.75em;
   margin: 0;
-  background: linear-gradient(90deg, rgba(224, 184, 92, 0.28), transparent 85%);
-  border-bottom: 1px solid rgba(224, 184, 92, 0.25);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--cor-user, var(--t20c-ouro)) 38%, transparent), transparent 85%);
+  border-bottom: 1px solid color-mix(in srgb, var(--cor-user, var(--t20c-ouro)) 60%, transparent);
   color: var(--t20c-texto);
 }
 body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-sender,
@@ -94,8 +94,8 @@ body.t20ah-chat-estilo .chat-message .chat-card header {
   gap: 0.7em;
   margin: -0.55em -0.8em 0.5em;
   padding: 0.55em 0.8em;
-  background: linear-gradient(90deg, rgba(224, 184, 92, 0.3), transparent 85%);
-  border-bottom: 1px solid rgba(224, 184, 92, 0.25);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--t20c-ouro) 30%, transparent), transparent 85%);
+  border-bottom: 1px solid color-mix(in srgb, var(--t20c-ouro) 25%, transparent);
 }
 body.t20ah-chat-estilo .chat-message .chat-card .card-header img,
 body.t20ah-chat-estilo .chat-message .chat-card header img {
@@ -104,8 +104,8 @@ body.t20ah-chat-estilo .chat-message .chat-card header img {
   height: 2.4em;
   object-fit: cover;
   border-radius: 0.5em;
-  border: 1px solid rgba(224, 184, 92, 0.6);
-  box-shadow: 0 0 0.5em rgba(224, 184, 92, 0.35);
+  border: 1px solid color-mix(in srgb, var(--t20c-ouro) 60%, transparent);
+  box-shadow: 0 0 0.5em color-mix(in srgb, var(--t20c-ouro) 35%, transparent);
 }
 body.t20ah-chat-estilo .chat-message .chat-card .card-header h3,
 body.t20ah-chat-estilo .chat-message .chat-card header h3,
@@ -134,8 +134,8 @@ body.t20ah-chat-estilo .chat-message .chat-card footer span {
   display: inline-block;
   margin: 0 0.3em 0 0;
   padding: 0.1em 0.5em;
-  background: rgba(224, 184, 92, 0.12);
-  border: 1px solid rgba(224, 184, 92, 0.3);
+  background: color-mix(in srgb, var(--t20c-ouro) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--t20c-ouro) 30%, transparent);
   border-radius: 0.4em;
   color: var(--t20c-texto);
 }
@@ -159,13 +159,13 @@ body.t20ah-chat-estilo .chat-message .dice-total {
   margin: 0.35em 0 0;
   padding: 0.2em 0.5em;
   border-radius: 0.5em;
-  border: 1px solid rgba(224, 184, 92, 0.6);
+  border: 1px solid color-mix(in srgb, var(--t20c-ouro) 60%, transparent);
   background: rgba(0, 0, 0, 0.35);
   color: var(--t20c-ouro);
   font-family: var(--t20c-titulo);
   font-size: 1.6em;
   letter-spacing: 0.04em;
-  text-shadow: 0 0 0.5em rgba(224, 184, 92, 0.5);
+  text-shadow: 0 0 0.5em color-mix(in srgb, var(--t20c-ouro) 50%, transparent);
 }
 body.t20ah-chat-estilo .chat-message .dice-total.critical,
 body.t20ah-chat-estilo .chat-message .dice-roll .critical { color: #ffd76a; border-color: #ffd76a; text-shadow: 0 0 0.6em rgba(255, 215, 106, 0.7); }
@@ -185,15 +185,15 @@ body.t20ah-chat-estilo .chat-message .dice-tooltip .dice-rolls .min { color: #ff
 body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-content button {
   font-family: var(--t20c-fonte);
   color: var(--t20c-texto);
-  background: linear-gradient(160deg, rgba(224, 184, 92, 0.28), var(--t20c-bg1));
-  border: 1px solid rgba(224, 184, 92, 0.55);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--t20c-ouro) 28%, transparent), var(--t20c-bg1));
+  border: 1px solid color-mix(in srgb, var(--t20c-ouro) 55%, transparent);
   border-radius: 0.5em;
   box-shadow: none;
   transition: filter 0.15s, transform 0.15s;
 }
 body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-content button:hover {
   filter: brightness(1.25);
-  box-shadow: 0 0 0.6em rgba(224, 184, 92, 0.45);
+  box-shadow: 0 0 0.6em color-mix(in srgb, var(--t20c-ouro) 45%, transparent);
 }
 body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-content button:active { transform: scale(0.97); }
 
@@ -203,3 +203,943 @@ body.t20ah-chat-estilo .chat-message:has(.t20ah-chat) { border-left-width: 2px; 
 @media (prefers-reduced-motion: reduce) {
   body.t20ah-chat-estilo .chat-message button { transition: none; }
 }
+
+/* a cor de destaque (bordas, nome, faixas) segue a cor do usuário que enviou a mensagem */
+/* Os destaques escritos sobre o fundo escuro usam uma versão clareada da cor, para sempre ficarem legíveis. */
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message)[style*="--cor-user"] { --t20c-ouro: color-mix(in srgb, var(--cor-user) 30%, #fff); }
+
+
+/* ---------- card de condição (token recebeu/perdeu uma condição) ---------- */
+body.t20ah-chat-estilo .chat-message .message-content > .t20ah-cond {
+  --cc: var(--cor-cond, #e0b85c);
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  font-family: var(--t20c-fonte);
+  color: var(--t20c-texto);
+  border-radius: 0.7em;
+  border: 1px solid color-mix(in srgb, var(--cc) 70%, transparent);
+  border-left: 4px solid var(--cc);
+  background: linear-gradient(165deg, var(--t20c-bg2), var(--t20c-bg1));
+  box-shadow: 0 0.3em 0.9em rgba(0, 0, 0, 0.45);
+}
+/* o card de condição é único: sem moldura nem cabeçalho de mensagem em volta */
+body.t20ah-chat-estilo .chat-message.t20ah-cond-message {
+  background: transparent !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0.35rem 0 !important;
+}
+body.t20ah-chat-estilo .chat-message.t20ah-cond-message > .message-header,
+body.t20ah-chat-estilo .chat-message.t20ah-cond-message .message-header { display: none !important; }
+body.t20ah-chat-estilo .chat-message.t20ah-cond-message .message-content { padding: 0 !important; margin: 0 !important; }
+
+/* topo: ícone | tipo + título, e a barra */
+body.t20ah-chat-estilo .t20ah-cond,
+body.t20ah-chat-estilo .t20ah-cond * {
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  transform: none !important;
+}
+body.t20ah-chat-estilo .t20ah-cond p { margin: 0 !important; width: auto !important; height: auto !important; float: none !important; position: static !important; }
+body.t20ah-chat-estilo .t20ah-cond .cd-topo {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "ico tipo" "ico tit" "barra barra";
+  column-gap: 0.75em;
+  align-items: center;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--cc) 30%, transparent), transparent 85%);
+}
+body.t20ah-chat-estilo .t20ah-cond .cd-canto {
+  grid-area: ico;
+  position: static !important;
+  display: grid;
+  place-items: center;
+  width: 3em !important;
+  height: 3em !important;
+  margin: 0.55em 0 0.45em 0.8em;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--cc) 90%, #fff), color-mix(in srgb, var(--cc) 70%, #000)) !important;
+  border-radius: 0.5em;
+  box-shadow: 0 0 0.8em color-mix(in srgb, var(--cc) 55%, transparent);
+}
+body.t20ah-chat-estilo .t20ah-cond .cd-canto img {
+  position: static !important;
+  width: 1.9em !important;
+  height: 1.9em;
+  border: 0 !important;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.5));
+}
+body.t20ah-chat-estilo .t20ah-cond .cd-tipo { grid-area: tipo; align-self: end; padding-top: 0.55em !important; }
+body.t20ah-chat-estilo .t20ah-cond .cd-tipo,
+body.t20ah-chat-estilo .t20ah-cond .cd-tipo label {
+  font-size: 0.68rem !important;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--t20c-mudo) !important;
+}
+body.t20ah-chat-estilo .t20ah-cond .cd-titulo-p { grid-area: tit; align-self: start; padding-bottom: 0.45em !important; line-height: 1.05; }
+body.t20ah-chat-estilo .t20ah-cond .cd-titulo {
+  font-family: var(--t20c-titulo);
+  font-size: 1.7rem !important;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  color: color-mix(in srgb, var(--cc) 55%, #fff) !important;
+  text-shadow: 0 1px 0 #000;
+}
+body.t20ah-chat-estilo .t20ah-cond .cd-barra {
+  grid-area: barra;
+  height: 3px !important;
+  width: 100% !important;
+  margin: 0 !important;
+  font-size: 0;
+  line-height: 0;
+  overflow: hidden;
+  background: linear-gradient(90deg, var(--cc), transparent 85%) !important;
+}
+body.t20ah-chat-estilo .t20ah-cond .cd-barra * { margin: 0 !important; padding: 0 !important; font-size: 0 !important; line-height: 0 !important; height: 0 !important; }
+body.t20ah-chat-estilo .t20ah-cond .cd-canto p { display: grid; place-items: center; }
+/* corpo: descrição e listas */
+body.t20ah-chat-estilo .t20ah-cond .cd-corpo {
+  padding: 0.6em 0.8em;
+  font-size: 0.9em;
+  line-height: 1.4;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--t20c-texto);
+}
+body.t20ah-chat-estilo .t20ah-cond .cd-corpo p { margin: 0 0 0.4em !important; }
+body.t20ah-chat-estilo .t20ah-cond .cd-corpo ul,
+body.t20ah-chat-estilo .t20ah-cond .cd-corpo ol { margin: 0.2em 0 0; padding-left: 1.2em; }
+body.t20ah-chat-estilo .t20ah-cond .cd-corpo li { margin: 0 0 0.25em; }
+body.t20ah-chat-estilo .t20ah-cond .cd-corpo li::marker { color: var(--cc); }
+body.t20ah-chat-estilo .t20ah-cond .cd-corpo > :last-child { margin-bottom: 0 !important; }
+
+/* ---------- cards de ataque / item / magia como um card único (igual aos cards de ação) ---------- */
+/* cabeçalho da mensagem = faixa de identificação (retrato + nome) */
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message):has(.chat-card, .dice-roll) .message-header {
+  background: rgba(0, 0, 0, 0.28);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message):has(.chat-card) .message-header .message-sender {
+  font-family: var(--t20c-fonte);
+  font-size: 0.98em;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--t20c-texto);
+  text-shadow: none;
+}
+/* o conteúdo encosta nas bordas; cada parte do card cuida do próprio espaçamento */
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message):has(.chat-card) .message-content { padding: 0; }
+/* tira o "card dentro do card": nenhuma moldura, fundo ou sombra própria do sistema */
+body.t20ah-chat-estilo .chat-message .chat-card {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+body.t20ah-chat-estilo .chat-message .chat-card .card-header,
+body.t20ah-chat-estilo .chat-message .chat-card header { margin: 0 !important; }
+body.t20ah-chat-estilo .chat-message .chat-card > :not(header):not(.card-header):not(footer):not(.card-footer) {
+  margin-left: 0.8em;
+  margin-right: 0.8em;
+}
+body.t20ah-chat-estilo .chat-message .chat-card > :nth-child(2) { margin-top: 0.6em; }
+body.t20ah-chat-estilo .chat-message .chat-card .card-footer,
+body.t20ah-chat-estilo .chat-message .chat-card footer { margin: 0.5em 0 0 !important; }
+body.t20ah-chat-estilo .chat-message .chat-card > :last-child:not(footer):not(.card-footer) { margin-bottom: 0.6em; }
+body.t20ah-chat-estilo .t20ah-cond .cd-corpo a,
+body.t20ah-chat-estilo .t20ah-cond .cd-corpo a.content-link { color: color-mix(in srgb, var(--cc) 55%, #fff) !important; }
+
+/* ---------- card de item rolado: acabamento (ataque, magia, poder) ---------- */
+/* cabeçalho do item: ícone em quadrado + título */
+body.t20ah-chat-estilo .chat-message .chat-card .card-header { gap: 0.7em; }
+body.t20ah-chat-estilo .chat-message .chat-card .card-header img { width: 2.6em; height: 2.6em; flex: 0 0 2.6em !important; }
+body.t20ah-chat-estilo .chat-message .chat-card .card-header h3 div { margin: 0; line-height: 1.1; }
+/* linha de execução / alcance / duração / resistência */
+body.t20ah-chat-estilo .chat-message .chat-card .card-item-header {
+  padding: 0.5em 0.8em;
+  margin: 0 !important;
+  font-size: 0.88em;
+  line-height: 1.45;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+body.t20ah-chat-estilo .chat-message .chat-card .card-item-header p { margin: 0; }
+body.t20ah-chat-estilo .chat-message .chat-card .card-item-header b { color: var(--t20c-ouro); font-weight: 700; }
+/* título da rolagem ("Dano", "Ataque") */
+body.t20ah-chat-estilo .chat-message .chat-card > .row {
+  margin: 0.5em 0.8em 0.1em;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--t20c-mudo);
+}
+/* rolagem + botões de aplicar */
+body.t20ah-chat-estilo .chat-message .chat-card .roll {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35em;
+  margin-bottom: 0.2em;
+}
+body.t20ah-chat-estilo .chat-message .chat-card .roll > .dice-roll { flex: 1 0 100%; margin: 0.2em 0; }
+body.t20ah-chat-estilo .chat-message .chat-card .dice-btn {
+  position: static !important;
+  float: none !important;
+  display: inline-flex;
+  gap: 0.35em;
+  width: auto !important;
+}
+body.t20ah-chat-estilo .chat-message .chat-card .dice-btn button {
+  min-width: 2.6em;
+  height: 2.1em;
+  margin: 0;
+  padding: 0 0.6em;
+  line-height: 1;
+}
+body.t20ah-chat-estilo .chat-message .chat-card .dice-total { text-align: center; }
+/* rodapé (botões de resistência etc.) */
+body.t20ah-chat-estilo .chat-message .chat-card footer .t20g-auto-linha { display: flex; gap: 0.4em; }
+body.t20ah-chat-estilo .chat-message .chat-card footer button { flex: 1; }
+body.t20ah-chat-estilo .chat-message .message-header .message-sender { display: flex; flex-direction: column; line-height: 1.15; }
+body.t20ah-chat-estilo .chat-message .message-header .message-sender > span { font-family: var(--t20c-fonte); font-size: 0.6em; letter-spacing: 0; color: var(--t20c-mudo); text-shadow: none; }
+body.t20ah-chat-estilo .chat-message .chat-card footer button { padding: 0.35em 0.6em; }
+
+
+/* =====================================================================================
+   Convivência com o módulo "t20a-chat" (terceiro): ele pinta o cabeçalho, botões e linhas com as variáveis
+   --t20a-chat-* gravadas em cada mensagem. Aqui elas são redefinidas com !important (que vence o estilo inline),
+   então tudo que ele pinta com essas variáveis passa a usar a paleta escura do módulo e a cor do usuário.
+   ===================================================================================== */
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) {
+  --t20a-chat-cor: color-mix(in srgb, var(--cor-user, #e0b85c) 40%, #1a1013) !important;
+  --t20a-chat-texto: var(--t20c-texto) !important;
+  --t20a-chat-texto-suave: var(--t20c-mudo) !important;
+  --t20a-chat-sombra: none !important;
+}
+/* textos "legíveis" que ele calcula contra o fundo claro dele */
+body.t20ah-chat-estilo .chat-message .t20a-chat-legivel { color: var(--t20c-texto) !important; opacity: 0.85; }
+/* o avatar dele some: o retrato do módulo já está no cabeçalho */
+body.t20ah-chat-estilo .chat-message .t20a-chat-avatar { display: none !important; }
+/* cabeçalho, nome e botões com a aparência do módulo, mesmo que o outro estilo seja mais específico */
+body.t20ah-chat-estilo .chat-message.t20a-chat-msg .message-header {
+  background: rgba(0, 0, 0, 0.28) !important;
+  color: var(--t20c-texto) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: none !important;
+}
+body.t20ah-chat-estilo .chat-message.t20a-chat-msg .message-header .message-sender,
+body.t20ah-chat-estilo .chat-message.t20a-chat-msg .message-header h4 { color: var(--t20c-texto) !important; text-shadow: none !important; }
+body.t20ah-chat-estilo .chat-message.t20a-chat-msg .t20a-chat-jogador { color: var(--t20c-mudo) !important; }
+body.t20ah-chat-estilo .chat-message.t20a-chat-msg .message-content button,
+body.t20ah-chat-estilo .chat-message.t20a-chat-msg .chat-card button,
+body.t20ah-chat-estilo .chat-message.t20a-chat-msg .t20g-auto-btn {
+  color: var(--t20c-texto) !important;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--cor-user, #e0b85c) 45%, transparent), var(--t20c-bg1)) !important;
+  border: 1px solid color-mix(in srgb, var(--cor-user, #e0b85c) 60%, transparent) !important;
+  border-radius: 0.5em !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+body.t20ah-chat-estilo .chat-message.t20a-chat-msg .message-content button:hover,
+body.t20ah-chat-estilo .chat-message.t20a-chat-msg .t20g-auto-btn:hover { filter: brightness(1.25); }
+/* a moldura da mensagem também é do módulo */
+body.t20ah-chat-estilo .chat-message.t20a-chat-msg:not(.t20ah-card-message) {
+  background: linear-gradient(165deg, var(--t20c-bg2), var(--t20c-bg1)) !important;
+  color: var(--t20c-texto) !important;
+}
+body.t20ah-chat-estilo .chat-message.t20a-chat-msg .message-content,
+body.t20ah-chat-estilo .chat-message.t20a-chat-msg .message-content * { text-shadow: none; }
+
+
+/* =====================================================================================
+   Card de item rolado — visual próprio do módulo (ataque, magia, poder). Botões e elementos do sistema são mantidos.
+   ===================================================================================== */
+body.t20ah-chat-estilo .chat-message .chat-card.t20ah-item { --ci: color-mix(in srgb, var(--cor-user, #e0b85c) 72%, #fff); --ci-clara: color-mix(in srgb, var(--ci) 30%, #fff); }
+
+/* faixa do item: ícone grande com brilho + título */
+body.t20ah-chat-estilo .chat-card.t20ah-item .card-header {
+  position: relative;
+  gap: 0.85em;
+  padding: 0.7em 0.8em !important;
+  background:
+    radial-gradient(120% 160% at 0% 0%, color-mix(in srgb, var(--ci) 45%, transparent), transparent 70%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.25), transparent) !important;
+  border-bottom: 2px solid color-mix(in srgb, var(--ci) 70%, transparent) !important;
+}
+body.t20ah-chat-estilo .chat-card.t20ah-item .card-header img {
+  width: 3.4em !important;
+  height: 3.4em !important;
+  flex: 0 0 3.4em !important;
+  border-radius: 0.55em;
+  border: 2px solid var(--ci-clara) !important;
+  box-shadow: 0 0 1em color-mix(in srgb, var(--ci) 65%, transparent), inset 0 0 0.6em rgba(0, 0, 0, 0.5) !important;
+  background: #000;
+}
+body.t20ah-chat-estilo .chat-card.t20ah-item .card-header h3 { font-size: 1.65em; line-height: 1; color: #fff; text-shadow: 0 2px 0 #000, 0 0 0.6em color-mix(in srgb, var(--ci) 70%, transparent); }
+
+/* execução / alcance / duração / resistência: uma linha corrida, sem caixas */
+body.t20ah-chat-estilo .chat-card.t20ah-item .card-item-header { padding: 0.5em 0.8em !important; background: rgba(0, 0, 0, 0.22) !important; border-bottom: 0 !important; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .it-stats { display: flex; flex-wrap: wrap; gap: 0.15em 0.9em; line-height: 1.35; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .it-stat { display: inline-flex; align-items: baseline; gap: 0.35em; padding: 0; background: none; border: 0; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .it-stat .k { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ci); }
+body.t20ah-chat-estilo .chat-card.t20ah-item .it-stat .v { font-size: 0.88em; color: var(--t20c-texto); }
+body.t20ah-chat-estilo .chat-card.t20ah-item .it-stat .v a { color: var(--ci-clara) !important; }
+
+/* título da rolagem: pílula + linha */
+body.t20ah-chat-estilo .chat-card.t20ah-item > .row {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin: 0.7em 0.8em 0.25em !important;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ci-clara);
+}
+body.t20ah-chat-estilo .chat-card.t20ah-item > .row::before { content: ""; width: 0.55em; height: 0.55em; rotate: 45deg; background: var(--ci); box-shadow: 0 0 0.5em var(--ci); }
+body.t20ah-chat-estilo .chat-card.t20ah-item > .row::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, color-mix(in srgb, var(--ci) 70%, transparent), transparent); }
+
+/* rolagem: total em destaque + quatro botões iguais em uma linha */
+body.t20ah-chat-estilo .chat-card.t20ah-item .roll {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.35em;
+  margin: 0 0.8em 0.4em !important;
+}
+body.t20ah-chat-estilo .chat-card.t20ah-item .roll > .dice-roll { grid-column: 1 / -1; margin: 0; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .roll > .dice-btn { display: contents !important; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .roll .dice-btn button { width: 100%; min-width: 0; height: 2.2em; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-result { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 0.2em 0.6em; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-formula { grid-column: 1 / -1; padding: 0.15em 0.55em; font-size: 0.78em; letter-spacing: 0.04em; text-align: left; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip { grid-column: 1 / -1; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-total {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0.05em 0.4em;
+  font-size: 2.6em;
+  line-height: 1.15;
+  color: #fff !important;
+  border: 0 !important;
+  border-left: 4px solid var(--ci) !important;
+  border-radius: 0.3em;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ci) 35%, #121214), rgba(0, 0, 0, 0.3)) !important;
+  text-shadow: 0 0 0.5em color-mix(in srgb, var(--ci) 80%, transparent), 0 2px 0 #000 !important;
+}
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-total.critical { border-left-color: #ffd76a !important; text-shadow: 0 0 0.6em rgba(255, 215, 106, 0.8), 0 2px 0 #000 !important; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-total.fumble { border-left-color: #d64545 !important; text-shadow: 0 0 0.6em rgba(214, 69, 69, 0.8), 0 2px 0 #000 !important; }
+
+/* rodapé: botão de ação em barra */
+body.t20ah-chat-estilo .chat-card.t20ah-item footer { margin: 0.3em 0 0 !important; padding: 0.45em 0.8em !important; border-top: 1px solid color-mix(in srgb, var(--ci) 45%, transparent); background: rgba(0, 0, 0, 0.3) !important; }
+body.t20ah-chat-estilo .chat-card.t20ah-item footer button { padding: 0.5em 0.7em; font-weight: 700; letter-spacing: 0.04em; }
+
+
+/* ---------- compatibilidade: melhorias do item (card-upgrades) ---------- */
+body.t20ah-chat-estilo .chat-card.t20ah-item .card-upgrades { margin: 0.4em 0.8em 0 !important; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .card-upgrades ul { margin: 0; padding: 0; list-style: none; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .card-upgrades li { margin: 0; padding: 0; list-style: none; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .card-upgrades li .row {
+  display: block;
+  margin: 0 !important;
+  font-size: 0.84em;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--t20c-texto);
+}
+body.t20ah-chat-estilo .chat-card.t20ah-item .card-upgrades li .row::before,
+body.t20ah-chat-estilo .chat-card.t20ah-item .card-upgrades li .row::after { content: none; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .card-upgrades li .row b { margin-right: 0.3em; font-weight: 700; color: var(--ci); }
+
+/* ---------- compatibilidade: resultado contra a Defesa (acertou / errou) ---------- */
+body.t20ah-chat-estilo .chat-card.t20ah-item .roll > .t20-defense-check { grid-column: 1 / -1; margin: 0; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .t20-result-banner {
+  --rb: #9aa3ad;
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1em;
+  margin: 0.35em 0 0 !important;
+  padding: 0.35em 0.6em !important;
+  font-family: var(--t20c-titulo);
+  font-size: 1.3em;
+  font-weight: 400 !important;
+  letter-spacing: 0.1em;
+  text-align: center;
+  color: #fff !important;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--rb) 38%, #121214), color-mix(in srgb, var(--rb) 12%, #121214)) !important;
+  border: 1px solid color-mix(in srgb, var(--rb) 70%, transparent) !important;
+  border-left: 4px solid var(--rb) !important;
+  border-radius: 0.45em !important;
+  text-shadow: 0 1px 0 #000;
+  box-shadow: none !important;
+}
+body.t20ah-chat-estilo .chat-card.t20ah-item .t20-result-banner br { display: none; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .t20-result-banner.success { --rb: #3fae6a; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .t20-result-banner:not(.success) { --rb: #d64545; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .t20-result-banner[class*="crit"] { --rb: #ffd76a; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .t20-result-banner[class*="fumble"],
+body.t20ah-chat-estilo .chat-card.t20ah-item .t20-result-banner[class*="desastre"] { --rb: #b02b2e; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .t20-result-label {
+  order: -1;
+  font-family: var(--t20c-fonte);
+  font-size: 0.5em;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--t20c-texto) !important;
+  opacity: 0.9;
+}
+body.t20ah-chat-estilo .chat-card.t20ah-item .t20-result-label b { color: #fff !important; }
+
+/* ---------- compatibilidade: aviso de camuflagem / visão ---------- */
+body.t20ah-chat-estilo .chat-card.t20ah-item .t20-visao-aviso {
+  display: block;
+  margin: 0.4em 0.8em 0 !important;
+  padding: 0.3em 0.6em !important;
+  font-size: 0.82em !important;
+  text-align: left !important;
+  color: var(--t20c-texto);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(224, 184, 92, 0.35) !important;
+  border-left: 4px solid #e0b85c !important;
+  border-radius: 0.45em !important;
+}
+body.t20ah-chat-estilo .chat-card.t20ah-item .t20-visao-aviso::before {
+  content: "";
+  display: inline-block;
+  width: 1.1em;
+  height: 1.1em;
+  margin-right: 0.5em;
+  vertical-align: -0.2em;
+  background: #e0b85c;
+  -webkit-mask: var(--ico-olho) center / contain no-repeat;
+  mask: var(--ico-olho) center / contain no-repeat;
+}
+body.t20ah-chat-estilo { --ico-olho: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 5C6.5 5 2.7 9 1 12c1.7 3 5.5 7 11 7s9.3-4 11-7c-1.7-3-5.500-7-11-7zm0 11.500a4.500 4.500 0 110-9 4.500 4.500 0 010 9zm0-7a2.500 2.500 0 100 5 2.500 2.500 0 000-5z'/%3E%3Cpath d='M3.500 2.500l18 18-1.400 1.400-18-18z'/%3E%3C/svg%3E"); }
+body.t20ah-chat-estilo .chat-card.t20ah-item .t20-visao-aviso b { color: #ffd76a; }
+
+/* dados individuais (quando a rolagem é expandida): fichas pequenas em linha */
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .dice-rolls { display: flex; flex-wrap: wrap; gap: 0.3em; margin: 0.3em 0; padding: 0; list-style: none; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .dice-rolls li {
+  --borda: var(--ci);
+  --forma: inset(0 round 22%);
+  position: relative;
+  isolation: isolate;
+  width: 2.6em;
+  height: 2.6em;
+  line-height: 2.6em;
+  font-size: 1em;
+  color: #fff;
+  background: none !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  text-shadow: none;
+}
+/* a ficha tem o formato do dado: contorno (::before) e preenchimento (::after) com o mesmo recorte */
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .dice-rolls li::before,
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .dice-rolls li::after { content: ""; position: absolute; z-index: -1; clip-path: var(--forma); }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .dice-rolls li::before { inset: 0; background: var(--borda); }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .dice-rolls li::after { inset: 2px; background: #1c1c20; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .dice-rolls li.d4 { --forma: polygon(50% 3%, 98% 93%, 2% 93%); line-height: 3.2em; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .dice-rolls li.d6 { --forma: inset(4% round 20%); }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .dice-rolls li.d8 { --forma: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .dice-rolls li.d10 { --forma: polygon(50% 0, 100% 40%, 50% 100%, 0 40%); line-height: 2.4em; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .dice-rolls li.d12 { --forma: polygon(50% 0, 100% 38%, 82% 100%, 18% 100%, 0 38%); line-height: 2.8em; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .dice-rolls li.d20 { --forma: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%); }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .dice-rolls li.d100,
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .dice-rolls li.d2,
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .dice-rolls li.d3 { --forma: circle(50%); }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .dice-rolls li.max { color: #9be3b0; --borda: #4caf6a; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .dice-rolls li.min { color: #ff9c92; --borda: #d64545; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .dice-rolls li.rerolled { opacity: 0.55; text-decoration: line-through; }
+
+/* os dados individuais também têm a classe "roll": não herdam o layout da rolagem */
+body.t20ah-chat-estilo .chat-card.t20ah-item li.roll.die {
+  display: block !important;
+  grid-template-columns: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: center !important;
+}
+
+
+/* peça única: nada de moldura, fundo ou espaçamento do tema entre a mensagem e o card */
+body.t20ah-chat-estilo .chat-message:has(.t20ah-item) .message-content {
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+body.t20ah-chat-estilo .chat-message .chat-card.t20ah-item { margin: 0 !important; }
+body.t20ah-chat-estilo .chat-message .chat-card.t20ah-item .card-header {
+  margin: 0 !important;
+  border-radius: 0 !important;
+  border-top: 0 !important;
+  border-left: 0 !important;
+  border-right: 0 !important;
+  box-shadow: none !important;
+}
+
+
+/* ---------- fundo neutro (cinza bem escuro / preto, sem saturação) ---------- */
+body.t20ah-chat-estilo .chat-message:has(.t20ah-item) { --t20c-bg1: #101012; --t20c-bg2: #1f1f22; }
+
+/* ---------- Ataque e Dano lado a lado (grade no próprio card; nenhum elemento é movido) ---------- */
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 0.35em; padding: 0 0.8em 0.4em !important; }
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois > .card-header { margin: 0 -0.8em !important; }
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois > .row { margin: 0.6em 0 0.25em !important; }
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois > .roll { margin: 0 0 0.4em !important; align-content: start; min-width: 0; grid-template-columns: 1fr; }
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois > .roll.it-solto { display: contents !important; }
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois > .roll.it-solto > .dice-roll { margin: 0 0 0.4em; min-width: 0; }
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois .roll .dice-btn button { margin: 0.1em 0 0.2em; }
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois > :not(.row):not(.roll):not(.card-header) { margin-left: 0 !important; margin-right: 0 !important; }
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois .dice-total { font-size: 2.1em; }
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois .t20-result-banner { font-size: 1.05em; letter-spacing: 0.06em; }
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois .dice-formula { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois > footer { margin: 0.3em -0.8em 0 !important; }
+
+/* =====================================================================================
+   Card de item — peça única: cabeçalho fundido, caixas planas, cor do usuário em tom mais vivo
+   ===================================================================================== */
+body.t20ah-chat-estilo .chat-message .chat-card.t20ah-item {
+  --ci: color-mix(in srgb, var(--cor-user, #e0b85c) 55%, #dcdcdc);
+  --ci-clara: color-mix(in srgb, var(--ci) 55%, #fff);
+}
+@supports (color: hsl(from red h s l)) {
+  body.t20ah-chat-estilo .chat-message .chat-card.t20ah-item {
+    --ci: hsl(from var(--cor-user, #e0b85c) h calc(min(s, 62)) 54);
+    --ci-clara: hsl(from var(--cor-user, #e0b85c) h calc(min(s, 62)) 78);
+  }
+}
+body.t20ah-chat-estilo .chat-message:has(.t20ah-item) .message-header { background: transparent !important; border-bottom: 0 !important; padding-bottom: 0.1em; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .card-header {
+  border-bottom: 1px solid color-mix(in srgb, var(--ci) 55%, transparent) !important;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ci) 34%, transparent), transparent 90%) !important;
+}
+body.t20ah-chat-estilo .chat-message:has(.t20ah-item) {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cor-user, #e0b85c) 16%, #1f1f22), #101012 45%) !important;
+}
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-formula { background: none !important; border: 0 !important; padding: 0 !important; font-size: 0.74em; color: var(--t20c-mudo); }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-total {
+  border: 0 !important;
+  border-left: 4px solid var(--ci) !important;
+  border-radius: 0 !important;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ci) 30%, transparent), transparent 85%) !important;
+  text-shadow: 0 0 0.45em color-mix(in srgb, var(--ci) 80%, transparent), 0 2px 0 #000 !important;
+}
+/* botões de aplicar: sempre visíveis (mesmo com a rolagem expandida) */
+body.t20ah-chat-estilo .chat-card.t20ah-item .roll .dice-btn { display: contents !important; visibility: visible !important; opacity: 1 !important; max-height: none !important; transform: none !important; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .roll .dice-btn button {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: static !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 0 !important;
+  border-bottom: 2px solid color-mix(in srgb, var(--ci) 70%, transparent) !important;
+  border-radius: 0.3em !important;
+}
+body.t20ah-chat-estilo .chat-card.t20ah-item .roll .dice-btn button:hover { background: color-mix(in srgb, var(--ci) 28%, transparent) !important; }
+/* dados expandidos: linha por tipo de dano */
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .wrapper { padding: 0.3em 0 0; background: none; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .part-header { display: flex; align-items: center; gap: 0.5em; padding: 0 0 0.25em; font-size: 0.82em; border-bottom: 1px solid rgba(255, 255, 255, 0.1); background: none !important; color: var(--t20c-texto); }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .part-formula { color: var(--t20c-mudo); }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .part-flavor { padding: 0 0.5em; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.08em; color: #fff !important; background: color-mix(in srgb, var(--ci) 45%, #101012); border-radius: 999px; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .part-total { margin-left: auto; padding: 0 0.4em; font-weight: 700; color: #fff !important; border: 0 !important; background: none !important; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .dice-rolls { gap: 0.3em; margin: 0.35em 0 0.2em; }
+
+
+/* ---------- grade de 4 colunas: botões de aplicar todos em uma linha embaixo ---------- */
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois > .roll { grid-template-columns: 1fr; }
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois > .roll.it-r-btn { display: contents !important; }
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois > .roll.it-r-btn > .dice-roll { margin: 0 0 0.4em; min-width: 0; }
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois .roll .dice-btn button { grid-row: var(--it-rb); margin: 0 0 0.4em; }
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois .roll .dice-btn.left button:nth-child(1) { grid-column: 1; }
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois .roll .dice-btn.left button:nth-child(2) { grid-column: 2; }
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois .roll .dice-btn.right button:nth-child(1) { grid-column: 3; }
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois .roll .dice-btn.right button:nth-child(2) { grid-column: 4; }
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois .roll .dice-btn button { margin-left: 0.15em; margin-right: 0.15em; }
+
+/* ---------- resultado do ataque: símbolo ao lado do título (o banner grande vira só uma legenda) ---------- */
+body.t20ah-chat-estilo .chat-card.t20ah-item .it-res {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 1.55em;
+  height: 1.55em;
+  margin-left: 0.2em;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1;
+  color: #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0.6em currentColor;
+}
+body.t20ah-chat-estilo .chat-card.t20ah-item .it-res.ok { background: #2f9e5a; color: #fff; box-shadow: 0 0 0.6em #3fae6a; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .it-res.erro { background: #c0392b; color: #fff; box-shadow: 0 0 0.6em #d64545; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .it-res.crit { background: #e0b85c; color: #1a1013; box-shadow: 0 0 0.6em #ffd76a; }
+/* o banner grande some; fica só a linha pequena "vs alvo (Def N)" */
+body.t20ah-chat-estilo .chat-card.t20ah-item .t20-result-banner {
+  display: block !important;
+  margin: 0.15em 0 0 !important;
+  padding: 0 !important;
+  font-size: 0 !important;
+  background: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  text-align: left;
+}
+body.t20ah-chat-estilo .chat-card.t20ah-item .t20-result-banner .t20-result-label { order: 0; display: block; font-size: 0.72rem; opacity: 0.8; }
+
+
+/* ---------- resultado do ataque: símbolo ao lado do total (substitui o banner grande) ---------- */
+body.t20ah-chat-estilo .chat-card.t20ah-item .t20-defense-check { display: none !important; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-total[data-res] { position: relative; padding-right: 2.6em; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-total[data-res]::before,
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-total[data-res]::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 0.4em;
+  width: 1.5rem;
+  height: 1.5rem;
+  translate: 0 -50%;
+}
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-total[data-res]::before { border-radius: 50%; background: var(--rc); box-shadow: 0 0 0.6em color-mix(in srgb, var(--rc) 70%, transparent); }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-total[data-res]::after { background: var(--ri, #fff); -webkit-mask: var(--ico) center / 62% no-repeat; mask: var(--ico) center / 62% no-repeat; }
+body.t20ah-chat-estilo .chat-card.t20ah-item [data-res="acerto"] { --rc: #3fae6a; --ico: var(--ico-ok); }
+body.t20ah-chat-estilo .chat-card.t20ah-item [data-res="erro"] { --rc: #d64545; --ico: var(--ico-x); }
+body.t20ah-chat-estilo .chat-card.t20ah-item [data-res="critico"] { --rc: #ffd76a; --ri: #2a1f00; --ico: var(--ico-estrela); }
+body.t20ah-chat-estilo .chat-card.t20ah-item [data-res="desastre"] { --rc: #8e1f22; --ico: var(--ico-x); }
+body.t20ah-chat-estilo {
+  --ico-ok: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9.500 17.500L4 12l2-2 3.500 3.500L18 5l2 2z'/%3E%3C/svg%3E");
+  --ico-x: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 4.500L12 10.500l6-6 1.500 1.500-6 6 6 6-1.500 1.500-6-6-6 6L4.500 18l6-6-6-6z'/%3E%3C/svg%3E");
+  --ico-estrela: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l3 6.500 7 .8-5.200 4.800 1.400 7L12 17.500 5.800 21l1.400-7L2 9.300l7-.8z'/%3E%3C/svg%3E");
+}
+
+
+/* ---------- rolagens avulsas do Foundry (sem card de item): mesmo visual dos dados dos cards ---------- */
+body.t20ah-chat-estilo .chat-message.t20ah-rolagem {
+  --ci: color-mix(in srgb, var(--cor-user, #e0b85c) 55%, #dcdcdc);
+  --ci-clara: color-mix(in srgb, var(--ci) 55%, #fff);
+  --t20c-bg1: #101012;
+  --t20c-bg2: #1f1f22;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cor-user, #e0b85c) 16%, #1f1f22), #101012 45%) !important;
+}
+@supports (color: hsl(from red h s l)) {
+  body.t20ah-chat-estilo .chat-message.t20ah-rolagem {
+    --ci: hsl(from var(--cor-user, #e0b85c) h calc(min(s, 62)) 54);
+    --ci-clara: hsl(from var(--cor-user, #e0b85c) h calc(min(s, 62)) 78);
+  }
+}
+body.t20ah-chat-estilo .chat-message.t20ah-rolagem .message-header { background: transparent !important; border-bottom: 1px solid color-mix(in srgb, var(--ci) 45%, transparent) !important; }
+body.t20ah-chat-estilo .chat-message.t20ah-rolagem .message-content { padding: 0.5em 0.8em 0.6em !important; background: none !important; border: 0 !important; }
+body.t20ah-chat-estilo .t20ah-rolagem .dice-roll { margin: 0; }
+body.t20ah-chat-estilo .t20ah-rolagem .dice-result { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 0.2em 0.6em; }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-formula { grid-column: 1 / -1; padding: 0.15em 0.55em; font-size: 0.78em; letter-spacing: 0.04em; text-align: left; }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip { grid-column: 1 / -1; }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-total {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0.05em 0.4em;
+  font-size: 2.6em;
+  line-height: 1.15;
+  color: #fff !important;
+  border: 0 !important;
+  border-left: 4px solid var(--ci) !important;
+  border-radius: 0.3em;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ci) 35%, #121214), rgba(0, 0, 0, 0.3)) !important;
+  text-shadow: 0 0 0.5em color-mix(in srgb, var(--ci) 80%, transparent), 0 2px 0 #000 !important;
+}
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-total.critical { border-left-color: #ffd76a !important; text-shadow: 0 0 0.6em rgba(255, 215, 106, 0.8), 0 2px 0 #000 !important; }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-total.fumble { border-left-color: #d64545 !important; text-shadow: 0 0 0.6em rgba(214, 69, 69, 0.8), 0 2px 0 #000 !important; }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .dice-rolls { display: flex; flex-wrap: wrap; gap: 0.3em; margin: 0.3em 0; padding: 0; list-style: none; }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .dice-rolls li {
+  --borda: var(--ci);
+  --forma: inset(0 round 22%);
+  position: relative;
+  isolation: isolate;
+  width: 2.6em;
+  height: 2.6em;
+  line-height: 2.6em;
+  font-size: 1em;
+  color: #fff;
+  background: none !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  text-shadow: none;
+}
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .dice-rolls li::before,
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .dice-rolls li::after { content: ""; position: absolute; z-index: -1; clip-path: var(--forma); }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .dice-rolls li::before { inset: 0; background: var(--borda); }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .dice-rolls li::after { inset: 2px; background: #1c1c20; }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .dice-rolls li.d4 { --forma: polygon(50% 3%, 98% 93%, 2% 93%); line-height: 3.2em; }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .dice-rolls li.d6 { --forma: inset(4% round 20%); }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .dice-rolls li.d8 { --forma: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .dice-rolls li.d10 { --forma: polygon(50% 0, 100% 40%, 50% 100%, 0 40%); line-height: 2.4em; }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .dice-rolls li.d12 { --forma: polygon(50% 0, 100% 38%, 82% 100%, 18% 100%, 0 38%); line-height: 2.8em; }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .dice-rolls li.d20 { --forma: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%); }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .dice-rolls li.d100,
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .dice-rolls li.d2,
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .dice-rolls li.d3 { --forma: circle(50%); }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .dice-rolls li.max { color: #9be3b0; --borda: #4caf6a; }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .dice-rolls li.min { color: #ff9c92; --borda: #d64545; }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .dice-rolls li.rerolled { opacity: 0.55; text-decoration: line-through; }
+
+body.t20ah-chat-estilo .t20ah-rolagem li.roll.die {
+  display: block !important;
+  grid-template-columns: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: center !important;
+}
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-formula { background: none !important; border: 0 !important; padding: 0 !important; font-size: 0.74em; color: var(--t20c-mudo); }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-total {
+  border: 0 !important;
+  border-left: 4px solid var(--ci) !important;
+  border-radius: 0 !important;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ci) 30%, transparent), transparent 85%) !important;
+  text-shadow: 0 0 0.45em color-mix(in srgb, var(--ci) 80%, transparent), 0 2px 0 #000 !important;
+}
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .wrapper { padding: 0.3em 0 0; background: none; }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .part-header { display: flex; align-items: center; gap: 0.5em; padding: 0 0 0.25em; font-size: 0.82em; border-bottom: 1px solid rgba(255, 255, 255, 0.1); background: none !important; color: var(--t20c-texto); }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .part-formula { color: var(--t20c-mudo); }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .part-flavor { padding: 0 0.5em; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.08em; color: #fff !important; background: color-mix(in srgb, var(--ci) 45%, #101012); border-radius: 999px; }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .part-total { margin-left: auto; padding: 0 0.4em; font-weight: 700; color: #fff !important; border: 0 !important; background: none !important; }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .dice-rolls { gap: 0.3em; margin: 0.35em 0 0.2em; }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-total[data-res] { position: relative; padding-right: 2.6em; }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-total[data-res]::before,
+body.t20ah-chat-estilo .t20ah-rolagem .dice-total[data-res]::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 0.4em;
+  width: 1.5rem;
+  height: 1.5rem;
+  translate: 0 -50%;
+}
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-total[data-res]::before { border-radius: 50%; background: var(--rc); box-shadow: 0 0 0.6em color-mix(in srgb, var(--rc) 70%, transparent); }
+
+body.t20ah-chat-estilo .t20ah-rolagem .dice-total[data-res]::after { background: var(--ri, #fff); -webkit-mask: var(--ico) center / 62% no-repeat; mask: var(--ico) center / 62% no-repeat; }
+body.t20ah-chat-estilo .t20ah-rolagem .dice-total { text-align: center; }
+
+/* fórmula do dado: sem borda e centralizada (cards de item e rolagens avulsas) */
+body.t20ah-chat-estilo .chat-message .dice-formula {
+  border: 0 !important;
+  box-shadow: none !important;
+  background: none !important;
+  text-align: center !important;
+  justify-content: center;
+}
+
+/* fórmula do dado: um pouco maior, com respiro nas laterais */
+body.t20ah-chat-estilo .chat-message .dice-formula,
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-formula,
+body.t20ah-chat-estilo .t20ah-rolagem .dice-formula {
+  font-size: 0.98em !important;
+  padding: 0.1em 0.6em !important;
+}
+
+/* marcador de resultado discreto: só o símbolo, sem círculo */
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-total[data-res]::before { display: none; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-total[data-res]::after {
+  right: 0.55em;
+  width: 1.7rem;
+  height: 1.7rem;
+  background: var(--rc);
+  opacity: 0.8;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  filter: drop-shadow(0 0 0.25em color-mix(in srgb, var(--rc) 55%, transparent));
+}
+body.t20ah-chat-estilo .chat-card.t20ah-item [data-res="acerto"] { --rc: #5fbf86; }
+
+
+/* sem "overflow: hidden" na mensagem, os cantos arredondados passam para o cabeçalho e o conteúdo */
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) > .message-header { border-radius: 0.6em 0.6em 0 0; }
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) > .message-content { border-radius: 0 0 0.6em 0.6em; }
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) > .message-content:first-child { border-radius: 0.6em; }
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-content > .chat-card { border-radius: 0 0 0.6em 0.6em !important; overflow: hidden; }
+/* menu de contexto (botão direito) sempre por cima de tudo */
+body.t20ah-chat-estilo .chat-message #context-menu,
+body.t20ah-chat-estilo .chat-message .context-menu,
+body.t20ah-chat-estilo #context-menu { z-index: 1000; }
+
+
+/* ---------- mensagem privada: bandeirinha com o símbolo de oculto ---------- */
+body:not(.t20ah-chat-estilo) .t20ah-privada { display: none; }
+body.t20ah-chat-estilo .chat-message:has(> .t20ah-privada) { position: relative; }
+body.t20ah-chat-estilo .t20ah-privada {
+  --pv: #a77bd6;
+  position: absolute;
+  top: 0;
+  right: 0.7em;
+  z-index: 2;
+  display: grid;
+  place-items: start center;
+  width: 1.7em;
+  padding-top: 0.35em;
+  height: 2.2em;
+  font-size: 0.9rem;
+  color: #fff;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--pv) 85%, #fff), color-mix(in srgb, var(--pv) 70%, #000));
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
+  cursor: help;
+}
+body.t20ah-chat-estilo .t20ah-privada.cega { --pv: #d64545; }
+body.t20ah-chat-estilo .t20ah-privada i { font-size: 0.8em; }
+/* abre espaço para a bandeirinha no canto do cabeçalho */
+body.t20ah-chat-estilo .chat-message:has(> .t20ah-privada) .message-header { padding-right: 2.9em; }
+
+/* a bandeirinha não pode cobrir a hora nem o botão de excluir: o bloco de metadados sai da frente dela */
+body.t20ah-chat-estilo .chat-message:has(> .t20ah-privada) .message-header { padding-right: 2.9em !important; }
+body.t20ah-chat-estilo .chat-message:has(> .t20ah-privada) .message-header .message-metadata { margin-right: 2.2em !important; }
+
+
+/* ---------- várias rolagens de uma vez: os grupos de dados fluem lado a lado e quebram de linha ---------- */
+/* cada grupo: fichas em cima, legenda pequena (fórmula, tipo e subtotal) embaixo */
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .wrapper { display: flex; flex-wrap: wrap; gap: 0.35em 0.9em; align-items: flex-start; }
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .tooltip-part {
+  flex: 0 1 auto;
+  max-width: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: none !important;
+}
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .tooltip-part .dice {
+  display: grid;
+  grid-template-columns: auto auto auto 1fr;
+  align-items: baseline;
+  column-gap: 0.35em;
+  row-gap: 0.1em;
+}
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .part-header { display: contents !important; }
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .dice-rolls { grid-column: 1 / -1; grid-row: 1; margin: 0 !important; gap: 0.25em; }
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .part-formula { grid-column: 1; grid-row: 2; font-size: 0.7em; white-space: nowrap; }
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .part-flavor { grid-column: 2; grid-row: 2; font-size: 0.58em; }
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .part-total { grid-column: 3; grid-row: 2; margin: 0 !important; padding: 0 !important; font-size: 0.78em; }
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .part-total::before { content: "= "; opacity: 0.6; font-weight: 400; }
+/* um dado só: o subtotal repetiria o número da ficha */
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .tooltip-part:has(.dice-rolls li:only-child) .part-total { display: none; }
+/* fichas um pouco menores */
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .dice-rolls li { font-size: 0.8em; }
+
+
+/* ---------- várias rolagens de uma vez: dados em grade compacta (cada tipo de dado vira uma célula) ---------- */
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .wrapper,
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .wrapper { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 0.5em 0.7em; padding: 0.4em 0 0.2em; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .tooltip-part,
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .tooltip-part { flex: 0 1 auto; margin: 0 !important; padding: 0 !important; border: 0 !important; background: none !important; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .tooltip-part .dice,
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .tooltip-part .dice { display: flex; flex-direction: column; align-items: center; gap: 0.2em; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .dice-rolls,
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .dice-rolls { order: 1; display: flex; flex-wrap: wrap; justify-content: center; gap: 0.3em; margin: 0 !important; padding: 0; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .part-header,
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .part-header { order: 2; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0.3em; padding: 0 !important; border: 0 !important; font-size: 0.72em; line-height: 1.1; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .part-total,
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .part-total { margin-left: 0; padding: 0 0.35em; font-size: 1.1em; border-radius: 999px; background: rgba(255, 255, 255, 0.1) !important; }
+/* um dado só: o número já está na ficha, então o subtotal some */
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .dice:has(.dice-rolls li:only-child) .part-total,
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .dice:has(.dice-rolls li:only-child) .part-total { display: none; }
+/* ordem: fórmula, total e, só por último, os dados individuais (quando expandidos) */
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-result > .dice-formula,
+body.t20ah-chat-estilo .t20ah-rolagem .dice-result > .dice-formula { order: 0; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-result > .dice-total,
+body.t20ah-chat-estilo .t20ah-rolagem .dice-result > .dice-total { order: 1; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-result > .dice-tooltip,
+body.t20ah-chat-estilo .t20ah-rolagem .dice-result > .dice-tooltip { order: 2; }
+
+/* dados individuais: nada aparece antes de expandir (v13: classe .expanded; versões antigas: display inline) */
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-roll:not(.expanded) .dice-tooltip:not([style*="display: block"]):not([style*="display:block"]),
+body.t20ah-chat-estilo .t20ah-rolagem .dice-roll:not(.expanded) .dice-tooltip:not([style*="display: block"]):not([style*="display:block"]) {
+  display: none !important;
+}
+/* fórmula e total de cada tipo de dado: maiores e sem fundo */
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .part-header,
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .part-header { font-size: 0.92em; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .part-formula,
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .part-formula { font-size: 1.05em; color: var(--t20c-texto); opacity: 0.85; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .part-total,
+body.t20ah-chat-estilo .t20ah-rolagem .dice-tooltip .part-total {
+  font-size: 1.25em;
+  font-weight: 700;
+  color: #fff !important;
+  background: none !important;
+  border: 0 !important;
+  border-radius: 0;
+  padding: 0 0.2em;
+}
+
+
+/* ---------- mensagem digitada (somente texto) ---------- */
+body.t20ah-chat-estilo .chat-message.t20ah-texto {
+  --ci: color-mix(in srgb, var(--cor-user, #e0b85c) 55%, #dcdcdc);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cor-user, #e0b85c) 16%, #1f1f22), #101012 45%) !important;
+  border-color: color-mix(in srgb, var(--cor-user, #e0b85c) 70%, transparent) !important;
+  border-left-color: var(--cor-user, #e0b85c) !important;
+}
+@supports (color: hsl(from red h s l)) {
+  body.t20ah-chat-estilo .chat-message.t20ah-texto { --ci: hsl(from var(--cor-user, #e0b85c) h calc(min(s, 62)) 54); }
+}
+body.t20ah-chat-estilo .chat-message.t20ah-texto .message-header {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ci) 26%, transparent), transparent 80%) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--ci) 50%, transparent) !important;
+}
+body.t20ah-chat-estilo .chat-message.t20ah-texto .message-content {
+  padding: 0.55em 0.8em 0.65em !important;
+  font-size: 0.95em;
+  line-height: 1.45;
+  color: var(--t20c-texto) !important;
+  text-shadow: none !important;
+  overflow-wrap: anywhere;
+  background: none !important;
+  border: 0 !important;
+}
+body.t20ah-chat-estilo .chat-message.t20ah-texto .message-content p { margin: 0 0 0.4em; }
+body.t20ah-chat-estilo .chat-message.t20ah-texto .message-content > :last-child { margin-bottom: 0; }
+body.t20ah-chat-estilo .chat-message.t20ah-texto .message-content a { color: color-mix(in srgb, var(--ci) 55%, #fff); }

@@ -158,6 +158,15 @@ const numOuNulo = (v) => {
 };
 
 /** CD das magias = base (10 + metade do nível, ou o valor da ficha) + modificador do atributo-chave de conjuração. */
+/** O personagem usa magias? (tem ao menos uma magia na ficha) */
+function usaMagias(actor) {
+  try {
+    return !!actor?.items?.some?.((i) => ["magia", "spell"].includes(i.type));
+  } catch (err) {
+    return false;
+  }
+}
+
 function cdMagias(actor) {
   const s = actor?.system ?? {};
   const a = s.attributes ?? {};
@@ -207,6 +216,144 @@ function cdMagias(actor) {
 }
 
 /** Defesa total do personagem. */
+/** Bônus de defesa colocado na HUD (guardado como flag do ator; não altera a ficha). */
+const defBonus = (actor) => Math.round(Number(actor?.getFlag?.(ID, "defBonus")) || 0);
+
+const TIPOS_DANO = [
+  { id: "", nome: "Sem tipo (só RD geral)" },
+  { id: "corte", nome: "Corte" },
+  { id: "impacto", nome: "Impacto" },
+  { id: "perfuracao", nome: "Perfuração" },
+  { id: "acido", nome: "Ácido" },
+  { id: "eletricidade", nome: "Eletricidade" },
+  { id: "essencia", nome: "Essência" },
+  { id: "fogo", nome: "Fogo" },
+  { id: "frio", nome: "Frio" },
+  { id: "luz", nome: "Luz" },
+  { id: "mental", nome: "Mental" },
+  { id: "psiquico", nome: "Psíquico" },
+  { id: "perda", nome: "Perda de PV" },
+  { id: "trevas", nome: "Trevas" },
+  { id: "veneno", nome: "Veneno" }
+];
+
+/**
+ * Redução de dano da ficha. Procura em system.tracos.resistencias (e alguns caminhos alternativos).
+ * Retorna { achou, geral, tipos: { chave: valor } } ; `achou` = a ficha expõe alguma RD (mesmo zerada).
+ */
+function lerRD(actor) {
+  const s = actor?.system ?? {};
+  const fontes = [s.tracos?.resistencias, s.resistencias, s.attributes?.resistencias, s.attributes?.rd, s.rd];
+  const tipos = {};
+  let achou = false;
+  let geralDireto = null;
+  for (const f of fontes) {
+    if (f === null || f === undefined) continue;
+    if (typeof f !== "object") {
+      const n = numOuNulo(f);
+      if (n !== null) { achou = true; geralDireto = n; }
+      continue;
+    }
+    const direto = numOuNulo(f.value ?? f.total);
+    if (direto !== null && !("dano" in f)) { achou = true; geralDireto = direto; }
+    for (const [k, v] of Object.entries(f)) {
+      const n = numOuNulo(v && typeof v === "object" ? (v.value ?? v.total ?? v.valor) : v);
+      if (n === null) continue;
+      achou = true;
+      const chave = normalizar(k);
+      if (!["value", "total", "base", "bonus"].includes(chave) && (tipos[chave] === undefined || n > tipos[chave])) tipos[chave] = n;
+    }
+  }
+  const geral = Math.max(0, tipos.dano ?? tipos.geral ?? tipos.rd ?? tipos.todos ?? geralDireto ?? 0);
+  for (const k of ["dano", "geral", "rd", "todos"]) delete tipos[k];
+  for (const k of Object.keys(tipos)) if (!(tipos[k] > 0)) delete tipos[k];
+  return { achou, geral, tipos };
+}
+
+const maiuscula1 = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
+
+/** Extrai nomes de qualquer formato comum de lista (texto, array, Set, { value, custom } ou { chave: true }). */
+function nomesDe(v, nivel = 0) {
+  if (v === null || v === undefined || nivel > 3) return [];
+  if (typeof v === "string") return v.split(/[;,\n]/).map((x) => x.trim()).filter(Boolean);
+  if (Array.isArray(v) || v instanceof Set) return [...v].flatMap((x) => nomesDe(x, nivel + 1));
+  if (typeof v === "object") {
+    if ("value" in v && (typeof v.value !== "boolean" && typeof v.value !== "number")) {
+      return [...nomesDe(v.value, nivel + 1), ...nomesDe(v.custom, nivel + 1)];
+    }
+    return Object.entries(v)
+      .filter(([k, x]) => k !== "custom" && (x === true || (x && typeof x === "object" && x.value === true)))
+      .map(([k]) => k)
+      .concat(nomesDe(v.custom, nivel + 1));
+  }
+  return [];
+}
+
+/** Imunidades da ficha (a tipos de dano), uma por item. Retorna [{ chave, nome }]. */
+function lerImunidades(actor) {
+  const s = actor?.system ?? {};
+  const fontes = [s.tracos?.imunidades, s.tracos?.di, s.imunidades, s.attributes?.imunidades];
+  const vistos = new Map();
+  for (const f of fontes) {
+    for (const bruto of nomesDe(f)) {
+      let nome = String(bruto);
+      try { if (/^[\w-]+(\.[\w-]+)+$/.test(nome)) nome = game.i18n.localize(nome); } catch (err) { /* ignora */ }
+      const chave = normalizar(nome);
+      if (!chave || vistos.has(chave)) continue;
+      const tipo = TIPOS_DANO.find((x) => x.id && x.id === chave);
+      vistos.set(chave, { chave, nome: tipo?.nome ?? maiuscula1(nome) });
+    }
+  }
+  // formato do sistema T20: system.tracos.resistencias.<tipo>.imunidade
+  for (const f of [s.tracos?.resistencias, s.resistencias]) {
+    if (!f || typeof f !== "object") continue;
+    for (const [k, v] of Object.entries(f)) {
+      if (!v || typeof v !== "object") continue;
+      const im = v.imunidade ?? v.imune ?? v.immunity;
+      if (im !== true && im !== "true" && im !== 1) continue;
+      const chave = normalizar(k);
+      if (!chave || vistos.has(chave)) continue;
+      const tipo = TIPOS_DANO.find((x) => x.id && x.id === chave);
+      vistos.set(chave, { chave, nome: tipo?.nome ?? maiuscula1(k) });
+    }
+  }
+  return [...vistos.values()];
+}
+
+/** Vulnerabilidades a tipos de dano: system.tracos.resistencias.<tipo>.vulnerabilidade. Retorna [{ chave, nome }]. */
+function lerVulnerabilidades(actor) {
+  const s = actor?.system ?? {};
+  const achados = new Map();
+  for (const f of [s.tracos?.resistencias, s.resistencias]) {
+    if (!f || typeof f !== "object") continue;
+    for (const [k, v] of Object.entries(f)) {
+      if (!v || typeof v !== "object") continue;
+      const vu = v.vulnerabilidade ?? v.vulneravel ?? v.vulnerability;
+      if (vu !== true && vu !== "true" && vu !== 1) continue;
+      const chave = normalizar(k);
+      if (!chave || achados.has(chave)) continue;
+      achados.set(chave, { chave, nome: TIPOS_DANO.find((x) => x.id && x.id === chave)?.nome ?? maiuscula1(k) });
+    }
+  }
+  return [...achados.values()];
+}
+
+/** Dano final depois da RD (geral + do tipo), ou sem RD se `ignorar`. */
+function calcularDano(actor, bruto, tipo, ignorar = false) {
+  const rd = lerRD(actor);
+  const rdTipo = tipo ? rd.tipos[tipo] ?? 0 : 0;
+  const reducao = ignorar ? 0 : rd.geral + rdTipo;
+  // imunidade ao tipo de dano: não é RD, então "ignorar RD" não a anula
+  const imune = !!tipo && lerImunidades(actor).some((x) => x.chave === tipo);
+  return { bruto, geral: rd.geral, rdTipo, reducao, imune, final: imune ? 0 : Math.max(0, bruto - reducao) };
+}
+
+function confirmar(titulo, texto) {
+  const D = foundry.applications?.api?.DialogV2;
+  if (D?.confirm) return D.confirm({ window: { title: titulo }, content: `<p>${texto}</p>`, rejectClose: false, modal: true });
+  return new Promise((res) => Dialog.confirm({ title: titulo, content: `<p>${texto}</p>`, yes: () => res(true), no: () => res(false), close: () => res(false) }));
+}
+
 function defesaTotal(actor) {
   const a = actor?.system?.attributes ?? {};
   for (const v of [a.defesa?.value, a.defesa?.total, a.defesa, a.def?.value, a.ac?.value, a.defense?.value]) {
@@ -227,6 +374,7 @@ class AcoesHUD {
   static _ultimo = null;
   static _foto = null; // PV/PM do último desenho (para detectar perdas e ganhos)
   static _anims = []; // animações de perda/ganho ainda em andamento
+  static _dano = { aberto: false, valor: "", tipo: "", ignora: false }; // menu de dano (sobrevive aos redesenhos)
 
   /* ---------- Dados ---------- */
 
@@ -444,9 +592,11 @@ class AcoesHUD {
     el.addEventListener("change", (ev) => {
       const inp = ev.target.closest?.("input[data-rec]");
       if (inp) this.editarRecurso(inp);
+      const db = ev.target.closest?.("input[data-defbonus]");
+      if (db) this.editarDefBonus(db);
     });
     el.addEventListener("keydown", (ev) => {
-      if (!ev.target.matches?.("input[data-rec]")) return;
+      if (!ev.target.matches?.("input[data-rec], input[data-defbonus]")) return;
       if (ev.key === "Enter") ev.target.blur();
       else if (ev.key === "Escape") {
         ev.target.value = ev.target.defaultValue;
@@ -454,7 +604,7 @@ class AcoesHUD {
       }
     });
     el.addEventListener("focusin", (ev) => {
-      if (ev.target.matches?.("input[data-rec]")) ev.target.select();
+      if (ev.target.matches?.("input[data-rec], input[data-defbonus]")) ev.target.select();
     });
     el.addEventListener("focusout", () => {
       if (this._pendente) {
@@ -566,6 +716,291 @@ class AcoesHUD {
       </div>`;
   }
 
+  /* ---------- Gaveta de dano (painel que desliza da esquerda da HUD) ---------- */
+
+  static garantirGaveta() {
+    if (this.gaveta?.isConnected) return this.gaveta;
+    const g = document.createElement("aside");
+    g.id = "t20ah-gaveta";
+    g.classList.add("oculto");
+    document.body.appendChild(g);
+    this.gaveta = g;
+
+    g.addEventListener("click", (ev) => {
+      const b = ev.target.closest("button");
+      if (!b || !g.contains(b)) return;
+      const a = b.dataset.acao;
+      if (a === "dano-menu") {
+        this._dano.aberto = !this._dano.aberto;
+        g.classList.toggle("aberta", this._dano.aberto);
+        this.posicionarGaveta();
+      } else if (a === "dano-aplicar") this.aplicarDano();
+      else if (a === "vida-curar") this.ajustarPeloValor("curar");
+      else if (a === "pm-gastar") this.ajustarPeloValor("gastar-pm");
+      else if (a === "pm-receber") this.ajustarPeloValor("receber-pm");
+      else if (a === "dano-zerar") this.vidaTotal("zerar");
+      else if (a === "dano-curar-tudo") this.vidaTotal("curar");
+    });
+    const ler = (ev) => {
+      const dn = ev.target.closest?.("[data-dano]");
+      if (dn) this.lerCampoDano(dn);
+    };
+    g.addEventListener("input", ler);
+    g.addEventListener("change", ler);
+    g.addEventListener("keydown", (ev) => {
+      if (!ev.target.matches?.('input[data-dano="valor"]')) return;
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        this.aplicarDano();
+      } else if (ev.key === "Escape") ev.target.blur();
+    });
+    g.addEventListener("focusin", (ev) => {
+      if (ev.target.matches?.('input[data-dano="valor"]')) ev.target.select();
+    });
+    window.addEventListener("resize", () => this.posicionarGaveta());
+    return g;
+  }
+
+  /** Mostra/esconde a gaveta junto com a HUD e refaz o conteúdo só quando troca o personagem. */
+  static renderGaveta() {
+    const g = this.garantirGaveta();
+    const t = this.alvo();
+    const hud = this.el;
+    const visivel = !!t && !!hud && !hud.classList.contains("oculto") && !hud.classList.contains("recolhido");
+    hud?.classList.toggle("com-gaveta", visivel);
+    if (!visivel) {
+      g.classList.add("oculto");
+      return;
+    }
+    g.classList.remove("oculto");
+    g.classList.toggle("aberta", !!this._dano.aberto);
+    const id = `${t.actor.uuid ?? t.actor.id}:${game.user.isGM}:${!!lerRecurso(t.actor, "pm")}`;
+    if (this._gavetaAtor !== id || !g.querySelector(".gv-corpo")) {
+      this._gavetaAtor = id;
+      g.innerHTML = `
+        <button type="button" class="gv-aba" data-acao="dano-menu" title="Gaveta: dano, cura e mana">
+          <i class="fa-solid fa-burst"></i><span class="gv-txt">Dano</span><i class="fa-solid fa-chevron-left gv-seta"></i>
+        </button>
+        <div class="gv-corpo"><div class="gv-interno">${this.htmlDano(t.actor)}</div></div>`;
+    } else {
+      // mantém o que está sendo digitado; só sincroniza o valor quando o campo não está em foco
+      const campo = g.querySelector('[data-dano="valor"]');
+      if (campo && document.activeElement !== campo && campo.value !== String(this._dano.valor)) campo.value = this._dano.valor;
+      this.atualizarPreviaDano();
+    }
+    this.posicionarGaveta();
+    this.seguirGaveta();
+  }
+
+  /**
+   * Ao trocar a seleção a HUD muda de altura/posição depois do render (imagens, fontes, animações). A gaveta
+   * acompanha: observa o tamanho da HUD e reposiciona a cada quadro por um instante.
+   */
+  static seguirGaveta() {
+    const hud = this.el;
+    if (hud && this._roHud !== hud && typeof ResizeObserver !== "undefined") {
+      this._roHud?.disconnect?.();
+      this._roObs?.disconnect?.();
+      this._roObs = new ResizeObserver(() => this.posicionarGaveta());
+      this._roObs.observe(hud);
+      this._roHud = hud;
+    }
+    // vigia enquanto a gaveta estiver visível: qualquer mudança de posição/tamanho da HUD (animações, imagens, fontes)
+    // é acompanhada no quadro seguinte. Só escreve no DOM quando algo mudou.
+    if (this._vigiaGaveta) return;
+    this._vigiaGaveta = true;
+    const passo = () => {
+      if (!this.gaveta || this.gaveta.classList.contains("oculto") || !this.gaveta.isConnected) {
+        this._vigiaGaveta = false;
+        return;
+      }
+      this.posicionarGaveta();
+      this._rafGaveta = requestAnimationFrame(passo);
+    };
+    this._rafGaveta = requestAnimationFrame(passo);
+  }
+
+  /** Cola a gaveta na borda esquerda da HUD, com a mesma altura (e acompanha o arraste e o tamanho). */
+  static posicionarGaveta() {
+    const g = this.gaveta;
+    const hud = this.el;
+    if (!g || !hud || g.classList.contains("oculto")) return;
+    const r = hud.getBoundingClientRect();
+    const esc = hud.style.getPropertyValue("--esc") || 1;
+    const top = `${r.top}px`;
+    const height = `${r.height}px`;
+    const right = `${document.documentElement.clientWidth - r.left - 1}px`; // 1px por baixo da HUD: sem vão
+    if (g.style.getPropertyValue("--esc") !== String(esc)) g.style.setProperty("--esc", esc);
+    if (g.style.top !== top) g.style.top = top;
+    if (g.style.height !== height) g.style.height = height;
+    if (g.style.right !== right) g.style.right = right;
+  }
+
+  static lerCampoDano(campo) {
+    const k = campo.dataset.dano;
+    if (k === "ignora") this._dano.ignora = campo.checked;
+    else this._dano[k] = campo.value;
+    this.atualizarPreviaDano();
+  }
+
+  /** Edita o bônus de defesa da HUD. Aceita "2", "+1" ou "-1". */
+  static async editarDefBonus(inp) {
+    const t = this.alvo();
+    if (!t) return;
+    const txt = inp.value.trim().replace(",", ".").replace("−", "-");
+    const atual = defBonus(t.actor);
+    let novo;
+    if (/^[+-]\d+(\.\d+)?$/.test(txt)) novo = atual + Number(txt);
+    else if (/^-?\d+(\.\d+)?$/.test(txt)) novo = Number(txt);
+    else return this.render();
+    novo = Math.round(novo);
+    if (novo === atual) return this.render();
+    try {
+      if (novo === 0) await t.actor.unsetFlag(ID, "defBonus");
+      else await t.actor.setFlag(ID, "defBonus", novo);
+    } catch (err) {
+      console.error(`${ID} | erro ao salvar o bônus de defesa`, err);
+      ui.notifications.error("Sem permissão para alterar este personagem.");
+    }
+    this.render();
+  }
+
+  /** Menu de dano (expansível): valor, tipo e, só para o Mestre, zerar PV e curar tudo. */
+  static htmlDano(actor) {
+    const d = this._dano;
+    const gm = game.user.isGM;
+    const pm = lerRecurso(actor, "pm");
+    return `
+      <div class="t20ah-dano">
+        <div class="dn-titulo"><i class="fa-solid fa-burst"></i> Dano, cura e mana</div>
+        <div class="dn-linha">
+          <input type="text" inputmode="numeric" autocomplete="off" data-dano="valor" placeholder="Valor" value="${esc(d.valor)}" title="Valor usado em todos os botões abaixo (dano, cura e mana)">
+          <select data-dano="tipo" title="Tipo do dano (usado só em Causar dano)">${TIPOS_DANO.map((x) => `<option value="${x.id}" ${x.id === d.tipo ? "selected" : ""}>${esc(x.nome)}</option>`).join("")}</select>
+        </div>
+        <label class="dn-ign"><input type="checkbox" data-dano="ignora" ${d.ignora ? "checked" : ""}> Ignorar a redução de dano</label>
+        <div class="dn-previa js-dn-previa">${this.textoPreviaDano(actor)}</div>
+        <div class="dn-botoes">
+          <button type="button" class="dn-aplicar" data-acao="dano-aplicar" title="Causa o dano (descontando a RD) nos PV temporários e depois nos PV"><i class="fa-solid fa-burst"></i> Causar dano</button>
+          <button type="button" class="dn-cura" data-acao="vida-curar" title="Recupera esta quantidade de PV (até o máximo)"><i class="fa-solid fa-heart-pulse"></i> Curar</button>
+          ${pm ? `
+          <button type="button" class="dn-pm-gasta" data-acao="pm-gastar" title="Gasta esta quantidade de PM (primeiro os temporários)"><i class="fa-solid fa-hand-sparkles"></i> Gastar PM</button>
+          <button type="button" class="dn-pm-ganha" data-acao="pm-receber" title="Recupera esta quantidade de PM (até o máximo)"><i class="fa-solid fa-wand-sparkles"></i> Receber PM</button>` : ""}
+        </div>
+        ${gm ? `
+        <div class="dn-botoes dn-mestre">
+          <button type="button" class="dn-gm dn-zerar" data-acao="dano-zerar" title="Mestre: zera os PV e os PV temporários"><i class="fa-solid fa-skull"></i> Zerar vida</button>
+          <button type="button" class="dn-gm dn-curar" data-acao="dano-curar-tudo" title="Mestre: devolve todos os PV"><i class="fa-solid fa-heart-circle-check"></i> Curar tudo</button>
+        </div>` : ""}
+      </div>`;
+  }
+
+  static textoPreviaDano(actor) {
+    const d = this._dano;
+    const n = Math.round(Number(String(d.valor).replace(",", ".")));
+    if (!Number.isFinite(n) || n <= 0) return "Informe o valor do dano.";
+    const c = calcularDano(actor, n, d.tipo, d.ignora);
+    if (c.imune) return `Imune a <b>${esc(TIPOS_DANO.find((x) => x.id === d.tipo)?.nome ?? d.tipo)}</b>: dano final <b>0</b>`;
+    if (!c.reducao) return `Dano final: <b>${c.final}</b>${d.ignora ? " (RD ignorada)" : ""}`;
+    return `Dano final: <b>${c.final}</b> <small>(${n} − RD ${c.reducao}${c.rdTipo ? `: ${c.geral} geral + ${c.rdTipo} do tipo` : ""})</small>`;
+  }
+
+  static atualizarPreviaDano() {
+    const t = this.alvo();
+    const el = this.el?.querySelector(".js-dn-previa");
+    if (t && el) el.innerHTML = this.textoPreviaDano(t.actor);
+  }
+
+  /** Aplica dano: desconta a RD, tira primeiro dos PV temporários e depois dos PV. */
+  static async aplicarDano() {
+    const t = this.alvo();
+    if (!t) return;
+    const d = this._dano;
+    const bruto = Math.round(Number(String(d.valor).replace(",", ".")));
+    if (!Number.isFinite(bruto) || bruto <= 0) return ui.notifications.warn("Informe um valor de dano maior que zero.");
+    const pv = lerRecurso(t.actor, "pv");
+    if (!pv) return ui.notifications.warn("Não encontrei os PV deste personagem.");
+    const c = calcularDano(t.actor, bruto, d.tipo, d.ignora);
+    const absorvido = Math.min(pv.temp, c.final);
+    const noPv = c.final - absorvido;
+    try {
+      await t.actor.update({
+        [`${pv.caminho}.temp`]: pv.temp - absorvido,
+        [`${pv.caminho}.value`]: pv.value - noPv
+      });
+    } catch (err) {
+      console.error(`${ID} | erro ao causar dano`, err);
+      return ui.notifications.error("Sem permissão para alterar este personagem.");
+    }
+    this._dano.valor = "";
+    const campoValor = this.gaveta?.querySelector('[data-dano="valor"]');
+    if (campoValor) campoValor.value = "";
+    this.render();
+  }
+
+  /** Valor positivo digitado na gaveta (ou null, com aviso). */
+  static valorDaGaveta() {
+    const n = Math.round(Number(String(this._dano.valor).replace(",", ".")));
+    if (!Number.isFinite(n) || n <= 0) {
+      ui.notifications.warn("Informe um valor maior que zero.");
+      return null;
+    }
+    return n;
+  }
+
+  /** Cura PV, gasta PM ou recupera PM pelo valor digitado. modo: "curar" | "gastar-pm" | "receber-pm". */
+  static async ajustarPeloValor(modo) {
+    const t = this.alvo();
+    if (!t) return;
+    const v = this.valorDaGaveta();
+    if (v === null) return;
+    const chave = modo === "curar" ? "pv" : "pm";
+    const r = lerRecurso(t.actor, chave);
+    if (!r) return ui.notifications.warn(`Não encontrei ${chave === "pv" ? "os PV" : "os PM"} deste personagem.`);
+    const rot = chave === "pv" ? "PV" : "PM";
+    const up = {};
+    if (modo === "gastar-pm") {
+      const total = r.value + r.temp;
+      if (v > total) return ui.notifications.warn(`PM insuficientes: ${t.doc.name ?? t.actor.name} tem ${total}.`);
+      const doTemp = Math.min(r.temp, v);
+      up[`${r.caminho}.temp`] = r.temp - doTemp;
+      up[`${r.caminho}.value`] = r.value - (v - doTemp);
+    } else {
+      const novo = r.max > 0 ? Math.min(r.max, r.value + v) : r.value + v;
+      if (novo === r.value) return ui.notifications.info(`${rot} já estão no máximo.`);
+      up[`${r.caminho}.value`] = novo;
+    }
+    try {
+      await t.actor.update(up);
+    } catch (err) {
+      console.error(`${ID} | erro ao ajustar ${rot}`, err);
+      return ui.notifications.error("Sem permissão para alterar este personagem.");
+    }
+    this._dano.valor = "";
+    const campoValor = this.gaveta?.querySelector('[data-dano="valor"]');
+    if (campoValor) campoValor.value = "";
+    this.render();
+  }
+
+  /** Mestre: zera os PV (e os temporários) ou devolve todos os PV. */
+  static async vidaTotal(modo) {
+    if (!game.user.isGM) return;
+    const t = this.alvo();
+    if (!t) return;
+    const pv = lerRecurso(t.actor, "pv");
+    if (!pv) return ui.notifications.warn("Não encontrei os PV deste personagem.");
+    const nome = t.doc.name ?? t.actor.name;
+    const zerar = modo === "zerar";
+    const ok = await confirmar(zerar ? "Zerar vida" : "Curar tudo", zerar ? `Zerar os PV e os PV temporários de <b>${esc(nome)}</b>?` : `Devolver todos os PV de <b>${esc(nome)}</b> (${pv.max})?`);
+    if (!ok) return;
+    try {
+      await t.actor.update(zerar ? { [`${pv.caminho}.value`]: 0, [`${pv.caminho}.temp`]: 0 } : { [`${pv.caminho}.value`]: pv.max });
+    } catch (err) {
+      console.error(`${ID} | erro ao alterar a vida`, err);
+      return ui.notifications.error("Não foi possível alterar a vida.");
+    }
+    this.render();
+  }
+
   /** Edita PV/PM (ou temporários). Aceita "12", "+5" ou "-5". */
   static async editarRecurso(inp) {
     const t = this.alvo();
@@ -604,6 +1039,7 @@ class AcoesHUD {
       this._ultimo = null;
       this._foto = null;
       this._anims = [];
+      this.renderGaveta();
       MenuAcoes.sincronizar();
       return;
     }
@@ -627,10 +1063,64 @@ class AcoesHUD {
     const pv = lerRecurso(actor, "pv");
     const pm = lerRecurso(actor, "pm");
     const cd = cdMagias(actor);
-    const def = defesaTotal(actor);
+    const defBase = defesaTotal(actor);
+    const bonusDef = defBonus(actor);
+    const def = defBase != null ? defBase + bonusDef : null;
+    const rd = lerRD(actor);
+    const imunes = lerImunidades(actor);
+    const nomeTipo = (k) => TIPOS_DANO.find((x) => x.id === k)?.nome ?? maiuscula1(k);
+    const tipoRD = Object.entries(rd.tipos);
+    const chipsRD = [];
+    const ICONE_DANO = {
+      corte: "fa-slash", impacto: "fa-hammer", perfuracao: "fa-arrow-up", acido: "fa-flask", eletricidade: "fa-bolt",
+      essencia: "fa-wand-magic-sparkles", fogo: "fa-fire", frio: "fa-snowflake", luz: "fa-sun", mental: "fa-brain", psiquico: "fa-brain", perda: "fa-heart-crack",
+      trevas: "fa-moon", veneno: "fa-skull-crossbones"
+    };
+    const PATH_ESCUDO = "M12 1.2 22 4.6V13c0 6.6-4.3 11.2-10 13.8C6.3 24.2 2 19.6 2 13V4.6z";
+    /** Escudo com o ícone do tipo de dano em cima e o valor da RD dentro (ou um bloqueio, se for imune). */
+    const escudoRD = ({ tipo, icone, valor, imune, vulneravel, titulo }) =>
+      `<span class="rd-escudo ${imune ? "imune" : ""} ${vulneravel ? "vulneravel" : ""} ${tipo ? "t-" + esc(tipo) : "geral"}" title="${esc(titulo)}">` +
+      `<i class="rd-tipo fa-solid ${icone}"></i>` +
+      `<span class="rd-corpo"><svg viewBox="0 0 24 28" aria-hidden="true"><path d="${PATH_ESCUDO}"/></svg>` +
+      (vulneravel ? `<svg class="rd-rachadura" viewBox="0 0 24 28" aria-hidden="true"><path d="M13.5 3 10 10.5l4 3-4.5 5L12 25"/></svg><i class="rd-frac fa-solid fa-angles-down"></i>` : "") +
+      (vulneravel ? "" : imune ? `<i class="rd-ban fa-solid fa-ban"></i>` : `<b class="n${String(valor).length}">${valor}</b>`) +
+      `</span></span>`;
+    const imunesMap = new Map(imunes.map((x) => [x.chave, x]));
+    if (rd.geral) chipsRD.push(escudoRD({ icone: "fa-shield-halved", valor: rd.geral, titulo: `Redução de dano geral: ${rd.geral}` }));
+    for (const [k, v] of tipoRD) {
+      const imune = imunesMap.has(k);
+      imunesMap.delete(k);
+      chipsRD.push(escudoRD({
+        tipo: k, icone: ICONE_DANO[k] ?? "fa-droplet", valor: v, imune,
+        titulo: imune ? `Imune a dano de ${nomeTipo(k)}` : `Redução de dano de ${nomeTipo(k)}: ${v}`
+      }));
+    }
+    // imunidades sem RD do mesmo tipo
+    for (const [k, x] of imunesMap) {
+      chipsRD.push(escudoRD({
+        tipo: ICONE_DANO[k] ? k : "", icone: ICONE_DANO[k] ?? "fa-ban", imune: true, titulo: `Imunidade a dano de ${x.nome}`
+      }));
+    }
+    // vulnerabilidades (a imunidade ao mesmo tipo prevalece)
+    const imunesChaves = new Set(imunes.map((x) => x.chave));
+    for (const x of lerVulnerabilidades(actor)) {
+      if (imunesChaves.has(x.chave)) continue;
+      chipsRD.push(escudoRD({
+        tipo: ICONE_DANO[x.chave] ? x.chave : "", icone: ICONE_DANO[x.chave] ?? "fa-droplet", vulneravel: true,
+        titulo: `Vulnerável a dano de ${x.nome}`
+      }));
+    }
+    if (rd.achou && !chipsRD.length) chipsRD.push(escudoRD({ icone: "fa-shield-halved", valor: 0, titulo: "Redução de dano da ficha: nenhuma" }));
     const chips = [
-      def != null ? `<span class="chip def" title="Defesa total"><i class="fa-solid fa-shield"></i> DEF ${def}</span>` : "",
-      cd != null ? `<span class="chip cd" title="CD das magias"><i class="fa-solid fa-wand-sparkles"></i> CD ${cd}</span>` : ""
+      def != null
+        ? `<span class="def-escudo n${String(def).length}" title="Defesa total: ${defBase} da ficha${bonusDef ? ` ${bonusDef > 0 ? "+" : "−"} ${Math.abs(bonusDef)} de bônus da HUD` : ""}"><svg viewBox="0 0 24 28" aria-hidden="true"><path d="M12 1.2 22 4.6V13c0 6.6-4.3 11.2-10 13.8C6.3 24.2 2 19.6 2 13V4.6z"/></svg><b>${def}</b></span>` +
+          `<span class="chip defb ${bonusDef ? "ativo" : ""}" title="Bônus de defesa (só na HUD, não altera a ficha). Digite um valor, ou +2 / -2 para somar."><i class="fa-solid fa-plus-minus"></i><input type="text" inputmode="numeric" autocomplete="off" data-defbonus value="${bonusDef}"></span>`
+        : "",
+      ...chipsRD,
+      cd != null && usaMagias(actor)
+        ? `<span class="rd-escudo cd-selo" title="CD das magias: ${cd}"><i class="rd-tipo fa-solid fa-wand-sparkles"></i>` +
+          `<span class="rd-corpo"><svg viewBox="0 0 24 28" aria-hidden="true"><path d="M12 1 22.5 7v14L12 27 1.5 21V7z"/></svg><b class="n${String(cd).length}">${cd}</b></span></span>`
+        : ""
     ].join("");
     // ----- perdas e ganhos de PV/PM (e temporários): comparam com o último desenho do mesmo personagem -----
     const agoraAnim = Date.now();
@@ -795,6 +1285,7 @@ class AcoesHUD {
     this.aplicarPosicao();
     this.atualizarTempo();
     MenuAcoes.sincronizar();
+    this.renderGaveta();
   }
 
   /* ---------- Turno, timer e som ---------- */
@@ -947,6 +1438,7 @@ class AcoesHUD {
       el.style.left = el.style.top = el.style.bottom = el.style.translate = "";
     }
     MenuAcoes.posicionar();
+    this.posicionarGaveta();
   }
 
   static iniciarArraste(ev) {
@@ -965,6 +1457,7 @@ class AcoesHUD {
       };
       this.posicionar(pos.left, pos.top);
       MenuAcoes.posicionar();
+      this.posicionarGaveta();
     };
     const soltar = () => {
       window.removeEventListener("pointermove", mover);
@@ -990,7 +1483,7 @@ const htmlRegra = (a) =>
 
 /* ---------- Condições (Caído) e armas (Golpe de Misericórdia) ---------- */
 
-const CONDICOES = { caido: /caid|prone/, fatigado: /fatigad|fatigue/, exausto: /exaust/ };
+const CONDICOES = { caido: /caid|prone/, fatigado: /fatigad|fatigue/, exausto: /exaust/, desprevenido: /desprevenid|flat-?footed|unaware/ };
 
 /** Id da condição nos efeitos de status do Foundry (procura pelo id e pelo nome). */
 function acharCondicao(chave) {
@@ -1143,6 +1636,132 @@ async function rolarPericiaNativa(actor, chave) {
   if (!roll) return null;
   return { roll, mensagem: capturada ?? (retorno?.rolls ? retorno : null) };
 }
+
+/* ---------- Fintar ---------- */
+
+const ALCANCE_CURTO_M = 9;
+const PEDIDOS = new Map(); // reqId -> resolve (pedidos de teste feitos ao Mestre pelo socket)
+
+/** Tokens da cena em alcance curto (9 m) do token indicado. `todos` ignora o alcance. */
+function tokensParaFinta(feinterDoc, { todos = false } = {}) {
+  const origem = feinterDoc?.object;
+  const mQuad = cfg("metrosPorQuadrado");
+  const lista = [];
+  for (const t of canvas.tokens?.placeables ?? []) {
+    if (!t.actor || t.document.id === feinterDoc?.id) continue;
+    if (t.document.hidden && !game.user.isGM) continue;
+    let metros = null;
+    try {
+      if (origem) {
+        const unidades = canvas.grid.measurePath([origem.center, t.center]).distance ?? 0;
+        const centro = unidades / (canvas.grid.distance || 1); // quadrados, de centro a centro
+        const borda = Math.max(1, centro - ((origem.document.width ?? 1) + (t.document.width ?? 1)) / 2 + 1);
+        metros = borda * mQuad;
+      }
+    } catch (err) { /* ignora */ }
+    if (!todos && (metros === null || metros > ALCANCE_CURTO_M + 0.01)) continue;
+    lista.push({ token: t, metros });
+  }
+  return lista.sort((a, b) => (a.metros ?? 999) - (b.metros ?? 999) || a.token.name.localeCompare(b.token.name, "pt-BR"));
+}
+
+/**
+ * Faz o teste oposto de Reflexos do alvo e resolve a finta. Roda no cliente de quem pode rolar pelo alvo
+ * (o próprio usuário, se for dono ou Mestre; senão, o Mestre ativo, por socket). Só passa dados simples.
+ * d: { tokenUuid?, escolher?, feinterTokenUuid, nomeFeinter, meuTotal, meuBonus }
+ */
+async function resolverFinta(d) {
+  // o alvo pode ser um token da cena ou (escolha do Mestre) qualquer ator, mesmo fora de cena
+  let alvoDoc = d.tokenUuid ? await fromUuid(d.tokenUuid) : null;
+  if (!alvoDoc && d.escolher) {
+    const feinterDoc = d.feinterTokenUuid ? await fromUuid(d.feinterTokenUuid) : null;
+    const sel = await MenuAcoes.escolherAlvoFinta(feinterDoc, { todos: true, gm: true, nomeFeinter: d.nomeFeinter });
+    alvoDoc = sel?.tokenDoc ?? sel?.actor ?? null;
+  }
+  const ator = alvoDoc?.documentName === "Actor" ? alvoDoc : alvoDoc?.actor;
+  if (!ator) return { cancelado: true };
+
+  const k = await MenuAcoes.escolherPericia(ator, {
+    padrao: "refl",
+    titulo: `Reflexos · ${ator.name}`,
+    subtitulo: `Teste oposto à finta de ${d.nomeFeinter}`,
+    texto: `<b>${esc(ator.name)}</b> faz um teste de <b>Reflexos</b> oposto ao teste de Enganação de ${esc(d.nomeFeinter)}.`,
+    icone: "fa-hand",
+    obrigatorio: true
+  });
+  const chave = k ?? "refl";
+  const rf = await rolarPericiaNativa(ator, chave);
+  if (!rf) return { cancelado: true };
+
+  const alvoTotal = Number(rf.roll.total);
+  const alvoBonus = bonusPericia(ator, chave, "Reflexos");
+  let veredito = "empate";
+  if (d.meuTotal > alvoTotal) veredito = "passou";
+  else if (d.meuTotal < alvoTotal) veredito = "falhou";
+  else if (d.meuBonus !== null && alvoBonus !== null && d.meuBonus !== alvoBonus) veredito = d.meuBonus > alvoBonus ? "passou" : "falhou";
+
+  let condicao = "nenhuma";
+  let statusId = null;
+  if (veredito === "passou") {
+    const est = estadoCondicao(ator, "desprevenido");
+    statusId = est.id;
+    if (!est.id) condicao = "inexistente";
+    else if (est.tinha) condicao = "ja";
+    else {
+      try {
+        await definirCondicao(ator, est.id, true);
+        condicao = "aplicada";
+      } catch (err) {
+        console.error(`${ID} | não foi possível aplicar Desprevenido`, err);
+        condicao = "erro";
+      }
+    }
+  }
+  return {
+    cancelado: false, veredito, condicao, statusId, alvoTotal, alvoBonus,
+    alvoNat: rf.roll.dice?.find?.((x) => x.faces === 20)?.total ?? null,
+    nomeAlvo: ator.name, nomePericia: NOMES_PERICIAS[chave] ?? chave, tokenUuid: alvoDoc.uuid
+  };
+}
+
+/** Pede ao Mestre ativo que resolva a finta (escolhendo o ator e rolando por ele). */
+function pedirFintaAoMestre(dados) {
+  return new Promise((resolve) => {
+    if (!game.users.activeGM) {
+      ui.notifications.warn("Não há Mestre conectado para fazer o teste de Reflexos.");
+      return resolve(null);
+    }
+    const reqId = foundry.utils.randomID();
+    const t = setTimeout(() => {
+      PEDIDOS.delete(reqId);
+      ui.notifications.warn("O Mestre não respondeu ao teste de Reflexos a tempo.");
+      resolve(null);
+    }, 300000);
+    PEDIDOS.set(reqId, (r) => {
+      clearTimeout(t);
+      PEDIDOS.delete(reqId);
+      resolve(r);
+    });
+    ui.notifications.info("Aguardando o Mestre fazer o teste de Reflexos…");
+    game.socket.emit(`module.${ID}`, { tipo: "finta-pedir", reqId, dados });
+  });
+}
+
+/** Fim do próximo turno de quem fintou: remove o Desprevenido que a finta aplicou (Mestre ativo). */
+async function expirarFintas(combat, ant) {
+  const c = combat.combatants.get(ant?.combatantId);
+  const f = c?.getFlag(ID, "finta");
+  if (!f || !(ant.round > f.rodada)) return;
+  try {
+    const doc = await fromUuid(f.alvoUuid);
+    const ator = doc?.actor ?? doc;
+    if (ator && f.statusId) await ator.toggleStatusEffect(f.statusId, { active: false });
+  } catch (err) {
+    console.warn(`${ID} | não foi possível remover o Desprevenido da finta`, err);
+  }
+  await c.unsetFlag(ID, "finta").catch(() => {});
+}
+const ULTIMO_TURNO = new Map(); // combatId -> { round, combatantId } (turno visto por último)
 
 class MenuAcoes {
   static el = null; // menu flutuante com as ações da categoria escolhida
@@ -1433,6 +2052,175 @@ class MenuAcoes {
   }
 
   /**
+   * Janela para escolher o alvo da finta: criaturas em alcance curto (9 m). O Mestre pode listar todos os tokens da
+   * cena; o jogador pode deixar o Mestre escolher. Retorna { tokenDoc } | { mestre: true } | null (cancelou).
+   */
+  static escolherAlvoFinta(feinterDoc, { todos = false, gm = game.user.isGM, nomeFeinter = "" } = {}) {
+    return new Promise((resolve) => {
+      let mostrarTodos = todos;
+      const fmt = (n) => (Math.round(n * 10) / 10).toString().replace(".", ",");
+      const ov = document.createElement("div");
+      ov.id = "t20ah-escolha";
+      // Mestre: a janela deixa a barra lateral clicável para arrastar um ator da lista de Atores
+      if (gm) ov.classList.add("ec-arrastavel");
+      const corpo = () => {
+        const lista = tokensParaFinta(feinterDoc, { todos: mostrarTodos });
+        ov._lista = lista;
+        const itens = lista.length
+          ? lista
+              .map(
+                (x, i) => `
+            <button type="button" class="ec-arma" data-ec-i="${i}">
+              <img src="${esc(x.token.document.texture?.src && !/\.(webm|mp4|m4v)$/i.test(x.token.document.texture.src) ? x.token.document.texture.src : x.token.actor?.img || "icons/svg/mystery-man.svg")}" alt="" draggable="false">
+              <span class="ec-n">${esc(x.token.name)}</span>
+              <span class="ec-d">${x.metros !== null ? `${esc(fmt(x.metros))} m` : "distância desconhecida"}${x.token.isTargeted ? " · marcado como alvo" : ""}</span>
+            </button>`
+              )
+              .join("")
+          : `<p class="ec-nota">${mostrarTodos ? "Não há outros tokens na cena." : "Ninguém em alcance curto (9 m)."}</p>`;
+        ov.querySelector(".ec-lista").innerHTML = itens;
+      };
+      ov.innerHTML = `
+        <div class="ec-fundo"></div>
+        <div class="ec-janela">
+          <header>
+            <i class="fa-solid fa-masks-theater"></i>
+            <div><small>${gm && nomeFeinter ? `Finta de ${esc(nomeFeinter)}` : "Ação Padrão"}</small><strong>Fintar</strong></div>
+            <button type="button" class="ec-x" data-ec="cancelar" title="Cancelar"><i class="fa-solid fa-xmark"></i></button>
+          </header>
+          <p>${gm && nomeFeinter ? `Escolha <b>quem faz o teste de Reflexos</b> contra a finta de ${esc(nomeFeinter)}.` : "Escolha a criatura em <b>alcance curto</b> (9 m) que será alvo da finta."}</p>
+          <div class="ec-lista"></div>
+          ${gm ? '<div class="ec-drop"><i class="fa-solid fa-user-plus"></i><span>Ou <b>arraste aqui um ator</b> da lista de Atores (ou de um compêndio), mesmo que não esteja em cena.</span></div>' : ""}
+          <div class="ec-valor">
+            ${gm ? `<label class="ec-todos"><input type="checkbox" ${mostrarTodos ? "checked" : ""}> Mostrar todos os tokens da cena</label>` : ""}
+            ${!gm ? '<button type="button" class="ec-cancelar" data-ec="mestre">Deixar o Mestre escolher</button>' : ""}
+          </div>
+          <footer><button type="button" class="ec-cancelar" data-ec="cancelar">Cancelar</button></footer>
+        </div>`;
+      const fim = (v) => {
+        document.removeEventListener("keydown", tecla, true);
+        ov.remove();
+        resolve(v);
+      };
+      const tecla = (ev) => {
+        if (ev.key === "Escape") {
+          ev.stopPropagation();
+          fim(null);
+        }
+      };
+      ov.addEventListener("click", (ev) => {
+        const b = ev.target.closest("[data-ec-i]");
+        if (b) return fim({ tokenDoc: ov._lista[Number(b.dataset.ecI)].token.document });
+        if (ev.target.closest('[data-ec="mestre"]')) return fim({ mestre: true });
+        if (ev.target.closest('[data-ec="cancelar"]') || ev.target.classList.contains("ec-fundo")) fim(null);
+      });
+      if (gm) {
+        const zona = ov.querySelector(".ec-drop");
+        const lerArrasto = (ev) => {
+          try {
+            const TE = foundry.applications?.ux?.TextEditor?.implementation ?? globalThis.TextEditor;
+            return TE.getDragEventData(ev);
+          } catch (err) {
+            try { return JSON.parse(ev.dataTransfer.getData("text/plain")); } catch (e) { return null; }
+          }
+        };
+        const aceita = (ev) => {
+          ev.preventDefault();
+          zona.classList.add("sobre");
+        };
+        ov.querySelector(".ec-janela").addEventListener("dragover", aceita);
+        ov.querySelector(".ec-janela").addEventListener("dragenter", aceita);
+        ov.querySelector(".ec-janela").addEventListener("dragleave", (ev) => {
+          if (!ev.relatedTarget || !ev.currentTarget.contains(ev.relatedTarget)) zona.classList.remove("sobre");
+        });
+        ov.querySelector(".ec-janela").addEventListener("drop", async (ev) => {
+          ev.preventDefault();
+          zona.classList.remove("sobre");
+          const dados = lerArrasto(ev);
+          let ator = null;
+          try {
+            if (dados?.type === "Actor") ator = dados.uuid ? await fromUuid(dados.uuid) : game.actors.get(dados.id);
+            else if (dados?.type === "Token" && dados.uuid) ator = (await fromUuid(dados.uuid))?.actor;
+          } catch (err) {
+            console.warn(`${ID} | não foi possível ler o ator arrastado`, err);
+          }
+          if (!ator || ator.documentName !== "Actor") return ui.notifications.warn("Arraste um ator da lista de Atores.");
+          fim({ actor: ator });
+        });
+      }
+      ov.addEventListener("change", (ev) => {
+        if (ev.target.matches(".ec-todos input")) {
+          mostrarTodos = ev.target.checked;
+          corpo();
+        }
+      });
+      document.addEventListener("keydown", tecla, true);
+      document.body.appendChild(ov);
+      corpo();
+    });
+  }
+
+  /**
+   * Fintar: teste de Enganação (pela ficha) oposto ao de Reflexos do alvo. Retorna { html, rolls } ou null se foi cancelado.
+   */
+  static async fintar(alvo, escolha, chave) {
+    const actor = alvo.actor;
+    const nome = alvo.doc.name ?? actor.name;
+    const teste = await rolarPericiaNativa(actor, chave);
+    if (!teste) return null;
+    const meuTotal = Number(teste.roll.total);
+    const meuNomePericia = listarPericias(actor).find((p) => p.chave === chave)?.nome ?? NOMES_PERICIAS[chave] ?? chave;
+    const meuBonus = bonusPericia(actor, chave, meuNomePericia);
+
+    const dados = {
+      tokenUuid: escolha.tokenDoc?.uuid ?? escolha.actor?.uuid ?? null,
+      escolher: !!escolha.mestre,
+      feinterTokenUuid: alvo.doc.uuid,
+      nomeFeinter: nome,
+      meuTotal,
+      meuBonus
+    };
+    const podeLocal = game.user.isGM || (escolha.tokenDoc?.actor?.isOwner ?? false);
+    let r;
+    if (escolha.mestre && game.user.isGM) r = await resolverFinta({ ...dados, escolher: true });
+    else if ((escolha.tokenDoc || escolha.actor) && podeLocal) r = await resolverFinta(dados);
+    else r = await pedirFintaAoMestre(dados);
+    if (!r || r.cancelado) return null;
+
+    // registra a finta no combatente para remover o Desprevenido no fim do próximo turno
+    if (r.condicao === "aplicada" && alvo.c && game.combat?.started) {
+      try {
+        await alvo.c.setFlag(ID, "finta", { alvoUuid: r.tokenUuid, statusId: r.statusId, rodada: game.combat.round });
+      } catch (err) {
+        console.warn(`${ID} | não foi possível registrar a finta`, err);
+      }
+    }
+
+    const nat = teste.roll.dice?.find?.((x) => x.faces === 20)?.total;
+    const natAlvo = r.alvoNat;
+    const classe = r.veredito === "passou" ? "vive" : r.veredito === "falhou" ? "morre" : "";
+    const rotulo = r.veredito === "passou" ? "PASSOU" : r.veredito === "falhou" ? "FALHOU" : "EMPATE";
+    const icone = r.veredito === "passou" ? "fa-masks-theater" : r.veredito === "falhou" ? "fa-ban" : "fa-scale-balanced";
+    const linhas = [
+      `<div class="tc-linha"><i class="fa-solid fa-dice-d20"></i><span><b>${esc(meuNomePericia)}</b> de ${esc(nome)}: ${nat !== undefined ? `<b class="tc-dado">${nat}</b> ` : ""}<small>(total</small> <b>${meuTotal}</b><small>)</small></span></div>`,
+      `<div class="tc-linha"><i class="fa-solid fa-hand"></i><span><b>${esc(r.nomePericia)}</b> de ${esc(r.nomeAlvo)}: ${natAlvo !== null && natAlvo !== undefined ? `<b class="tc-dado">${natAlvo}</b> ` : ""}<small>(total</small> <b>${r.alvoTotal}</b><small>)</small></span></div>`,
+      `<div class="tc-vereditos"><div class="tc-vd ${classe}"><em>Enganação ${meuTotal} × Reflexos ${r.alvoTotal}</em><b><i class="fa-solid ${icone}"></i> ${rotulo}</b></div></div>`
+    ];
+    if (r.veredito === "passou") {
+      const msg = {
+        aplicada: `<b>${esc(r.nomeAlvo)}</b> fica <b>desprevenido</b> contra o próximo ataque de ${esc(nome)}, até o fim do próximo turno dele.`,
+        ja: `<b>${esc(r.nomeAlvo)}</b> já estava desprevenido.`,
+        inexistente: `A condição Desprevenido não foi encontrada no sistema: aplique-a em <b>${esc(r.nomeAlvo)}</b> manualmente (até o fim do próximo turno de ${esc(nome)}).`,
+        erro: `Sem permissão para aplicar a condição: aplique Desprevenido em <b>${esc(r.nomeAlvo)}</b> manualmente.`
+      }[r.condicao];
+      if (msg) linhas.push(`<div class="tc-linha"><i class="fa-solid fa-eye-slash"></i><span>${msg}</span></div>`);
+    } else if (r.veredito === "empate") {
+      linhas.push(`<div class="tc-nota">Empate nos totais e nos bônus: o Mestre decide ou os dois rolam de novo.</div>`);
+    }
+    return { html: `<div class="tc-bloco">${linhas.join("")}</div>`, rolls: [] };
+  }
+
+  /**
    * Janela do Atrasar: escolha depois de quem agir ou digite uma Iniciativa.
    * Retorna { nova, rotulo } ou null se cancelou.
    */
@@ -1583,6 +2371,24 @@ class MenuAcoes {
   }
 
   /**
+   * Investida: avança até o dobro do deslocamento (no mínimo 3 m) em linha reta, sem terreno difícil, e ataca no fim.
+   * +2 no ataque e –2 na Defesa até o início do próximo turno (a Defesa vai para o "bônus de defesa" da HUD).
+   * Retorna { html, max } (max em quadrados do grid).
+   */
+  static investida(alvo) {
+    const desloc = deslocamentoMetros(alvo.actor);
+    const metros = Math.max(3, desloc * 2);
+    const fmt = (n) => (Math.round(n * 10) / 10).toString().replace(".", ",");
+    const html =
+      `<div class="tc-bloco">` +
+      `<div class="tc-linha"><i class="fa-solid fa-person-running"></i><span>Avança até <b>${fmt(metros)} m</b> em linha reta, sem terreno difícil, e faz um ataque corpo a corpo no fim do movimento.</span></div>` +
+      `<div class="tc-linha"><i class="fa-solid fa-khanda"></i><span><b>+2</b> no teste de ataque. <b>−2</b> na Defesa até o início do próximo turno.</span></div>` +
+      `<div class="tc-linha"><i class="fa-solid fa-person-falling"></i><span>Pode fazer <b>Atropelar</b> como ação livre (sem atropelar e atacar o mesmo alvo).</span></div>` +
+      `</div>`;
+    return { html, max: metros / cfg("metrosPorQuadrado") };
+  }
+
+  /**
    * Corrida: teste de Atletismo (rolado pela ficha, com os efeitos de uso do sistema) + 2 por 1,5m de deslocamento
    * acima de 9m (–2 abaixo); avança tantos quadrados de 1,5m quanto o resultado. Controla o fôlego
    * (1 + Constituição rodadas; depois, Fortitude CD 15 +1 por teste, falha = fatigado).
@@ -1717,6 +2523,22 @@ class MenuAcoes {
       if (!arma) return; // cancelou: nada é gasto
     }
 
+    let escolhaFinta = null;
+    let periciaFinta = null;
+    if (acao.especial === "fintar") {
+      const marcados = [...(game.user.targets ?? [])];
+      if (marcados.length === 1 && marcados[0].actor) escolhaFinta = { tokenDoc: marcados[0].document };
+      else escolhaFinta = await this.escolherAlvoFinta(alvo.doc);
+      if (!escolhaFinta) return; // cancelou: nada é gasto
+      periciaFinta = await this.escolherPericia(alvo.actor, {
+        padrao: "enga",
+        titulo: "Fintar",
+        subtitulo: "Ação Padrão · escolha a perícia",
+        texto: "O teste é rolado pela ficha e oposto ao de <b>Reflexos</b> do alvo. <b>Enganação</b> é a perícia padrão da finta.",
+        icone: "fa-masks-theater"
+      });
+      if (!periciaFinta) return;
+    }
     let atraso = null;
     if (acao.especial === "atrasar") {
       const combat = game.combat;
@@ -1758,6 +2580,24 @@ class MenuAcoes {
     // 4) efeitos da ação
     let extra = "";
     let rolls = [];
+    if (acao.especial === "fintar") {
+      try {
+        const r = await this.fintar(alvo, escolhaFinta, periciaFinta);
+        if (!r) {
+          if (gastar && alvo.c && estadoAntes) {
+            ESTADO_RECENTE.delete(alvo.c.id);
+            await alvo.c.setFlag(ID, FLAG, estadoAntes);
+          }
+          ui.notifications.warn("Finta cancelada: o teste não foi concluído e a ação padrão foi devolvida.");
+          return;
+        }
+        extra += r.html;
+        rolls = r.rolls;
+      } catch (err) {
+        console.error(`${ID} | erro na Finta`, err);
+        ui.notifications.error("Não foi possível concluir a Finta. Veja o console (F12).");
+      }
+    }
     if (acao.especial === "corrida") {
       try {
         const r = await this.corrida(alvo, periciaCorrida);
@@ -1780,6 +2620,20 @@ class MenuAcoes {
       } catch (err) {
         console.error(`${ID} | erro na Corrida`, err);
         ui.notifications.error("Não foi possível concluir a Corrida. Veja o console (F12).");
+      }
+    }
+    if (acao.especial === "investida") {
+      const r = this.investida(alvo);
+      extra += r.html;
+      if (gastar && alvo.c) {
+        try {
+          ESTADO_RECENTE.delete(alvo.c.id);
+          await alvo.c.setFlag(ID, FLAG, { ...getEstado(alvo.c), corrida: { max: r.max, dir: null, investida: true } });
+          await aplicarDefesaInvestida(alvo.c);
+        } catch (err) {
+          console.error(`${ID} | erro na Investida`, err);
+          ui.notifications.error("Não foi possível concluir a Investida. Veja o console (F12).");
+        }
       }
     }
     if (condicao) {
@@ -1942,7 +2796,8 @@ class MenuAcoes {
 /** Liga/desliga o estilo do módulo nas mensagens padrão do chat (classe no <body>). */
 function aplicarEstiloChat() {
   let ligado = false;
-  try { ligado = !!game.settings.get(ID, "estiloChat"); } catch (err) { /* ainda não registrada */ }
+  // ligado para todos pelo Mestre (configuração do mundo); cada jogador ainda pode desligar só para si
+  try { ligado = !!game.settings.get(ID, "estiloChat") && !!game.settings.get(ID, "estiloChatLocal"); } catch (err) { /* ainda não registrada */ }
   document.body.classList.toggle("t20ah-chat-estilo", ligado);
 }
 
@@ -1958,7 +2813,7 @@ Hooks.once("init", () => {
   });
   game.settings.register(ID, "imagem", {
     name: "Imagem na HUD",
-    hint: "Escolha se a HUD mostra a imagem do token ou o retrato (portrait) do personagem. Apenas para você.",
+    hint: "A HUD mostra a imagem do token ou o retrato (portrait) do personagem.",
     scope: "client",
     config: true,
     type: String,
@@ -1968,7 +2823,7 @@ Hooks.once("init", () => {
   });
   game.settings.register(ID, "menuAcoes", {
     name: "Mostrar os botões de Ações (regras rápidas)",
-    hint: "Quatro botões acima da HUD (padrão, movimento, completa e livre) que listam as ações de combate, mostram o que cada uma faz e, ao clicar, gastam a ação e enviam um card ao chat. Apenas para você.",
+    hint: "Quatro botões acima da HUD (padrão, movimento, completa e livre) que listam as ações de combate, mostram o que cada uma faz e, ao clicar, gastam a ação e enviam um card ao chat.",
     scope: "client",
     config: true,
     type: Boolean,
@@ -1977,7 +2832,7 @@ Hooks.once("init", () => {
   });
   game.settings.register(ID, "layoutCombate", {
     name: "Layout da HUD em combate",
-    hint: "Largo: em combate, o painel com as ações (Padrão, Movimento, Completa e Livre) fica ao lado da HUD. Compacto: a HUD fica estreita e as ações abrem num menu flutuante. Apenas para você.",
+    hint: "Largo: em combate, o painel com as ações (Padrão, Movimento, Completa e Livre) fica ao lado da HUD. Compacto: a HUD fica estreita e as ações abrem num menu flutuante.",
     scope: "client",
     config: true,
     type: String,
@@ -1994,17 +2849,26 @@ Hooks.once("init", () => {
     default: true
   });
   game.settings.register(ID, "estiloChat", {
-    name: "Estilo do módulo nos cards do chat",
-    hint: "Aplica o visual da HUD (tons escuros, moldura dourada, títulos e botões) às mensagens padrão do chat: cards de itens, magias e poderes, rolagens e mensagens comuns. Todas as informações são mantidas; só muda o estilo. Apenas para você.",
+    name: "Estilo do módulo no chat",
+    hint: "Aplica o visual do módulo a todas as mensagens do chat de todos os jogadores: cards de itens, magias e poderes, rolagens, condições, sussurros e mensagens digitadas. Todas as informações são mantidas; só muda o estilo. As cores seguem a cor de cada usuário.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
+    onChange: () => aplicarEstiloChat()
+  });
+  game.settings.register(ID, "estiloChatLocal", {
+    name: "Ver o estilo do módulo no meu chat",
+    hint: "Desmarque para ver o chat com o visual original só no seu computador, mesmo com o estilo ligado pelo Mestre.",
     scope: "client",
     config: true,
     type: Boolean,
-    default: false,
+    default: true,
     onChange: () => aplicarEstiloChat()
   });
   game.settings.register(ID, "escala", {
     name: "Tamanho da HUD",
-    hint: "Ajusta a escala da HUD (apenas para você).",
+    hint: "Ajusta a escala da HUD.",
     scope: "client",
     config: true,
     type: Number,
@@ -2102,7 +2966,7 @@ Hooks.once("init", () => {
   });
   game.settings.register(ID, "somVolume", {
     name: "Volume do som",
-    hint: "Apenas para você.",
+    hint: "Volume do alerta de tempo esgotado.",
     scope: "client",
     config: true,
     type: Number,
@@ -2111,6 +2975,7 @@ Hooks.once("init", () => {
   });
   game.settings.register(ID, "somQuemOuve", {
     name: "Quem ouve o som",
+    hint: "Quem recebe o alerta quando o tempo do turno acaba.",
     scope: "world",
     config: true,
     type: String,
@@ -2145,6 +3010,48 @@ Hooks.once("init", () => {
   });
 });
 
+/* ---------- Organização da janela de configurações ---------- */
+
+const GRUPOS_CONFIG = [
+  ["Chat e cards", "fa-comments", ["estiloChat", "estiloChatLocal", "cardAcoes", "anunciarChat"]],
+  ["HUD", "fa-id-card", ["mostrarGM", "imagem", "layoutCombate", "menuAcoes", "escala"]],
+  ["Combate e regras", "fa-swords", ["limitarMovimento", "bloquearForaDoTurno", "gastarPorItem", "deslocamentoPadrao", "metrosPorQuadrado", "regrasParaMestre"]],
+  ["Tempo do turno e som", "fa-hourglass-half", ["tempoMaximo", "passarAoFim", "somArquivo", "somVolume", "somQuemOuve"]],
+  ["Painel de Efeitos (Mestre)", "fa-wand-sparkles", ["painelEfeitos"]],
+  ["Avançado", "fa-gear", ["debug"]]
+];
+
+/** Agrupa as opções do módulo em seções com título e marca cada uma como "Todos" (mundo) ou "Só você" (cliente). */
+function organizarConfiguracoes(_app, html) {
+  const raiz = html instanceof HTMLElement ? html : html?.[0];
+  if (!raiz?.querySelector || raiz.querySelector(".t20ah-sec")) return;
+  const achar = (k) =>
+    raiz.querySelector(`[data-setting-id="${ID}.${k}"]`) ?? raiz.querySelector(`[name="${ID}.${k}"]`)?.closest(".form-group");
+  for (const [titulo, icone, chaves] of GRUPOS_CONFIG) {
+    const itens = chaves.map((k) => [k, achar(k)]).filter(([, el]) => el);
+    if (!itens.length) continue;
+    const cab = document.createElement("h4");
+    cab.className = "t20ah-sec";
+    cab.innerHTML = `<i class="fa-solid ${icone}"></i> ${titulo}`;
+    itens[0][1].before(cab);
+    let ancora = cab;
+    for (const [k, el] of itens) {
+      ancora.after(el);
+      ancora = el;
+      const esc = game.settings.settings.get(`${ID}.${k}`)?.scope;
+      const rotulo = el.querySelector("label");
+      if (rotulo && esc && !rotulo.querySelector(".t20ah-esc")) {
+        const b = document.createElement("span");
+        b.className = `t20ah-esc ${esc === "world" ? "mundo" : "cliente"}`;
+        b.textContent = esc === "world" ? "Todos" : "Só você";
+        b.title = esc === "world" ? "Vale para todos os jogadores (definido pelo Mestre)" : "Vale só para você, neste navegador";
+        rotulo.append(" ", b);
+      }
+    }
+  }
+}
+Hooks.on("renderSettingsConfig", organizarConfiguracoes);
+
 /* ---------- Hooks de combate ---------- */
 
 Hooks.once("ready", () => {
@@ -2155,7 +3062,24 @@ Hooks.once("ready", () => {
   setInterval(() => AcoesHUD.tick(), 250);
 
   // Jogador sem permissão para avançar o combate pede ao Mestre
-  game.socket.on(`module.${ID}`, (data, userId) => {
+  if (game.combat?.started) ULTIMO_TURNO.set(game.combat.id, { round: game.combat.round, combatantId: game.combat.combatant?.id });
+  game.socket.on(`module.${ID}`, async (data, userId) => {
+    if (data?.tipo === "finta-resposta") {
+      if (data.para === game.user.id) PEDIDOS.get(data.reqId)?.(data.resultado);
+      return;
+    }
+    if (data?.tipo === "finta-pedir") {
+      if (!game.user.isActiveGM) return;
+      let resultado;
+      try {
+        resultado = await resolverFinta(data.dados);
+      } catch (err) {
+        console.error(`${ID} | erro ao resolver a finta`, err);
+        resultado = { cancelado: true };
+      }
+      game.socket.emit(`module.${ID}`, { tipo: "finta-resposta", reqId: data.reqId, para: userId, resultado });
+      return;
+    }
     if (!["passar", "atrasar"].includes(data?.tipo) || !game.user.isActiveGM) return;
     const combat = game.combats.get(data.combatId);
     const atual = combat?.combatant;
@@ -2178,10 +3102,33 @@ for (const hook of ["createActiveEffect", "updateActiveEffect", "deleteActiveEff
   Hooks.on(hook, () => AcoesHUD.renderSoon());
 }
 
+/** Investida: –2 na Defesa (bônus de defesa da HUD) até o início do próximo turno do combatente. */
+async function aplicarDefesaInvestida(c) {
+  const actor = c?.actor;
+  if (!actor || c.getFlag(ID, "investida")) return; // já aplicada neste turno
+  const novo = defBonus(actor) - 2;
+  if (novo === 0) await actor.unsetFlag(ID, "defBonus");
+  else await actor.setFlag(ID, "defBonus", novo);
+  await c.setFlag(ID, "investida", { aplicada: true });
+}
+
+/** Desfaz o –2 de Defesa da Investida. */
+async function removerDefesaInvestida(c) {
+  if (!c?.getFlag(ID, "investida")) return;
+  const actor = c.actor;
+  if (actor) {
+    const novo = defBonus(actor) + 2;
+    if (novo === 0) await actor.unsetFlag(ID, "defBonus");
+    else await actor.setFlag(ID, "defBonus", novo);
+  }
+  await c.unsetFlag(ID, "investida");
+}
+
 /** Início de turno (só o Mestre ativo chama): reinicia o timer e renova as ações do combatente da vez. */
 async function renovarAcoesDoTurno(combat) {
   combat.setFlag(ID, "turno", { chave: AcoesHUD.chaveTurno(combat), inicio: Date.now() }).catch(() => {});
   const c = combat.combatant;
+  if (c) await removerDefesaInvestida(c).catch((err) => console.error(`${ID} |`, err));
   if (c && (() => { const x = getEstado(c); return x.std || x.mov || x.conv || x.full || x.ext || x.corrida || x.dist || x.hist?.length; })()) {
     try {
       await c.setFlag(ID, FLAG, { ...VAZIO });
@@ -2205,9 +3152,28 @@ async function executarAtraso(combat, c, nova) {
 }
 
 Hooks.on("updateCombat", async (combat, changes) => {
+  const anterior = ULTIMO_TURNO.get(combat.id);
+  if (combat.started) ULTIMO_TURNO.set(combat.id, { round: combat.round, combatantId: combat.combatant?.id });
   // Só o Mestre ativo renova as ações no início de cada turno.
-  if (game.user.isActiveGM && combat.started && ("turn" in changes || "round" in changes)) await renovarAcoesDoTurno(combat);
+  if (game.user.isActiveGM && combat.started && ("turn" in changes || "round" in changes)) {
+    if (anterior && anterior.combatantId !== combat.combatant?.id) await expirarFintas(combat, anterior);
+    await renovarAcoesDoTurno(combat);
+  }
   AcoesHUD.render();
+});
+
+Hooks.on("deleteCombat", async (combat) => {
+  ULTIMO_TURNO.delete(combat.id);
+  if (!game.user.isActiveGM) return;
+  for (const c of combat.combatants) {
+    await removerDefesaInvestida(c).catch(() => {});
+    const f = c.getFlag(ID, "finta");
+    if (!f) continue;
+    try {
+      const doc = await fromUuid(f.alvoUuid);
+      await (doc?.actor ?? doc)?.toggleStatusEffect?.(f.statusId, { active: false });
+    } catch (err) { /* ignora */ }
+  }
 });
 
 for (const hook of ["createCombat", "deleteCombat", "createCombatant", "deleteCombatant"]) {
@@ -2700,18 +3666,18 @@ Hooks.on("preMoveToken", (doc, movement) => {
     // Corrida: só em linha reta, sem terreno difícil, até a distância tirada no teste de Atletismo
     if (!jaValidado) {
       if (!corridaEmLinhaReta(pontosDoMovimento(doc, movement), e.corrida.dir)) {
-        ui.notifications.warn(`${c.name} só pode correr em linha reta.`);
+        ui.notifications.warn(`${c.name} só pode ${e.corrida.investida ? "investir" : "correr"} em linha reta.`);
         return false;
       }
       const custo = Number(movement?.pending?.cost);
       const geom = Number(movement?.pending?.distance);
       if (Number.isFinite(custo) && Number.isFinite(geom) && custo > geom + 0.01) {
-        ui.notifications.warn(`${c.name} não pode correr através de terreno difícil.`);
+        ui.notifications.warn(`${c.name} não pode ${e.corrida.investida ? "investir" : "correr"} através de terreno difícil.`);
         return false;
       }
       if (total > e.corrida.max + 0.01) {
         const resta = Math.max(0, e.corrida.max - (e.dist ?? 0)) * cfg("metrosPorQuadrado");
-        ui.notifications.warn(`Corrida: ${c.name} só pode correr mais ${(Math.round(resta * 10) / 10).toString().replace(".", ",")} m.`);
+        ui.notifications.warn(`${e.corrida.investida ? "Investida" : "Corrida"}: ${c.name} só pode avançar mais ${(Math.round(resta * 10) / 10).toString().replace(".", ",")} m.`);
         return false;
       }
     }
@@ -2874,5 +3840,362 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
     if (!message.flags?.[ID]?.card) return;
     const element = html?.[0] ?? html;
     element?.classList?.add("t20ah-card-message");
+  });
+}
+
+// Card de condição do sistema (título + ícone + tipo + descrição): reorganiza em topo / corpo e define a cor pelo TIPO da condição.
+// Nenhum texto é removido; o visual vem do CSS (opção de estilo ligada).
+const CORES_TIPO = [
+  [/fisic/, "#c0392b"],      // física: vermelho-sangue
+  [/mental/, "#8b5cf6"],       // mental: violeta
+  [/sentid|sensor/, "#2fa8c9"], // sentidos: ciano
+  [/moviment/, "#2f9e6a"],   // movimento: verde
+  [/medo|pavor|terror/, "#5c6bc0"], // medo: azul-índigo
+  [/fadiga|cansa|exaust/, "#c98a2b"], // fadiga: âmbar
+  [/veneno|doenca|enferm/, "#7cb342"], // veneno/doença: verde-limão
+  [/magi|arcan|mistic/, "#d05bc2"], // magia: magenta
+  [/dano|sangr|fogo|queim/, "#e2672b"], // dano contínuo: laranja
+  [/espirit|divin|sagrad/, "#e0c15c"], // espiritual: dourado claro
+  [/ambient|clima|terreno/, "#3e8f9c"] // ambiente: verde-água
+];
+function corDoTipo(tipo, fallback) {
+  const t = String(tipo ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  for (const [re, cor] of CORES_TIPO) if (re.test(t)) return cor;
+  if (t.trim()) {
+    // tipo desconhecido: cor estável gerada pelo nome
+    let h = 0;
+    for (const ch of t) h = (h * 31 + ch.charCodeAt(0)) % 360;
+    return `hsl(${h} 55% 52%)`;
+  }
+  return fallback || "#e0b85c";
+}
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  Hooks.on(hook, (message, html) => {
+    const element = html?.[0] ?? html;
+    // reconhece pelo título (label.titulo) ou, nas versões sem ele, pelo ícone em .../conditions/
+    const conteudo = element?.querySelector?.(".message-content");
+    if (!conteudo) return;
+    const titulo = conteudo.querySelector("label.titulo");
+    const bloco = titulo
+      ? titulo.closest(".message-content > div")
+      : [...conteudo.children].find((x) => x.tagName === "DIV" && x.querySelector("img[src*='/conditions/']"));
+    if (!bloco || bloco.dataset.t20ahCond) return;
+    bloco.dataset.t20ahCond = "1";
+    bloco.classList.add("t20ah-cond");
+    element.classList.add("t20ah-cond-message");
+    const filhos = [...bloco.children];
+    const pTitulo = titulo ? titulo.closest("p") ?? titulo : filhos.find((x) => x.tagName === "P");
+    if (!pTitulo) return;
+    (titulo ?? pTitulo).classList.add("cd-titulo");
+    pTitulo.classList.add("cd-titulo-p");
+    const canto = filhos.find((x) => x.tagName === "DIV" && x.querySelector("img")) ?? null;
+    canto?.classList.add("cd-canto");
+    const pTipo = filhos.find((x) => x.tagName === "P" && x !== pTitulo);
+    pTipo?.classList.add("cd-tipo");
+    const barra = filhos.find((x) => x.tagName === "DIV" && x !== canto);
+    barra?.classList.add("cd-barra");
+    // topo (ícone + tipo + título + barra) e corpo (descrição, listas, o que mais houver)
+    const topo = document.createElement("div");
+    topo.className = "cd-topo";
+    const corpo = document.createElement("div");
+    corpo.className = "cd-corpo";
+    const doTopo = new Set([pTitulo, canto, pTipo, barra].filter(Boolean));
+    for (const f of filhos) (doTopo.has(f) ? topo : corpo).append(f);
+    corpo.querySelector("p")?.classList.add("cd-desc");
+    bloco.replaceChildren(topo, corpo);
+    // cor: pelo tipo; se o tipo for desconhecido, pela cor da barra do sistema
+    const corBarra = /#[0-9a-f]{6}/i.exec(barra?.getAttribute?.("style") ?? "")?.[0];
+    bloco.style.setProperty("--cor-cond", corDoTipo(pTipo?.textContent, corBarra));
+  });
+}
+
+// Card de item rolado (ataque, magia, poder): só reagrupa o que já existe (os botões e os eventos do sistema continuam
+// nos mesmos elementos). Transforma a linha "Execução: ...; Alcance: ...;" em fichas e marca o card para o novo visual (CSS).
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  Hooks.on(hook, (message, html) => {
+    const element = html?.[0] ?? html;
+    const card = element?.querySelector?.(".message-content .chat-card");
+    if (!card || card.dataset.t20ahItem) return;
+    card.dataset.t20ahItem = "1";
+    card.classList.add("t20ah-item");
+    const p = card.querySelector(".card-item-header p");
+    if (!p) return;
+    const fichas = [];
+    let atual = null;
+    const fecha = () => {
+      if (atual && (atual.k || atual.v.length)) fichas.push(atual);
+      atual = null;
+    };
+    for (const n of [...p.childNodes]) {
+      if (n.nodeType === 1 && n.tagName === "B") {
+        fecha();
+        atual = { k: n.textContent.replace(/:\s*$/, "").trim(), v: [] };
+      } else {
+        atual ??= { k: "", v: [] };
+        if (n.nodeType === 3) {
+          const t = n.textContent.replace(/;\s*$/, "").replace(/^\s+/, "");
+          if (t.trim()) atual.v.push(document.createTextNode(t.replace(/\s+$/, "")));
+        } else atual.v.push(n);
+      }
+    }
+    fecha();
+    if (!fichas.length) return;
+    const grade = document.createElement("div");
+    grade.className = "it-stats";
+    for (const f of fichas) {
+      const d = document.createElement("div");
+      d.className = "it-stat";
+      if (f.k) {
+        const k = document.createElement("span");
+        k.className = "k";
+        k.textContent = f.k;
+        d.append(k);
+      }
+      const v = document.createElement("span");
+      v.className = "v";
+      v.append(...f.v);
+      d.append(v);
+      grade.append(d);
+    }
+    p.replaceChildren(grade);
+  });
+}
+
+// Título "Dano" da rolagem: acrescenta o tipo de dano (Corte, Essência...); se for cura, o título vira só "Cura".
+function tiposDaRolagem(roll) {
+  const set = new Set();
+  for (const f of roll.querySelectorAll(".part-flavor")) {
+    const t = f.textContent.replace(/\s+/g, " ").trim();
+    if (t) set.add(t);
+  }
+  if (!set.size) {
+    const dica = roll.querySelector(".dice-formula")?.getAttribute("data-tooltip-html") ?? "";
+    for (const m of dica.matchAll(/\[([^\]]+)\]/g)) {
+      const t = m[1].trim();
+      if (t) set.add(t.charAt(0).toUpperCase() + t.slice(1));
+    }
+  }
+  return [...set];
+}
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  Hooks.on(hook, (message, html) => {
+    const element = html?.[0] ?? html;
+    for (const card of element?.querySelectorAll?.(".message-content .chat-card") ?? []) {
+      for (const row of card.querySelectorAll(":scope > .row")) {
+        const roll = row.nextElementSibling;
+        if (!roll?.classList?.contains("roll") || row.dataset.t20ahTipo) continue;
+        const titulo = row.textContent.replace(/\s+/g, " ").trim();
+        if (!/^dano/i.test(titulo) && !/dano/i.test(roll.dataset.rollTitle ?? "")) continue;
+        row.dataset.t20ahTipo = "1";
+        const tipos = tiposDaRolagem(roll);
+        if (tipos.some((t) => /cura/i.test(t)) || /cura/i.test(titulo)) row.textContent = "Cura";
+        else if (tipos.length) row.textContent = `${titulo} ${tipos.join(" + ")}`;
+      }
+    }
+  });
+}
+
+// Ataque e Dano lado a lado: só posiciona os elementos numa grade de 4 colunas (nenhum elemento é movido, assim outros
+// módulos que acrescentam coisas ao card continuam achando a estrutura de sempre). Os botões de aplicar dano/cura
+// formam uma linha horizontal única, embaixo, com a largura toda.
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  Hooks.on(hook, (message, html) => {
+    const element = html?.[0] ?? html;
+    const card = element?.querySelector?.(".message-content .chat-card.t20ah-item");
+    if (!card || card.dataset.t20ahPares) return;
+    card.dataset.t20ahPares = "1";
+    const filhos = [...card.children];
+    const pares = [];
+    for (const row of filhos.filter((x) => x.classList.contains("row"))) {
+      const roll = row.nextElementSibling;
+      if (roll?.classList?.contains("roll")) pares.push([row, roll]);
+    }
+    if (pares.length < 2) return;
+    card.classList.add("it-dois");
+    const emPar = new Map();
+    const botoes = [];
+    pares.slice(0, 2).forEach(([row, roll], k) => {
+      const col = k === 0 ? "1 / 3" : "3 / 5";
+      emPar.set(row, [col, 0]);
+      emPar.set(roll, [col, 1]);
+      const bs = [...roll.querySelectorAll(":scope > .dice-btn button")];
+      if (bs.length) {
+        roll.classList.add("it-solto"); // o .roll "some" (display: contents) e seus filhos entram na grade do card
+        const dr = roll.querySelector(":scope > .dice-roll");
+        if (dr) emPar.set(dr, [col, 1]);
+        botoes.push(...bs);
+      }
+    });
+    const primeira = filhos.indexOf(pares[0][0]);
+    let linha = 1;
+    let base = null;
+    const alturaPar = botoes.length ? 3 : 2;
+    filhos.forEach((f, idx) => {
+      if (emPar.has(f) && !f.classList.contains("dice-roll")) {
+        const [col, off] = emPar.get(f);
+        base ??= linha;
+        f.style.gridColumn = col;
+        if (!f.classList.contains("it-solto")) f.style.gridRow = String(base + off);
+        if (off === 1 && col === "3 / 5") linha = base + alturaPar;
+      } else {
+        if (base !== null && idx > primeira && linha < base + alturaPar) linha = base + alturaPar;
+        f.style.gridColumn = "1 / -1";
+        f.style.gridRow = String(linha++);
+      }
+    });
+    if (base !== null) {
+      for (const [no, [col, off]] of emPar) {
+        if (no.classList.contains("dice-roll")) {
+          no.style.gridColumn = col;
+          no.style.gridRow = String(base + off);
+        }
+      }
+      botoes.forEach((b, n) => {
+        b.style.gridColumn = String((n % 4) + 1);
+        b.style.gridRow = String(base + 2);
+      });
+    }
+  });
+}
+
+// Resultado do ataque contra a Defesa (módulo de terceiros): o banner grande é escondido e vira um símbolo ao lado do total
+// do ataque (acerto / erro / crítico / desastre); "vs Alvo (Def N)" fica na dica do símbolo. O resultado é guardado (flag da
+// mensagem quando possível e localStorage) e reaplicado se, depois do F5, o outro módulo não o devolver.
+const CHAVE_RES = (id) => `${ID}.res.${id}`;
+function lerBannerResultado(card) {
+  const b = card.querySelector(".t20-result-banner");
+  if (!b) return null;
+  const txt = b.textContent.replace(/\s+/g, " ").trim();
+  const cls = `${b.className} ${txt}`;
+  let k = "erro";
+  if (/fumble|desastre|falha cr/i.test(cls)) k = "desastre";
+  else if (/crit/i.test(cls)) k = "critico";
+  else if (b.classList.contains("success") || /acert|✓/i.test(txt)) k = "acerto";
+  const label = b.querySelector(".t20-result-label")?.textContent.replace(/\s+/g, " ").trim() ?? "";
+  return { k, label };
+}
+function rolagemDeAtaque(card) {
+  const comBanner = card.querySelector(".roll:has(.t20-defense-check)");
+  if (comBanner) return comBanner;
+  for (const row of card.querySelectorAll(":scope > .row")) {
+    if (/ataque/i.test(row.textContent) && row.nextElementSibling?.classList?.contains("roll")) return row.nextElementSibling;
+  }
+  return null;
+}
+function marcarResultado(card, res) {
+  const roll = rolagemDeAtaque(card);
+  const total = roll?.querySelector(".dice-total");
+  if (!total || !res) return;
+  if (total.dataset.res !== res.k) total.dataset.res = res.k;
+  // sem texto no card: o alvo e a Defesa ficam só na dica do símbolo (passar o mouse)
+  if (res.label && total.title !== res.label) total.title = res.label;
+}
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  Hooks.on(hook, (message, html) => {
+    const element = html?.[0] ?? html;
+    const card = element?.querySelector?.(".message-content .chat-card.t20ah-item");
+    if (!card || card.dataset.t20ahRes) return;
+    card.dataset.t20ahRes = "1";
+    const id = message?.id;
+    const guardado = () => {
+      const f = message?.flags?.[ID]?.resultado;
+      if (f?.k) return f;
+      try {
+        return JSON.parse(localStorage.getItem(CHAVE_RES(id)) ?? "null");
+      } catch {
+        return null;
+      }
+    };
+    const atualizar = () => {
+      const novo = lerBannerResultado(card);
+      const res = novo ?? guardado();
+      if (!res) return false;
+      marcarResultado(card, res);
+      if (novo) {
+        try {
+          localStorage.setItem(CHAVE_RES(id), JSON.stringify(novo));
+        } catch {
+          /* sem armazenamento: segue sem guardar */
+        }
+        const f = message?.flags?.[ID]?.resultado;
+        if (id && (f?.k !== novo.k || f?.label !== novo.label) && message.canUserModify?.(game.user, "update")) {
+          message.setFlag(ID, "resultado", novo).catch(() => {});
+        }
+      }
+      return !!novo;
+    };
+    atualizar();
+    // o outro módulo pode acrescentar o banner depois de o card ser desenhado
+    const obs = new MutationObserver(() => {
+      if (atualizar()) obs.disconnect();
+    });
+    obs.observe(card, { childList: true, subtree: true });
+    setTimeout(() => obs.disconnect(), 30000);
+  });
+}
+
+// Rolagem avulsa do Foundry (/r, rolagem da ficha sem card): marca a mensagem para receber o visual dos dados do módulo.
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  Hooks.on(hook, (message, html) => {
+    const element = html?.[0] ?? html;
+    const conteudo = element?.querySelector?.(".message-content");
+    if (!conteudo || conteudo.querySelector(".chat-card, .t20ah-card, .t20ah-cond")) return;
+    if (conteudo.querySelector(".dice-roll")) element.classList.add("t20ah-rolagem");
+  });
+}
+
+// Mensagem privada (sussurro ou rolagem cega): faixa no topo com um símbolo e, no sussurro, quem recebe.
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  Hooks.on(hook, (message, html) => {
+    const element = html?.[0] ?? html;
+    if (!element?.prepend || element.querySelector(":scope > .t20ah-privada")) return;
+    const cega = !!message?.blind;
+    const ids = message?.whisper ?? [];
+    if (!cega && !ids.length) return;
+    const nomes = ids.map((id) => game.users?.get(id)?.name).filter(Boolean);
+    const lista = nomes.length > 3 ? `${nomes.slice(0, 3).join(", ")} +${nomes.length - 3}` : nomes.join(", ");
+    // bandeirinha com o símbolo de oculto; quem recebe o sussurro fica na dica
+    const faixa = document.createElement("div");
+    faixa.className = `t20ah-privada ${cega ? "cega" : "sussurro"}`;
+    const ico = document.createElement("i");
+    ico.className = "fa-solid fa-eye-slash";
+    faixa.append(ico);
+    faixa.title = cega ? "Rolagem cega: o jogador não vê o resultado" : lista ? `Mensagem privada para ${lista}` : "Mensagem privada";
+    element.prepend(faixa);
+  });
+}
+
+// Mensagem digitada (só texto, sem card nem rolagem): marcada para receber o visual de texto do módulo.
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  Hooks.on(hook, (message, html) => {
+    const element = html?.[0] ?? html;
+    const conteudo = element?.querySelector?.(".message-content");
+    if (!conteudo || element.classList.contains("t20ah-card-message")) return;
+    if (conteudo.querySelector(".chat-card, .dice-roll, .t20ah-card, .t20ah-cond, label.titulo")) return;
+    element.classList.add("t20ah-texto");
+  });
+}
+
+// Cards padrão do chat (opção de estilo ligada): retrato do personagem antes do nome, na cor do usuário.
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  Hooks.on(hook, (message, html) => {
+    if (message.flags?.[ID]?.card) return;
+    const element = html?.[0] ?? html;
+    if (!element?.querySelector) return;
+    const autor = message.author ?? message.user;
+    const cor = String(autor?.color?.css ?? autor?.color ?? "");
+    if (cor) element.style.setProperty("--cor-user", cor);
+    const cab = element.querySelector(".message-header");
+    if (!cab || cab.querySelector(".t20ah-retrato-msg")) return;
+    const sp = message.speaker ?? {};
+    const ator = (sp.actor && game.actors?.get(sp.actor)) || null;
+    const tokenDoc = sp.scene && sp.token ? game.scenes?.get(sp.scene)?.tokens?.get(sp.token) : null;
+    const img = ator?.img || tokenDoc?.texture?.src || autor?.avatar || "";
+    if (!img) return;
+    const el = document.createElement("img");
+    el.className = "t20ah-retrato-msg";
+    el.src = img;
+    el.alt = "";
+    cab.prepend(el);
   });
 }

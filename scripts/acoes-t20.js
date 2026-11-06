@@ -9,7 +9,9 @@
  *  - topicos: itens extras da regra, no formato { t: "Título", d: "Texto" } (opcional).
  *  - efeito: { condicao: "caido", aplicar: true|false } aplica ou remove uma condição do personagem ao usar a ação.
  *  - especial: "misericordia" liga o fluxo do Golpe de Misericórdia (escolha de arma, 20 natural, chance de morte);
+ *              "fintar" liga o fluxo de Fintar (alvo, testes opostos Enganação x Reflexos e condição Desprevenido);
  *              "atrasar" liga o fluxo de Atrasar (escolha da nova Iniciativa e passagem do turno);
+ *              "investida" liga o fluxo da Investida (movimento em linha reta, +2 no ataque, –2 na Defesa até o próximo turno);
  *              "corrida" liga o fluxo da Corrida (teste de Atletismo, deslocamento em linha reta, fôlego e fadiga).
  *  - auto: true quando o módulo JÁ gasta essa ação sozinho (ataque com arma, magia, uso de item, andar).
  *          Nesses casos, clicar apenas consulta a regra e envia o card ao chat, sem gastar de novo.
@@ -49,6 +51,7 @@ export const CATEGORIAS_ACOES = [
       },
       {
         nome: "Fintar",
+        especial: "fintar",
         desc: "Faça um teste de Enganação oposto ao teste de Reflexos de uma criatura em alcance curto. Se você passar, ela fica desprevenida contra seu próximo ataque, mas apenas até o fim de seu próximo turno."
       },
       {
@@ -119,6 +122,7 @@ export const CATEGORIAS_ACOES = [
       },
       {
         nome: "Investida",
+        especial: "investida",
         desc: "Você avança até o dobro de seu deslocamento (e no mínimo 3m) em linha reta e, no fim do movimento, faz um ataque corpo a corpo. Você recebe +2 no teste de ataque, mas sofre –2 na Defesa até o seu próximo turno, porque sua guarda fica aberta. Você não pode fazer uma investida em terreno difícil. Durante uma investida, você pode fazer a manobra atropelar como uma ação livre (mas não pode atropelar e atacar o mesmo alvo)."
       },
       {

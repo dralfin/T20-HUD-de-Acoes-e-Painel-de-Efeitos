@@ -466,7 +466,7 @@ class PainelEfeitos {
 /* ---------- configurações ---------- */
 
 Hooks.once("init", () => {
-  for (const chave of ["efeitosFiltros", "efeitosJanela"]) {
+  for (const chave of ["efeitosFiltros", "efeitosJanela", "efeitosBotao"]) {
     game.settings.register(ID, chave, { scope: "client", config: false, type: Object, default: {} });
   }
   game.settings.register(ID, "painelEfeitos", {
@@ -502,10 +502,62 @@ function acionar() {
 function posicionarBotao() {
   const b = document.getElementById("t20pe-botao");
   if (!b) return;
+  // posição escolhida pelo usuário (arrastando o botão)
+  const salva = game.settings.get(ID, "efeitosBotao");
+  if (salva && Number.isFinite(salva.x) && Number.isFinite(salva.y)) {
+    b.style.left = `${Math.min(Math.max(0, salva.x), Math.max(0, window.innerWidth - 36))}px`;
+    b.style.top = `${Math.min(Math.max(0, salva.y), Math.max(0, window.innerHeight - 36))}px`;
+    return;
+  }
   const ref = document.querySelector("#scene-controls-layers") ?? document.querySelector("#scene-controls");
   const r = ref?.getBoundingClientRect();
   b.style.left = `${r && r.width ? r.left + (r.width - 36) / 2 : 12}px`;
   b.style.top = `${r && r.height ? r.bottom + 10 : 460}px`;
+}
+
+/** Arrastar o botão (a partir de 4 px de movimento; um clique simples continua abrindo o painel). */
+function ativarArrasteDoBotao(b) {
+  b.addEventListener("pointerdown", (ev) => {
+    if (ev.button !== 0) return;
+    const r = b.getBoundingClientRect();
+    const dx = ev.clientX - r.left;
+    const dy = ev.clientY - r.top;
+    const x0 = ev.clientX;
+    const y0 = ev.clientY;
+    let arrastando = false;
+    let pos = null;
+    const mover = (e) => {
+      if (!arrastando && Math.hypot(e.clientX - x0, e.clientY - y0) < 4) return;
+      if (!arrastando) {
+        arrastando = true;
+        b.classList.add("arrastando");
+        try { b.setPointerCapture(ev.pointerId); } catch (err) { /* ignora */ }
+      }
+      pos = {
+        x: Math.min(Math.max(0, e.clientX - dx), Math.max(0, window.innerWidth - b.offsetWidth)),
+        y: Math.min(Math.max(0, e.clientY - dy), Math.max(0, window.innerHeight - b.offsetHeight))
+      };
+      b.style.left = `${pos.x}px`;
+      b.style.top = `${pos.y}px`;
+    };
+    const soltar = () => {
+      window.removeEventListener("pointermove", mover);
+      b.classList.remove("arrastando");
+      if (arrastando) {
+        b._arrastou = true; // o clique que vem logo depois do arraste não abre o painel
+        setTimeout(() => { b._arrastou = false; }, 0);
+        if (pos) game.settings.set(ID, "efeitosBotao", pos);
+      }
+    };
+    window.addEventListener("pointermove", mover);
+    window.addEventListener("pointerup", soltar, { once: true });
+    window.addEventListener("pointercancel", soltar, { once: true });
+  });
+  // botão direito: volta à posição padrão
+  b.addEventListener("contextmenu", (ev) => {
+    ev.preventDefault();
+    game.settings.set(ID, "efeitosBotao", {}).then(() => posicionarBotao());
+  });
 }
 
 function criarBotao() {
@@ -515,9 +567,13 @@ function criarBotao() {
     b = document.createElement("button");
     b.id = "t20pe-botao";
     b.type = "button";
-    b.title = "Painel de Efeitos (T20)";
+    b.title = "Painel de Efeitos (T20) — arraste para mover; botão direito: posição padrão";
     b.innerHTML = '<i class="fa-solid fa-wand-sparkles"></i>';
-    b.addEventListener("click", acionar);
+    b.addEventListener("click", (ev) => {
+      if (b._arrastou) return ev.preventDefault();
+      acionar();
+    });
+    ativarArrasteDoBotao(b);
     document.body.appendChild(b);
   }
   b.classList.toggle("ativo", PainelEfeitos.aberto);
