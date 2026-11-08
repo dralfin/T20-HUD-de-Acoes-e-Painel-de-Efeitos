@@ -1143,3 +1143,423 @@ body.t20ah-chat-estilo .chat-message.t20ah-texto .message-content {
 body.t20ah-chat-estilo .chat-message.t20ah-texto .message-content p { margin: 0 0 0.4em; }
 body.t20ah-chat-estilo .chat-message.t20ah-texto .message-content > :last-child { margin-bottom: 0; }
 body.t20ah-chat-estilo .chat-message.t20ah-texto .message-content a { color: color-mix(in srgb, var(--ci) 55%, #fff); }
+
+/* ---------- integração: avisos de outros módulos (munição, selos de melhorias/encantos, dano maximizado) ---------- */
+/* uma linha só, logo abaixo do título (o script junta os elementos nela) */
+body.t20ah-chat-estilo .chat-card.t20ah-item .t20ah-extras {
+  grid-area: 2 / 1 / auto / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3em 0.45em;
+  min-width: 0;
+  margin: 0.5em 0 0 !important;
+}
+/* com a descrição aberta (linha 2 ocupada pelo sistema), a linha vai para a primeira linha livre */
+body.t20ah-chat-estilo .chat-card.t20ah-item:has(> .card-content:not([style*="display: none"])) > .t20ah-extras { grid-area: auto / 1 / auto / -1; }
+/* enquanto o script não agrupou, ocupam a linha toda */
+body.t20ah-chat-estilo .chat-card.t20ah-item > :is(.hayd-municao-nota, .hbdg-linha, .t20g-minmax-aviso) { grid-column: 1 / -1; }
+
+body.t20ah-chat-estilo .chat-card.t20ah-item .hayd-municao-nota {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  min-width: 0;
+  margin: 0 !important;
+  padding: 0.15em 0.5em 0.15em 0.2em;
+  font-size: 0.78em;
+  line-height: 1.2;
+  color: var(--t20c-texto-suave, #b9b3a8);
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 2px solid color-mix(in srgb, var(--ci) 70%, transparent);
+  border-radius: 0.3em;
+  white-space: nowrap;
+  overflow: hidden;
+}
+body.t20ah-chat-estilo .chat-card.t20ah-item .hayd-municao-nota img { flex: none; width: 1.5em; height: 1.5em; border: 0; object-fit: contain; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .hayd-municao-nota span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .hayd-municao-nota b { color: var(--t20c-texto, #f2e8d5); font-weight: 600; }
+
+body.t20ah-chat-estilo .chat-card.t20ah-item .hbdg-linha {
+  flex: none;
+  display: flex;
+  align-items: center;
+  margin: 0 0 0 auto !important;
+  padding: 0;
+}
+body.t20ah-chat-estilo .chat-card.t20ah-item .hbdg-linha .hbdgs { display: inline-flex; align-items: center; gap: 0.3em; }
+
+/* "Dano maximizado" / "Dano mínimo": etiqueta pequena em uma linha */
+body.t20ah-chat-estilo .chat-card.t20ah-item .t20g-minmax-aviso {
+  flex: none;
+  display: inline-flex !important;
+  align-items: center;
+  gap: 0.35em;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0.12em 0.6em !important;
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  white-space: nowrap;
+  writing-mode: horizontal-tb !important;
+  color: #8fe0a8;
+  background: rgba(76, 175, 106, 0.14) !important;
+  border: 1px solid rgba(76, 175, 106, 0.55) !important;
+  border-radius: 999px;
+}
+body.t20ah-chat-estilo .chat-card.t20ah-item.t20g-minmax-min .t20g-minmax-aviso {
+  color: #ff9c92;
+  background: rgba(214, 69, 69, 0.14) !important;
+  border-color: rgba(214, 69, 69, 0.55) !important;
+}
+
+/* melhorias do item: etiquetas lado a lado */
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois > .card-upgrades { margin: 0.4em 0 0 !important; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .card-upgrades ul { display: flex; flex-wrap: wrap; gap: 0.3em; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .card-upgrades li {
+  padding: 0.05em 0.55em;
+  font-size: 0.95em;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid color-mix(in srgb, var(--ci) 40%, transparent);
+  border-radius: 999px;
+}
+body.t20ah-chat-estilo .chat-card.t20ah-item .card-upgrades li .row b:empty { display: none; }
+
+body.t20ah-chat-estilo .chat-card.t20ah-item .card-header h3 { min-width: 0; flex: 1 1 0; }
+
+/* ---------- 20 natural (crítico) e 1 natural (falha crítica) no total do ataque ---------- */
+body.t20ah-chat-estilo .chat-message :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-result .dice-total[data-nat="crit"] {
+  /* crítico: moldura com cantoneiras douradas e etiqueta escrita "CRÍTICO" (não depende de cor nem de forma) */
+  --crit-ouro: #ffd76a;
+  position: relative;
+  clip-path: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background:
+    linear-gradient(var(--crit-ouro), var(--crit-ouro)) 0 0 / 0.5em 3px no-repeat,
+    linear-gradient(var(--crit-ouro), var(--crit-ouro)) 0 0 / 3px 0.5em no-repeat,
+    linear-gradient(var(--crit-ouro), var(--crit-ouro)) 100% 0 / 0.5em 3px no-repeat,
+    linear-gradient(var(--crit-ouro), var(--crit-ouro)) 100% 0 / 3px 0.5em no-repeat,
+    linear-gradient(var(--crit-ouro), var(--crit-ouro)) 0 100% / 0.5em 3px no-repeat,
+    linear-gradient(var(--crit-ouro), var(--crit-ouro)) 0 100% / 3px 0.5em no-repeat,
+    linear-gradient(var(--crit-ouro), var(--crit-ouro)) 100% 100% / 0.5em 3px no-repeat,
+    linear-gradient(var(--crit-ouro), var(--crit-ouro)) 100% 100% / 3px 0.5em no-repeat,
+    linear-gradient(180deg, #2c2209, #15100a) !important;
+  color: var(--crit-ouro) !important;
+  text-shadow: 0 0 0.45em rgba(255, 200, 60, 0.55), 0 2px 0 #000 !important;
+  font-weight: 800;
+}
+body.t20ah-chat-estilo .chat-message :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-result .dice-total[data-nat="crit"]::before {
+  content: "CRÍTICO" !important;
+  display: block !important;
+  position: absolute !important;
+  top: auto !important;
+  bottom: calc(100% - 0.12em) !important;
+  left: 50% !important;
+  right: auto !important;
+  width: auto !important;
+  height: auto !important;
+  translate: -50% 0 !important;
+  padding: 0.08em 0.9em;
+  font-size: 0.24em;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  line-height: 1.3;
+  color: #2a1700;
+  text-shadow: none;
+  background: var(--crit-ouro) !important;
+  border-radius: 0.3em !important;
+  box-shadow: none !important;
+  -webkit-mask: none !important;
+  mask: none !important;
+  opacity: 1;
+}
+body.t20ah-chat-estilo .chat-message .dice-roll:has(> .dice-result > .dice-total[data-nat="crit"]) {
+  filter: none;
+}
+body.t20ah-chat-estilo .chat-message :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-result .dice-total[data-nat="falha"] {
+  clip-path: polygon(0 0, 22% 0, 25% 9px, 31% 0, 100% 0, 100% 30%, calc(100% - 6px) 38%, 100% 52%, 100% 100%, 70% 100%, 66% calc(100% - 8px), 60% 100%, 12% 100%, 8px calc(100% - 7px), 0 82%, 5px 55%, 0 40%) !important;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40' preserveAspectRatio='none'><polyline points='48,0 53,9 44,17 55,26 46,33 52,40' fill='none' stroke='%23050203' stroke-width='3' stroke-linejoin='bevel' vector-effect='non-scaling-stroke'/><polyline points='48,0 53,9 44,17 55,26 46,33 52,40' fill='none' stroke='%23ff6b5a' stroke-opacity='.55' stroke-width='1' vector-effect='non-scaling-stroke' transform='translate(-1 0)'/></svg>") center / 100% 100% no-repeat, linear-gradient(160deg, #5a1218 0%, #2a0709 60%, #170405 100%) !important;
+  border: 0 !important;
+  color: #ffb3aa !important;
+  text-shadow: 0 2px 0 #000 !important;
+}
+/* o símbolo de acerto/erro continua legível por cima */
+body.t20ah-chat-estilo .chat-message :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-result .dice-total[data-nat="crit"][data-res]::after { filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.4)); }
+/* símbolo de acerto/erro sobre a explosão (dourada) e sobre a caixa quebrada (vermelha escura): cores com contraste */
+body.t20ah-chat-estilo .chat-message .chat-card.t20ah-item .dice-result .dice-total[data-nat="crit"][data-res] {
+  padding-right: 0;
+}
+body.t20ah-chat-estilo .chat-message .chat-card.t20ah-item .dice-result .dice-total[data-nat="crit"][data-res]::after {
+  opacity: 1;
+  filter: none;
+}
+body.t20ah-chat-estilo .chat-message .chat-card.t20ah-item .dice-result .dice-total[data-nat="falha"][data-res] { --rc: #ffb3aa; }
+body.t20ah-chat-estilo .chat-message .chat-card.t20ah-item .dice-result .dice-total[data-nat="crit"][data-res]::after { display: none; }
+
+/* fórmula / bônus da rolagem: texto claro e legível, com uma borda discreta; fórmulas longas quebram de linha */
+body.t20ah-chat-estilo .chat-message :is(.chat-card.t20ah-item, .t20ah-rolagem, .chat-card) .dice-result .dice-formula {
+  border: 1px solid color-mix(in srgb, var(--cor-user, #d64545) 55%, transparent) !important;
+  background: rgba(0, 0, 0, 0.22) !important;
+  border-radius: 0.4em;
+  color: var(--t20c-texto, #f2e8d5) !important;
+  font-size: 1.02em !important;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+  text-align: center !important;
+  padding: 0.12em 0.55em !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere;
+  justify-self: center;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* ---------- Item Piles: card de compra/venda no estilo do módulo ---------- */
+body.t20ah-chat-estilo .chat-message .item-piles-chat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55em;
+  padding: 0.3em 0 0.1em;
+  color: var(--t20c-texto, #f2e8d5);
+}
+body.t20ah-chat-estilo .chat-message .item-piles-chat-card-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45em;
+  text-align: center;
+}
+body.t20ah-chat-estilo .chat-message .item-piles-chat-card-title p { margin: 0 !important; color: var(--t20c-texto, #f2e8d5) !important; }
+/* comprador  🤝  vendedor, lado a lado */
+body.t20ah-chat-estilo .chat-message .item-piles-chat-card-title p:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8em;
+}
+body.t20ah-chat-estilo .chat-message .item-piles-chat-card-title p:first-child img {
+  width: 3em !important;
+  height: 3em !important;
+  object-fit: cover;
+  border: 2px solid var(--cor-user, #d64545);
+  border-radius: 0.3em;
+}
+body.t20ah-chat-estilo .chat-message .item-piles-chat-card-title i { font-size: 1.5em; color: #ffd76a; }
+body.t20ah-chat-estilo .chat-message .item-piles-chat-card-title p:last-child { font-size: 0.95em; font-weight: 600; line-height: 1.3; }
+
+body.t20ah-chat-estilo .chat-message .item-piles-chat-card ul {
+  list-style: none !important;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+body.t20ah-chat-estilo .chat-message .item-piles-chat-card ul li {
+  display: flex !important;
+  align-items: center;
+  gap: 0.55em;
+  margin: 0 !important;
+  padding: 0.3em 0.6em !important;
+  color: var(--t20c-texto, #f2e8d5) !important;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--cor-user, #d64545) 30%, #15100f), #15100f) !important;
+  border: 1px solid color-mix(in srgb, var(--cor-user, #d64545) 50%, transparent) !important;
+  border-radius: 0.4em;
+  box-shadow: none !important;
+}
+body.t20ah-chat-estilo .chat-message .item-piles-chat-card ul li img {
+  flex: none;
+  width: 1.8em !important;
+  height: 1.8em !important;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 0.25em;
+}
+body.t20ah-chat-estilo .chat-message .item-piles-chat-card ul li label {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--t20c-texto, #f2e8d5) !important;
+  font-weight: 600;
+  text-shadow: none !important;
+}
+body.t20ah-chat-estilo .chat-message .item-piles-chat-card ul li label small { color: var(--t20c-mudo, #b9b3a8) !important; font-weight: 500; }
+body.t20ah-chat-estilo .chat-message .item-piles-chat-card ul li label.item-piles-chat-price {
+  flex: none;
+  margin-left: auto;
+  color: #ffd76a !important;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* atalhos (links) dentro dos cards de condição: etiqueta com losango e faixa lateral, no estilo do módulo */
+body.t20ah-chat-estilo .t20ah-cond .cd-corpo a.content-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  margin: 0 0.1em;
+  padding: 0.02em 0.6em 0.02em 0.45em;
+  font-weight: 700;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--cc) 40%, #fff) !important;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--cc) 38%, #15100f), color-mix(in srgb, var(--cc) 12%, #15100f)) !important;
+  border: 0 !important;
+  border-left: 3px solid var(--cc) !important;
+  border-radius: 0.2em 0.45em 0.45em 0.2em;
+  box-shadow: none !important;
+  text-decoration: none !important;
+  vertical-align: baseline;
+  transition: filter 0.12s, transform 0.12s;
+}
+body.t20ah-chat-estilo .t20ah-cond .cd-corpo a.content-link i { display: none !important; }
+body.t20ah-chat-estilo .t20ah-cond .cd-corpo a.content-link::before {
+  content: "";
+  flex: none;
+  width: 0.42em;
+  height: 0.42em;
+  background: var(--cc);
+  transform: rotate(45deg);
+}
+body.t20ah-chat-estilo .t20ah-cond .cd-corpo a.content-link:hover { filter: brightness(1.25); transform: translateY(-1px); }
+
+
+/* ============ ajustes: rolagens legíveis em qualquer tema, tipo de dano maior, par ataque/dano alinhado ============ */
+/* dados expandidos: fundo escuro e texto claro sempre (o tema claro do Foundry deixava tudo ilegível) */
+body.t20ah-chat-estilo .chat-message :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip,
+body.t20ah-chat-estilo .chat-message :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip :is(.wrapper, .tooltip-part, .dice, .part-header) {
+  background-color: transparent !important;
+  background-image: none !important;
+  color: #f2e8d5 !important;
+  border-color: rgba(255, 255, 255, 0.12);
+  text-shadow: none;
+}
+body.t20ah-chat-estilo .chat-message :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .wrapper {
+  background-color: rgba(0, 0, 0, 0.38) !important;
+  border-radius: 0.5em;
+  padding: 0.45em 0.5em 0.35em;
+}
+body.t20ah-chat-estilo .chat-message :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .part-formula { color: #d8c9b0 !important; }
+body.t20ah-chat-estilo .chat-message :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .dice-rolls li { color: #fff; }
+body.t20ah-chat-estilo .chat-message :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .dice-rolls li.max { color: #9be3b0; }
+body.t20ah-chat-estilo .chat-message :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .dice-rolls li.min { color: #ff9c92; }
+body.t20ah-chat-estilo .chat-message :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-formula { color: #d8c9b0 !important; }
+
+/* legendas dos dados (fórmula, tipo de dano, subtotal): maiores */
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .part-header { font-size: 0.95em !important; }
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .part-formula { font-size: 0.95em !important; }
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .part-flavor {
+  font-size: 0.78em !important;
+  padding: 0.1em 0.65em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #fff !important;
+}
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .part-total { font-size: 1.1em !important; }
+
+/* ataque e dano sempre lado a lado, na mesma altura: a fórmula ocupa sempre o mesmo espaço (até 2 linhas, centralizada) */
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois .dice-roll { align-self: start; }
+body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois .dice-formula {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5em;
+  max-height: 2.5em;
+  overflow: hidden;
+  white-space: normal !important;
+  text-overflow: clip !important;
+  text-align: center !important;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+/* etiquetas das melhorias do item e atalhos: mesmo estilo dos atalhos dos cards de condição (losango + faixa lateral) */
+body.t20ah-chat-estilo .chat-card.t20ah-item .card-upgrades li,
+body.t20ah-chat-estilo .chat-card.t20ah-item a.content-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.05em 0.65em 0.05em 0.5em;
+  font-weight: 700;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--ci) 35%, #fff) !important;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ci) 38%, #15100f), color-mix(in srgb, var(--ci) 12%, #15100f)) !important;
+  border: 0 !important;
+  border-left: 3px solid var(--ci) !important;
+  border-radius: 0.2em 0.45em 0.45em 0.2em !important;
+  box-shadow: none !important;
+  text-decoration: none !important;
+}
+body.t20ah-chat-estilo .chat-card.t20ah-item .card-upgrades li::before,
+body.t20ah-chat-estilo .chat-card.t20ah-item a.content-link::before {
+  content: "";
+  flex: none;
+  width: 0.42em;
+  height: 0.42em;
+  background: var(--ci);
+  transform: rotate(45deg);
+}
+body.t20ah-chat-estilo .chat-card.t20ah-item a.content-link i { display: none !important; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .card-upgrades li * { color: inherit !important; }
+
+/* botões de rolagem (aplicar dano, ½, 2x etc.): mesmo estilo da rolagem em linha do card de condição */
+body.t20ah-chat-estilo .chat-message .chat-card :is(.dice-btn, footer) button {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35em;
+  color: #f2e8d5 !important;
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.4) !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
+  border-radius: 0.4em !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+  text-shadow: none !important;
+  transition: filter 0.12s, border-color 0.12s, background 0.12s;
+}
+body.t20ah-chat-estilo .chat-message .chat-card :is(.dice-btn, footer) button :is(i, svg, img) { color: color-mix(in srgb, var(--ci, #e0b85c) 55%, #fff); }
+body.t20ah-chat-estilo .chat-message .chat-card :is(.dice-btn, footer) button:hover {
+  background: color-mix(in srgb, var(--ci, #e0b85c) 30%, #15100f) !important;
+  border-color: var(--ci, #e0b85c) !important;
+  filter: brightness(1.15);
+}
+
+/* rolagens em linha ([[/r 1d6]]) nos textos de itens, efeitos e condições: etiqueta com faixa lateral e dado */
+body.t20ah-chat-estilo .chat-message a.inline-roll,
+body.t20ah-chat-estilo .chat-message a.inline-roll.roll {
+  --ir: var(--cc, var(--ci, #e0b85c));
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  margin: 0 0.1em;
+  padding: 0.02em 0.65em 0.02em 0.5em;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  vertical-align: baseline;
+  color: color-mix(in srgb, var(--ir) 35%, #fff) !important;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ir) 36%, #15100f), color-mix(in srgb, var(--ir) 10%, #15100f)) !important;
+  border: 0 !important;
+  border-left: 3px solid var(--ir) !important;
+  border-radius: 0.2em 0.5em 0.5em 0.2em !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+  text-decoration: none !important;
+  cursor: pointer;
+  transition: filter 0.12s, transform 0.12s;
+}
+body.t20ah-chat-estilo .chat-message a.inline-roll i {
+  margin: 0 !important;
+  font-size: 0.9em;
+  color: var(--ir) !important;
+  filter: drop-shadow(0 0 0.25em color-mix(in srgb, var(--ir) 60%, transparent));
+}
+body.t20ah-chat-estilo .chat-message a.inline-roll:hover { filter: brightness(1.25); transform: translateY(-1px); }

@@ -571,15 +571,23 @@ class AcoesHUD {
     document.body.appendChild(el);
 
     el.addEventListener("click", (ev) => {
+      const des = ev.target.closest("[data-desfazer]");
+      if (des && el.contains(des)) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        this.usar(des.dataset.desfazer, "devolver");
+        return;
+      }
       const b = ev.target.closest("button");
       if (!b || !el.contains(b)) return;
+      if (b.dataset.defstep) return void this.passoDefBonus(Number(b.dataset.defstep));
       if (b.dataset.i !== undefined) MenuAcoes.executar(b.dataset.cat, Number(b.dataset.i));
       else if (b.dataset.aa) MenuAcoes.alternarCategoria(b.dataset.aa);
       else if (b.dataset.tipo) this.usar(b.dataset.tipo, "gastar");
       else if (b.dataset.acao === "reset") this.reiniciar();
       else if (b.dataset.acao === "passar") this.passarTurno();
       else if (b.dataset.acao === "tempo") this.definirTempo();
-      else if (b.dataset.acao === "som") this.tocarSom();
+      else if (b.dataset.acao === "som") this.alternarVolume(b);
       else if (b.dataset.acao === "recolher")
         game.settings.set(ID, "recolhido", !game.settings.get(ID, "recolhido"));
     });
@@ -638,13 +646,18 @@ class AcoesHUD {
   }
 
   static tile(tipo, icone, rotulo, dica, { gasto, ativa = false, pips }) {
+    const desfazer = gasto || String(pips).includes("pip on");
+    // o botão de desfazer fica FORA do <button> do tile (controle dentro de botão perde o clique em alguns navegadores)
     return `
-      <button type="button" class="t20ah-tile ${tipo} ${gasto ? "gasto" : ""} ${ativa ? "ativa" : ""}"
-              data-tipo="${tipo}" title="${dica}" aria-disabled="${gasto}">
-        <i class="fa-solid ${icone}"></i>
-        <span class="t20ah-rotulo">${rotulo}</span>
-        <span class="t20ah-pips">${pips}</span>
-      </button>`;
+      <div class="t20ah-celula">
+        <button type="button" class="t20ah-tile ${tipo} ${gasto ? "gasto" : ""} ${ativa ? "ativa" : ""}"
+                data-tipo="${tipo}" title="${dica}" aria-disabled="${gasto}">
+          <i class="fa-solid ${icone}"></i>
+          <span class="t20ah-rotulo">${rotulo}</span>
+          <span class="t20ah-pips">${pips}</span>
+        </button>
+        ${desfazer ? `<button type="button" class="t20ah-desfazer" data-desfazer="${tipo}" title="Devolver esta ação (desfazer o gasto)"><i class="fa-solid fa-rotate-left"></i></button>` : ""}
+      </div>`;
   }
 
   /** Token em foco: o selecionado; sem seleção, o combatente do turno. */
@@ -843,6 +856,21 @@ class AcoesHUD {
     this.atualizarPreviaDano();
   }
 
+  /** Botões − / + do bônus de defesa: soma ou subtrai 1. */
+  static async passoDefBonus(passo) {
+    const t = this.alvo();
+    if (!t) return;
+    const novo = defBonus(t.actor) + passo;
+    try {
+      if (novo === 0) await t.actor.unsetFlag(ID, "defBonus");
+      else await t.actor.setFlag(ID, "defBonus", novo);
+    } catch (err) {
+      console.error(`${ID} | erro ao salvar o bônus de defesa`, err);
+      ui.notifications.error("Sem permissão para alterar este personagem.");
+    }
+    this.render();
+  }
+
   /** Edita o bônus de defesa da HUD. Aceita "2", "+1" ou "-1". */
   static async editarDefBonus(inp) {
     const t = this.alvo();
@@ -850,7 +878,8 @@ class AcoesHUD {
     const txt = inp.value.trim().replace(",", ".").replace("−", "-");
     const atual = defBonus(t.actor);
     let novo;
-    if (/^[+-]\d+(\.\d+)?$/.test(txt)) novo = atual + Number(txt);
+    if (txt === "") novo = 0; // campo apagado volta a 0
+    else if (/^[+-]\d+(\.\d+)?$/.test(txt)) novo = atual + Number(txt);
     else if (/^-?\d+(\.\d+)?$/.test(txt)) novo = Number(txt);
     else return this.render();
     novo = Math.round(novo);
@@ -1012,7 +1041,8 @@ class AcoesHUD {
     const txt = inp.value.trim().replace(",", ".");
     const atual = campo === "temp" ? r.temp : r.value;
     let novo;
-    if (/^[+-]\d+(\.\d+)?$/.test(txt)) novo = atual + Number(txt);
+    if (txt === "") novo = 0; // campo apagado = 0
+    else if (/^[+-]\d+(\.\d+)?$/.test(txt)) novo = atual + Number(txt);
     else if (/^\d+(\.\d+)?$/.test(txt)) novo = Number(txt);
     else return this.render();
     novo = Math.round(novo);
@@ -1113,8 +1143,8 @@ class AcoesHUD {
     if (rd.achou && !chipsRD.length) chipsRD.push(escudoRD({ icone: "fa-shield-halved", valor: 0, titulo: "Redução de dano da ficha: nenhuma" }));
     const chips = [
       def != null
-        ? `<span class="def-escudo n${String(def).length}" title="Defesa total: ${defBase} da ficha${bonusDef ? ` ${bonusDef > 0 ? "+" : "−"} ${Math.abs(bonusDef)} de bônus da HUD` : ""}"><svg viewBox="0 0 24 28" aria-hidden="true"><path d="M12 1.2 22 4.6V13c0 6.6-4.3 11.2-10 13.8C6.3 24.2 2 19.6 2 13V4.6z"/></svg><b>${def}</b></span>` +
-          `<span class="chip defb ${bonusDef ? "ativo" : ""}" title="Bônus de defesa (só na HUD, não altera a ficha). Digite um valor, ou +2 / -2 para somar."><i class="fa-solid fa-plus-minus"></i><input type="text" inputmode="numeric" autocomplete="off" data-defbonus value="${bonusDef}"></span>`
+        ? `<span class="def-grupo" title="Defesa e bônus de defesa"><span class="def-escudo n${String(def).length}" title="Defesa total: ${defBase} da ficha${bonusDef ? ` ${bonusDef > 0 ? "+" : "−"} ${Math.abs(bonusDef)} de bônus da HUD` : ""}"><svg viewBox="0 0 24 28" aria-hidden="true"><path d="M12 1.2 22 4.6V13c0 6.6-4.3 11.2-10 13.8C6.3 24.2 2 19.6 2 13V4.6z"/></svg><b>${def}</b></span>` +
+          `<span class="chip defb ${bonusDef ? "ativo" : ""}" title="Bônus de defesa (só na HUD, não altera a ficha). Digite um valor, ou +2 / -2 para somar."><button type="button" class="defstep" data-defstep="-1" title="Diminuir 1">−</button><input type="text" inputmode="numeric" autocomplete="off" data-defbonus value="${bonusDef}"><button type="button" class="defstep" data-defstep="1" title="Aumentar 1">+</button></span></span>`
         : "",
       ...chipsRD,
       cd != null && usaMagias(actor)
@@ -1194,13 +1224,14 @@ class AcoesHUD {
              <span>${fmt(usadoM)} / ${fmt(capM)} m</span>
            </div>`
         : "";
-      const tempoHtml = `
+      const semLimite = !(Number(cfg("tempoMaximo")) > 0);
+      const tempoHtml = semLimite
+        ? ""
+        : `
         <div class="t20ah-tempo">
-          <button type="button" class="t20ah-mini" data-acao="tempo"
-                  title="${game.user.isGM ? "Clique para definir o tempo máximo do turno" : "Tempo no turno"}"><i class="fa-solid fa-stopwatch"></i></button>
           <div class="trilho"><div class="fill"></div></div>
           <span class="js-tempo-txt">00:00</span>
-          <button type="button" class="t20ah-mini" data-acao="som" title="Testar o som de tempo esgotado"><i class="fa-solid fa-volume-high"></i></button>
+          <button type="button" class="t20ah-mini" data-acao="som" title="Volume do alerta (clique para ajustar)"><i class="fa-solid ${cfg("somVolume") <= 0 ? "fa-volume-xmark" : cfg("somVolume") < 0.5 ? "fa-volume-low" : "fa-volume-high"}"></i></button>
         </div>`;
       const tiles = [
         this.tile("padrao", "fa-hand-fist", "Padrão", "Clique: gastar • Botão direito: devolver", {
@@ -1262,6 +1293,7 @@ class AcoesHUD {
         </div>
         <span class="t20ah-resumo"><span class="t20ah-resumo-rec">${resumoRec}</span>${resumoAcoes}</span>
         ${btnsTurno}
+        ${game.user.isGM ? `<button type="button" class="t20ah-mini" data-acao="tempo" title="Definir o limite de tempo do turno${Number(cfg("tempoMaximo")) > 0 ? ` (atual: ${Number(cfg("tempoMaximo"))} s)` : " (atual: sem limite)"}"><i class="fa-solid fa-stopwatch"></i></button>` : ""}
         <button type="button" class="t20ah-mini recolher" data-acao="recolher" title="Recolher / expandir"><i class="fa-solid fa-chevron-up"></i></button>
       </header>`;
     const esq = `
@@ -1357,6 +1389,57 @@ class AcoesHUD {
       ui.notifications.warn(`Tempo esgotado para ${c.name}!`);
     }
     if (cfg("passarAoFim") && game.user.isActiveGM) combat.nextTurn();
+  }
+
+  static iconeVolume(v) {
+    const i = this.el?.querySelector('[data-acao="som"] i');
+    if (i) i.className = `fa-solid ${v <= 0 ? "fa-volume-xmark" : v < 0.5 ? "fa-volume-low" : "fa-volume-high"}`;
+  }
+
+  /** Clique no ícone: abre/fecha o controle de volume vertical por cima da HUD. */
+  static alternarVolume(btn) {
+    const ja = document.getElementById("t20ah-vol-pop");
+    if (ja) return this.fecharVolume();
+    const v = cfg("somVolume");
+    const pop = document.createElement("div");
+    pop.id = "t20ah-vol-pop";
+    pop.innerHTML = `<button type="button" class="vp-mudo" title="Silenciar / ativar"><i class="fa-solid ${v <= 0 ? "fa-volume-xmark" : "fa-volume-high"}"></i></button>
+      <input type="range" min="0" max="1" step="0.05" value="${v}" title="Volume do alerta de tempo">
+      <span class="vp-val">${Math.round(v * 100)}%</span>`;
+    document.body.appendChild(pop);
+    const rb = btn.getBoundingClientRect();
+    const rh = (this.el ?? btn).getBoundingClientRect();
+    pop.style.left = `${Math.min(Math.max(rb.left + rb.width / 2, 110), window.innerWidth - 110)}px`;
+    pop.style.top = `${rh.top - 8}px`; // logo acima da HUD
+    const rng = pop.querySelector("input");
+    const val = pop.querySelector(".vp-val");
+    const ico = pop.querySelector("i");
+    const aplicar = (n) => {
+      game.settings.set(ID, "somVolume", n);
+      val.textContent = `${Math.round(n * 100)}%`;
+      ico.className = `fa-solid ${n <= 0 ? "fa-volume-xmark" : "fa-volume-high"}`;
+      this.iconeVolume(n);
+    };
+    rng.addEventListener("input", () => aplicar(Number(rng.value)));
+    rng.addEventListener("change", () => this.tocarSom());
+    pop.querySelector(".vp-mudo").addEventListener("click", () => {
+      const atual = cfg("somVolume");
+      let novo;
+      if (atual > 0) { this._volAntes = atual; novo = 0; } else novo = this._volAntes || 0.8;
+      rng.value = novo;
+      aplicar(novo);
+      if (novo > 0) this.tocarSom();
+    });
+    this._fechaFora = (ev) => {
+      if (!pop.contains(ev.target) && !ev.target.closest?.('[data-acao="som"]')) this.fecharVolume();
+    };
+    setTimeout(() => document.addEventListener("pointerdown", this._fechaFora, true), 0);
+  }
+
+  static fecharVolume() {
+    document.getElementById("t20ah-vol-pop")?.remove();
+    if (this._fechaFora) document.removeEventListener("pointerdown", this._fechaFora, true);
+    this._fechaFora = null;
   }
 
   static tocarSom() {
@@ -4058,6 +4141,66 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
   });
 }
 
+// Integração com módulos de terceiros que acrescentam avisos ao card de item (munição gasta, selos de melhorias/encantos,
+// "Dano maximizado"): agrupa os três numa única linha logo abaixo do título (senão cada um cairia numa célula da grade).
+const SEL_EXTRAS = ".hayd-municao-nota, .hbdg-linha, .t20g-minmax-aviso";
+function agruparExtras(card) {
+  const soltos = [...card.children].filter((x) => x.matches?.(SEL_EXTRAS));
+  if (!soltos.length) return;
+  let box = card.querySelector(":scope > .t20ah-extras");
+  if (!box) {
+    box = document.createElement("div");
+    box.className = "t20ah-extras";
+    const cab = card.querySelector(":scope > .card-header");
+    if (cab) cab.after(box);
+    else card.prepend(box);
+  }
+  // ordem: munição, aviso, selos
+  const peso = (el) => (el.matches(".hayd-municao-nota") ? 0 : el.matches(".t20g-minmax-aviso") ? 1 : 2);
+  box.append(...[...box.children, ...soltos].sort((a, b) => peso(a) - peso(b)));
+}
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  Hooks.on(hook, (message, html) => {
+    const element = html?.[0] ?? html;
+    const card = element?.querySelector?.(".message-content .chat-card.t20ah-item");
+    if (!card) return;
+    const aplicar = () => {
+      agruparExtras(card);
+    };
+    aplicar();
+    // outros módulos podem acrescentar seus avisos depois: observa por alguns segundos
+    if (card._t20ahExtrasObs) return;
+    const obs = new MutationObserver(() => aplicar());
+    obs.observe(card, { childList: true, subtree: true });
+    card._t20ahExtrasObs = obs;
+    setTimeout(() => obs.disconnect(), 6000);
+  });
+}
+
+// 20 natural no d20 = crítico (caixa em explosão); 1 natural = falha crítica (caixa quebrada). Só marca o total (CSS faz o resto).
+function marcarNatural(roll) {
+  const total = roll?.querySelector?.(".dice-total");
+  if (!total) return;
+  const d20 = [...roll.querySelectorAll(".dice-tooltip li.roll.die.d20, .dice-tooltip .dice-rolls li.d20")];
+  const unicos = [...new Set(d20)];
+  let nat = null;
+  if (unicos.length === 1) {
+    const v = parseInt(unicos[0].textContent, 10);
+    // por enquanto só a falha crítica tem visual próprio (o acerto crítico voltou ao normal)
+    if (v === 1) nat = "falha";
+  }
+  if (nat) total.dataset.nat = nat;
+  else delete total.dataset.nat;
+}
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  Hooks.on(hook, (message, html) => {
+    const element = html?.[0] ?? html;
+    if (!element?.querySelectorAll) return;
+    for (const card of element.querySelectorAll(".message-content .chat-card.t20ah-item")) marcarNatural(rolagemDeAtaque(card));
+    for (const r of element.querySelectorAll(".t20ah-rolagem .dice-roll")) marcarNatural(r);
+  });
+}
+
 // Resultado do ataque contra a Defesa (módulo de terceiros): o banner grande é escondido e vira um símbolo ao lado do total
 // do ataque (acerto / erro / crítico / desastre); "vs Alvo (Def N)" fica na dica do símbolo. O resultado é guardado (flag da
 // mensagem quando possível e localStorage) e reaplicado se, depois do F5, o outro módulo não o devolver.
@@ -4077,8 +4220,14 @@ function lerBannerResultado(card) {
 function rolagemDeAtaque(card) {
   const comBanner = card.querySelector(".roll:has(.t20-defense-check)");
   if (comBanner) return comBanner;
+  const porTitulo = [...card.querySelectorAll(":scope > .roll")].find((r) => /ataque/i.test(r.dataset.rollTitle ?? ""));
+  if (porTitulo) return porTitulo;
   for (const row of card.querySelectorAll(":scope > .row")) {
-    if (/ataque/i.test(row.textContent) && row.nextElementSibling?.classList?.contains("roll")) return row.nextElementSibling;
+    if (!/ataque/i.test(row.textContent)) continue;
+    // outros módulos podem inserir avisos entre o título e a rolagem
+    let n = row.nextElementSibling;
+    while (n && !n.classList.contains("roll") && !n.classList.contains("row")) n = n.nextElementSibling;
+    if (n?.classList?.contains("roll")) return n;
   }
   return null;
 }
@@ -4171,7 +4320,8 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
     const element = html?.[0] ?? html;
     const conteudo = element?.querySelector?.(".message-content");
     if (!conteudo || element.classList.contains("t20ah-card-message")) return;
-    if (conteudo.querySelector(".chat-card, .dice-roll, .t20ah-card, .t20ah-cond, label.titulo")) return;
+    if (conteudo.querySelector(".chat-card, .dice-roll, .t20ah-card, .t20ah-cond, label.titulo, [class*='item-piles']")) return;
+    if (message.flags?.["item-piles"]) return;
     element.classList.add("t20ah-texto");
   });
 }
@@ -4182,6 +4332,11 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
     if (message.flags?.[ID]?.card) return;
     const element = html?.[0] ?? html;
     if (!element?.querySelector) return;
+    // mensagens de outros módulos que montam o próprio cabeçalho (ex.: Item Piles) ficam como estão
+    if (message.flags?.["item-piles"] || element.querySelector("[class*='item-piles']")) {
+      element.classList.add("t20ah-externo");
+      return;
+    }
     const autor = message.author ?? message.user;
     const cor = String(autor?.color?.css ?? autor?.color ?? "");
     if (cor) element.style.setProperty("--cor-user", cor);
@@ -4196,6 +4351,60 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
     el.className = "t20ah-retrato-msg";
     el.src = img;
     el.alt = "";
+    if (ator) {
+      el.title = `Abrir a ficha de ${ator.name}`;
+      el.classList.add("clicavel");
+      el.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (!ator.testUserPermission?.(game.user, "LIMITED")) return ui.notifications.warn("Você não tem acesso à ficha deste personagem.");
+        ator.sheet?.render(true);
+      });
+    }
     cab.prepend(el);
   });
+}
+
+/* ---------- limpeza do texto das rolagens ----------
+   - "[corte]" e semelhantes saem das fórmulas (o tipo continua na etiqueta ao expandir os dados);
+   - melhorias do item com custo 0 PM não mostram o gasto. */
+function limparRolagens(element) {
+  if (!element?.querySelectorAll) return;
+  for (const f of element.querySelectorAll(".dice-formula, .part-formula")) {
+    if (f.dataset.t20ahLimpo) continue;
+    f.dataset.t20ahLimpo = "1";
+    const w = document.createTreeWalker(f, NodeFilter.SHOW_TEXT);
+    let n;
+    while ((n = w.nextNode())) {
+      if (!/\[[^\]]*\]/.test(n.nodeValue)) continue;
+      n.nodeValue = n.nodeValue.replace(/\s*\[[^\]]*\]/g, "").replace(/\s{2,}/g, " ");
+    }
+  }
+  for (const li of element.querySelectorAll(".card-upgrades li")) {
+    if (li.dataset.t20ahLimpo) continue;
+    li.dataset.t20ahLimpo = "1";
+    const custo = /^\s*[+-]?0\s*PM\s*:?\s*$/i;
+    let tirou = false;
+    for (const e of li.querySelectorAll("*")) {
+      if (e.children.length === 0 && custo.test(e.textContent)) {
+        const prox = e.nextSibling;
+        e.remove();
+        if (prox?.nodeType === Node.TEXT_NODE) prox.nodeValue = prox.nodeValue.replace(/^\s*:\s*/, "");
+        tirou = true;
+      }
+    }
+    if (!tirou) {
+      const w = document.createTreeWalker(li, NodeFilter.SHOW_TEXT);
+      let n;
+      while ((n = w.nextNode())) {
+        if (/^\s*[+-]?0\s*PM\s*:?\s*/i.test(n.nodeValue)) {
+          n.nodeValue = n.nodeValue.replace(/^\s*[+-]?0\s*PM\s*:?\s*/i, "");
+          break;
+        }
+      }
+    }
+  }
+}
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  Hooks.on(hook, (message, html) => limparRolagens(html?.[0] ?? html));
 }
