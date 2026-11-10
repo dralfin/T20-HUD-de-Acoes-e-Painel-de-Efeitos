@@ -485,7 +485,7 @@
   border-radius: 0.7em;
   font-family: "Signika", sans-serif;
   color: #f2e8d5;
-  background: linear-gradient(165deg, #2b1a1d, #1a1013);
+  background: linear-gradient(165deg, color-mix(in srgb, var(--cor) 10%, #1f1f22), #101012);
   border: 1px solid color-mix(in srgb, var(--cor) 70%, transparent);
   border-left: 4px solid var(--cor);
   box-shadow: 0 0.3em 0.9em rgba(0, 0, 0, 0.45);
@@ -551,12 +551,12 @@
   color: #f2e8d5;
   font-size: 15px;
   border-radius: 0.9em;
-  background: linear-gradient(165deg, #2b1a1d, #1a1013);
-  border: 1px solid rgba(224, 184, 92, 0.6);
+  background: linear-gradient(165deg, color-mix(in srgb, var(--cor) 9%, #1f1f22), #101012);
+  border: 1px solid color-mix(in srgb, var(--cor) 60%, transparent);
   box-shadow: 0 1em 2.4em rgba(0, 0, 0, 0.7);
   animation: t20ah-sobe 0.18s ease-out;
 }
-#t20ah-escolha header { display: flex; align-items: center; gap: 0.7em; padding-bottom: 0.6em; border-bottom: 1px solid rgba(224, 184, 92, 0.3); }
+#t20ah-escolha header { display: flex; align-items: center; gap: 0.7em; padding-bottom: 0.6em; border-bottom: 1px solid color-mix(in srgb, var(--cor) 35%, transparent); }
 #t20ah-escolha header > i { font-size: 1.7em; color: var(--cor); filter: drop-shadow(0 0 0.35em var(--cor)); }
 #t20ah-escolha header > div { flex: 1; display: flex; flex-direction: column; line-height: 1.1; }
 #t20ah-escolha header small { font-size: 0.68em; letter-spacing: 0.16em; text-transform: uppercase; color: #9a8a7a; }
@@ -564,7 +564,7 @@
 #t20ah-escolha .ec-x { all: unset; cursor: pointer; width: 1.8em; height: 1.8em; display: grid; place-items: center; border-radius: 0.45em; color: #9a8a7a; }
 #t20ah-escolha .ec-x:hover { color: var(--cor); background: rgba(255, 255, 255, 0.08); }
 #t20ah-escolha p { margin: 0.7em 0; font-size: 0.9em; line-height: 1.4; }
-#t20ah-escolha p b { color: #ffd76a; }
+#t20ah-escolha p b { color: color-mix(in srgb, var(--cor) 55%, #fff); }
 #t20ah-escolha .ec-lista { display: flex; flex-direction: column; gap: 0.4em; }
 #t20ah-escolha .ec-arma {
   all: unset;
@@ -581,8 +581,8 @@
   border: 1px solid color-mix(in srgb, var(--cor) 50%, transparent);
   transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s, background 0.12s;
 }
-#t20ah-escolha .ec-arma:hover { transform: translateY(-1px); border-color: var(--cor); background: color-mix(in srgb, var(--cor) 28%, #1a1013); box-shadow: 0 0.3em 1em color-mix(in srgb, var(--cor) 35%, transparent); }
-#t20ah-escolha .ec-arma img { grid-area: img; width: 2.6em; height: 2.6em; object-fit: cover; border-radius: 0.4em; border: 1px solid rgba(224, 184, 92, 0.5); background: #000; }
+#t20ah-escolha .ec-arma:hover { transform: translateY(-1px); border-color: var(--cor); background: color-mix(in srgb, var(--cor) 28%, #131315); box-shadow: 0 0.3em 1em color-mix(in srgb, var(--cor) 35%, transparent); }
+#t20ah-escolha .ec-arma img { grid-area: img; width: 2.6em; height: 2.6em; object-fit: cover; border-radius: 0.4em; border: 1px solid color-mix(in srgb, var(--cor) 50%, transparent); background: #000; }
 #t20ah-escolha .ec-n { grid-area: n; font-family: "Modesto Condensed", "Signika", sans-serif; font-size: 1.15em; }
 #t20ah-escolha .ec-d { grid-area: d; font-size: 0.78em; color: #9a8a7a; }
 #t20ah-escolha footer { display: flex; justify-content: flex-end; margin-top: 0.7em; }
@@ -865,11 +865,11 @@
   transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
 #t20ah-escolha .ec-per:hover { border-color: var(--cor); }
-#t20ah-escolha .ec-per.sel { border-color: var(--cor); background: color-mix(in srgb, var(--cor) 30%, #1a1013); box-shadow: 0 0 0.8em color-mix(in srgb, var(--cor) 40%, transparent); }
+#t20ah-escolha .ec-per.sel { border-color: var(--cor); background: color-mix(in srgb, var(--cor) 30%, #131315); box-shadow: 0 0 0.8em color-mix(in srgb, var(--cor) 40%, transparent); }
 #t20ah-escolha .ec-pn { font-family: "Modesto Condensed", "Signika", sans-serif; font-size: 1.1em; }
-#t20ah-escolha .ec-pb { font-variant-numeric: tabular-nums; color: #ffd76a; font-size: 0.9em; }
-#t20ah-escolha .ec-badge { grid-column: 1 / -1; font-size: 0.68em; letter-spacing: 0.1em; text-transform: uppercase; color: #e0b85c; }
-#t20ah-escolha .ec-per.padrao { border-color: rgba(224, 184, 92, 0.7); }
+#t20ah-escolha .ec-pb { font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--cor) 55%, #fff); font-size: 0.9em; }
+#t20ah-escolha .ec-badge { grid-column: 1 / -1; font-size: 0.68em; letter-spacing: 0.1em; text-transform: uppercase; color: var(--cor); }
+#t20ah-escolha .ec-per.padrao { border-color: color-mix(in srgb, var(--cor) 70%, transparent); }
 #t20ah-escolha footer { gap: 0.5em; }
 #t20ah-escolha .ec-rolar {
   all: unset;
@@ -1035,12 +1035,12 @@
   z-index: 3;
   margin: 0 -0.85em 0.45em;
   padding: 0.6em 0.85em 0.4em;
-  background: #271719;
+  background: var(--bg2, #271719);
   font-family: "Modesto Condensed", "Signika", sans-serif;
   font-size: 1.1em;
   letter-spacing: 0.04em;
-  color: #e0b85c;
-  border-bottom: 1px solid rgba(224, 184, 92, 0.25);
+  color: var(--ouro, #e0b85c);
+  border-bottom: 1px solid color-mix(in srgb, var(--ouro, #e0b85c) 25%, transparent);
 }
 /* aba: fica na ponta esquerda do painel (ou colada na HUD, com a gaveta fechada) */
 #t20ah-gaveta .gv-aba {
@@ -1061,9 +1061,9 @@
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #e0b85c;
-  background: linear-gradient(90deg, #1a1013, #2b1a1d);
-  border: 1px solid rgba(224, 184, 92, 0.45);
+  color: var(--ouro, #e0b85c);
+  background: linear-gradient(90deg, var(--bg1, #1a1013), var(--bg2, #2b1a1d));
+  border: 1px solid color-mix(in srgb, var(--ouro, #e0b85c) 45%, transparent);
   border-right: none;
   border-radius: 0.7em 0 0 0.7em;
   box-shadow: -0.2em 0.3em 0.9em rgba(0, 0, 0, 0.45);
@@ -1393,14 +1393,14 @@ body.t20ah-chat-estilo .chat-message.t20ah-externo .t20ah-retrato-msg { display:
   gap: 0.6em;
   padding: 0.5em 0.8em;
   color: #f2e8d5;
-  background: linear-gradient(165deg, #2b1a1d, #1a1013);
-  border: 1px solid rgba(224, 184, 92, 0.55);
+  background: linear-gradient(165deg, var(--bg2, #1f1f22), var(--bg1, #101012));
+  border: 1px solid color-mix(in srgb, var(--ouro, #e0b85c) 55%, transparent);
   border-radius: 0.8em;
   box-shadow: 0 0.5em 1.4em rgba(0, 0, 0, 0.65);
   font-size: 13px;
 }
-#t20ah-vol-pop .vp-val { min-width: 2.6em; text-align: right; font-size: 0.9em; color: #e0b85c; }
-#t20ah-vol-pop input[type="range"] { width: 11em; height: 1.2em; margin: 0; accent-color: #e0b85c; cursor: pointer; }
+#t20ah-vol-pop .vp-val { min-width: 2.6em; text-align: right; font-size: 0.9em; color: var(--ouro, #e0b85c); }
+#t20ah-vol-pop input[type="range"] { width: 11em; height: 1.2em; margin: 0; accent-color: var(--ouro, #e0b85c); cursor: pointer; }
 #t20ah-vol-pop .vp-mudo {
   all: unset;
   cursor: pointer;
@@ -1409,7 +1409,89 @@ body.t20ah-chat-estilo .chat-message.t20ah-externo .t20ah-retrato-msg { display:
   width: 1.9em;
   height: 1.9em;
   border-radius: 50%;
-  color: #e0b85c;
-  border: 1px solid rgba(224, 184, 92, 0.4);
+  color: var(--ouro, #e0b85c);
+  border: 1px solid color-mix(in srgb, var(--ouro, #e0b85c) 40%, transparent);
 }
-#t20ah-vol-pop .vp-mudo:hover { background: rgba(224, 184, 92, 0.2); }
+#t20ah-vol-pop .vp-mudo:hover { background: color-mix(in srgb, var(--ouro, #e0b85c) 20%, transparent); }
+
+/* janela "Animações do dano e da cura" */
+.t20ah-anim-dialogo .t20ah-anim-topo { display: flex; gap: 0.5em; }
+.t20ah-anim-dialogo .t20ah-anim-topo button { flex: 1; }
+.t20ah-anim-dialogo .t20ah-anim-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.7em 0.8em; margin: 0.6em 0 0.2em; max-height: 62vh; overflow-y: auto; padding: 0.3em; }
+.t20ah-anim-dialogo .t20ah-anim-carta { display: flex; flex-direction: column; gap: 0.2em; padding: 0.4em 0.45em 0.5em; cursor: pointer; border: 1px solid rgba(128, 128, 128, 0.45); border-radius: 0.5em; opacity: 0.55; transition: opacity 0.15s, border-color 0.15s; }
+.t20ah-anim-dialogo .t20ah-anim-carta.on { opacity: 1; border-color: #e0b85c; box-shadow: 0 0 0 1px #e0b85c; }
+.t20ah-anim-dialogo .t20ah-anim-carta .pv-nome { display: flex; align-items: center; gap: 0.4em; font-weight: 600; }
+.t20ah-anim-dialogo .t20ah-anim-carta .pv {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  margin-top: 22px;
+  border: 1px solid #3a3d5c;
+  background: linear-gradient(180deg, #232846, #12152a);
+}
+.t20ah-anim-dialogo .t20ah-anim-carta .pv b { font: 700 22px/1 "Signika", system-ui, sans-serif; color: #fff; text-shadow: 0 0 4px #000, 0 1px 0 #000, 0 -1px 0 #000, 1px 0 0 #000, -1px 0 0 #000; }
+
+/* botão do mestre: liga/desliga o gasto de movimento */
+#t20ah .t20ah-mini[data-acao="limitarMov"].desligado { opacity: 0.55; }
+#t20ah .t20ah-mini[data-acao="limitarMov"] { position: relative; }
+#t20ah .t20ah-mini[data-acao="limitarMov"].desligado::after {
+  content: "";
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  top: 50%;
+  height: 2px;
+  background: currentColor;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+  transform: rotate(-40deg);
+  pointer-events: none;
+}
+
+/* painel "Visual da HUD" */
+#t20ah-visual-pop {
+  position: fixed;
+  z-index: 10000;
+  width: 17.5em;
+  padding: 0.7em 0.8em 0.8em;
+  font-size: 14px;
+  color: #f2e8d5;
+  background: linear-gradient(165deg, #1f1f22, #101012);
+  border: 1px solid rgba(224, 184, 92, 0.55);
+  border-radius: 0.8em;
+  box-shadow: 0 0.6em 1.6em rgba(0, 0, 0, 0.65);
+}
+#t20ah-visual-pop header { display: flex; align-items: center; gap: 0.5em; padding-bottom: 0.5em; margin-bottom: 0.5em; border-bottom: 1px solid rgba(224, 184, 92, 0.3); color: #e0b85c; }
+#t20ah-visual-pop header strong { flex: 1; font-family: "Modesto Condensed", "Signika", sans-serif; font-size: 1.15em; }
+#t20ah-visual-pop .vp-x { all: unset; cursor: pointer; width: 1.6em; height: 1.6em; display: grid; place-items: center; border-radius: 0.4em; color: #9a8a7a; }
+#t20ah-visual-pop .vp-x:hover { color: #f2e8d5; background: rgba(255, 255, 255, 0.08); }
+#t20ah-visual-pop .vp-temas { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.35em; margin-bottom: 0.6em; }
+#t20ah-visual-pop .vp-tema { all: unset; box-sizing: border-box; cursor: pointer; height: 2.2em; border-radius: 0.45em; border: 2px solid transparent; background: linear-gradient(165deg, var(--a), var(--b)); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15); }
+#t20ah-visual-pop .vp-tema span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+#t20ah-visual-pop .vp-tema.sel { border-color: #e0b85c; }
+#t20ah-visual-pop .vp-lin { display: grid; grid-template-columns: 5.2em 1fr 3em; align-items: center; gap: 0.4em; margin: 0.3em 0; font-size: 0.9em; }
+#t20ah-visual-pop .vp-lin input[type="range"] { width: 100%; margin: 0; accent-color: #e0b85c; }
+#t20ah-visual-pop .vp-lin input[type="color"] { grid-column: 2 / 4; width: 100%; height: 1.7em; padding: 0; border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 0.35em; background: none; cursor: pointer; }
+#t20ah-visual-pop .vp-lin output { text-align: right; color: #9a8a7a; font-variant-numeric: tabular-nums; }
+#t20ah-visual-pop footer { margin-top: 0.6em; }
+#t20ah-visual-pop footer button { all: unset; box-sizing: border-box; width: 100%; text-align: center; cursor: pointer; padding: 0.35em; border-radius: 0.45em; font-size: 0.85em; color: #9a8a7a; border: 1px solid rgba(255, 255, 255, 0.15); }
+#t20ah-visual-pop footer button:hover { color: #f2e8d5; border-color: #e0b85c; }
+
+/* menu do botão direito das mensagens compactas */
+#t20ah-menu-msg {
+  position: fixed;
+  z-index: 10001;
+  display: flex;
+  flex-direction: column;
+  min-width: 11em;
+  padding: 0.3em;
+  font-family: "Signika", sans-serif;
+  font-size: 14px;
+  background: linear-gradient(165deg, #1f1f22, #101012);
+  border: 1px solid rgba(224, 184, 92, 0.55);
+  border-radius: 0.6em;
+  box-shadow: 0 0.5em 1.4em rgba(0, 0, 0, 0.65);
+}
+#t20ah-menu-msg button { all: unset; cursor: pointer; display: flex; align-items: center; gap: 0.6em; padding: 0.45em 0.7em; border-radius: 0.4em; color: #f2e8d5; }
+#t20ah-menu-msg button:hover { background: rgba(224, 184, 92, 0.2); color: #fff; }
+#t20ah-menu-msg button i { width: 1.2em; text-align: center; color: #e0b85c; }

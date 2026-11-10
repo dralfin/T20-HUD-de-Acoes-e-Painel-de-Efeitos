@@ -5,8 +5,8 @@
    Os cards do próprio módulo (.t20ah-card-message) e as linhas de anúncio não são alteradas.
    ===================================================================================== */
 body.t20ah-chat-estilo {
-  --t20c-bg1: #1a1013;
-  --t20c-bg2: #2b1a1d;
+  --t20c-bg1: #101012;
+  --t20c-bg2: #1f1f22;
   --t20c-ouro: #e0b85c;
   --t20c-texto: #f2e8d5;
   --t20c-mudo: #9a8a7a;
@@ -416,7 +416,7 @@ body.t20ah-chat-estilo .chat-message .chat-card footer button { padding: 0.35em 
    então tudo que ele pinta com essas variáveis passa a usar a paleta escura do módulo e a cor do usuário.
    ===================================================================================== */
 body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) {
-  --t20a-chat-cor: color-mix(in srgb, var(--cor-user, #e0b85c) 40%, #1a1013) !important;
+  --t20a-chat-cor: color-mix(in srgb, var(--cor-user, #e0b85c) 40%, #121214) !important;
   --t20a-chat-texto: var(--t20c-texto) !important;
   --t20a-chat-texto-suave: var(--t20c-mudo) !important;
   --t20a-chat-sombra: none !important;
@@ -734,21 +734,17 @@ body.t20ah-chat-estilo .chat-card.t20ah-item .dice-total {
   background: linear-gradient(90deg, color-mix(in srgb, var(--ci) 30%, transparent), transparent 85%) !important;
   text-shadow: 0 0 0.45em color-mix(in srgb, var(--ci) 80%, transparent), 0 2px 0 #000 !important;
 }
-/* botões de aplicar: sempre visíveis (mesmo com a rolagem expandida) */
-body.t20ah-chat-estilo .chat-card.t20ah-item .roll .dice-btn { display: contents !important; visibility: visible !important; opacity: 1 !important; max-height: none !important; transform: none !important; }
-body.t20ah-chat-estilo .chat-card.t20ah-item .roll .dice-btn button {
-  display: flex !important;
+/* botões de aplicar: sempre visíveis (mesmo com a rolagem expandida), no estilo dos atalhos de condição */
+body.t20ah-chat-estilo .chat-message .chat-card .roll .dice-btn { visibility: visible !important; opacity: 1 !important; max-height: none !important; transform: none !important; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .roll .dice-btn { display: contents !important; }
+body.t20ah-chat-estilo .chat-message .chat-card .roll .dice-btn button {
+  display: inline-flex !important;
   align-items: center;
   justify-content: center;
   visibility: visible !important;
   opacity: 1 !important;
   position: static !important;
-  background: rgba(255, 255, 255, 0.06) !important;
-  border: 0 !important;
-  border-bottom: 2px solid color-mix(in srgb, var(--ci) 70%, transparent) !important;
-  border-radius: 0.3em !important;
 }
-body.t20ah-chat-estilo .chat-card.t20ah-item .roll .dice-btn button:hover { background: color-mix(in srgb, var(--ci) 28%, transparent) !important; }
 /* dados expandidos: linha por tipo de dano */
 body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .wrapper { padding: 0.3em 0 0; background: none; }
 body.t20ah-chat-estilo .chat-card.t20ah-item .dice-tooltip .part-header { display: flex; align-items: center; gap: 0.5em; padding: 0 0 0.25em; font-size: 0.82em; border-bottom: 1px solid rgba(255, 255, 255, 0.1); background: none !important; color: var(--t20c-texto); }
@@ -788,7 +784,7 @@ body.t20ah-chat-estilo .chat-card.t20ah-item .it-res {
 }
 body.t20ah-chat-estilo .chat-card.t20ah-item .it-res.ok { background: #2f9e5a; color: #fff; box-shadow: 0 0 0.6em #3fae6a; }
 body.t20ah-chat-estilo .chat-card.t20ah-item .it-res.erro { background: #c0392b; color: #fff; box-shadow: 0 0 0.6em #d64545; }
-body.t20ah-chat-estilo .chat-card.t20ah-item .it-res.crit { background: #e0b85c; color: #1a1013; box-shadow: 0 0 0.6em #ffd76a; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .it-res.crit { background: #e0b85c; color: #121214; box-shadow: 0 0 0.6em #ffd76a; }
 /* o banner grande some; fica só a linha pequena "vs alvo (Def N)" */
 body.t20ah-chat-estilo .chat-card.t20ah-item .t20-result-banner {
   display: block !important;
@@ -1283,7 +1279,7 @@ body.t20ah-chat-estilo .chat-message :is(.chat-card.t20ah-item, .t20ah-rolagem) 
 body.t20ah-chat-estilo .chat-message .dice-roll:has(> .dice-result > .dice-total[data-nat="crit"]) {
   filter: none;
 }
-body.t20ah-chat-estilo .chat-message :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-result .dice-total[data-nat="falha"] {
+body.t20ah-chat-estilo .chat-message .dice-result .dice-total[data-nat="falha"] {
   clip-path: polygon(0 0, 22% 0, 25% 9px, 31% 0, 100% 0, 100% 30%, calc(100% - 6px) 38%, 100% 52%, 100% 100%, 70% 100%, 66% calc(100% - 8px), 60% 100%, 12% 100%, 8px calc(100% - 7px), 0 82%, 5px 55%, 0 40%) !important;
   background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40' preserveAspectRatio='none'><polyline points='48,0 53,9 44,17 55,26 46,33 52,40' fill='none' stroke='%23050203' stroke-width='3' stroke-linejoin='bevel' vector-effect='non-scaling-stroke'/><polyline points='48,0 53,9 44,17 55,26 46,33 52,40' fill='none' stroke='%23ff6b5a' stroke-opacity='.55' stroke-width='1' vector-effect='non-scaling-stroke' transform='translate(-1 0)'/></svg>") center / 100% 100% no-repeat, linear-gradient(160deg, #5a1218 0%, #2a0709 60%, #170405 100%) !important;
   border: 0 !important;
@@ -1372,7 +1368,7 @@ body.t20ah-chat-estilo .chat-message .item-piles-chat-card ul li {
   margin: 0 !important;
   padding: 0.3em 0.6em !important;
   color: var(--t20c-texto, #f2e8d5) !important;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--cor-user, #d64545) 30%, #15100f), #15100f) !important;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--cor-user, #d64545) 30%, #131315), #131315) !important;
   border: 1px solid color-mix(in srgb, var(--cor-user, #d64545) 50%, transparent) !important;
   border-radius: 0.4em;
   box-shadow: none !important;
@@ -1411,7 +1407,7 @@ body.t20ah-chat-estilo .t20ah-cond .cd-corpo a.content-link {
   font-weight: 700;
   line-height: 1.35;
   color: color-mix(in srgb, var(--cc) 40%, #fff) !important;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--cc) 38%, #15100f), color-mix(in srgb, var(--cc) 12%, #15100f)) !important;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--cc) 38%, #131315), color-mix(in srgb, var(--cc) 12%, #131315)) !important;
   border: 0 !important;
   border-left: 3px solid var(--cc) !important;
   border-radius: 0.2em 0.45em 0.45em 0.2em;
@@ -1491,7 +1487,7 @@ body.t20ah-chat-estilo .chat-card.t20ah-item a.content-link {
   font-weight: 700;
   line-height: 1.35;
   color: color-mix(in srgb, var(--ci) 35%, #fff) !important;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--ci) 38%, #15100f), color-mix(in srgb, var(--ci) 12%, #15100f)) !important;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ci) 38%, #131315), color-mix(in srgb, var(--ci) 12%, #131315)) !important;
   border: 0 !important;
   border-left: 3px solid var(--ci) !important;
   border-radius: 0.2em 0.45em 0.45em 0.2em !important;
@@ -1527,7 +1523,7 @@ body.t20ah-chat-estilo .chat-message .chat-card :is(.dice-btn, footer) button {
 }
 body.t20ah-chat-estilo .chat-message .chat-card :is(.dice-btn, footer) button :is(i, svg, img) { color: color-mix(in srgb, var(--ci, #e0b85c) 55%, #fff); }
 body.t20ah-chat-estilo .chat-message .chat-card :is(.dice-btn, footer) button:hover {
-  background: color-mix(in srgb, var(--ci, #e0b85c) 30%, #15100f) !important;
+  background: color-mix(in srgb, var(--ci, #e0b85c) 30%, #131315) !important;
   border-color: var(--ci, #e0b85c) !important;
   filter: brightness(1.15);
 }
@@ -1547,7 +1543,7 @@ body.t20ah-chat-estilo .chat-message a.inline-roll.roll {
   white-space: nowrap;
   vertical-align: baseline;
   color: color-mix(in srgb, var(--ir) 35%, #fff) !important;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--ir) 36%, #15100f), color-mix(in srgb, var(--ir) 10%, #15100f)) !important;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ir) 36%, #131315), color-mix(in srgb, var(--ir) 10%, #131315)) !important;
   border: 0 !important;
   border-left: 3px solid var(--ir) !important;
   border-radius: 0.2em 0.5em 0.5em 0.2em !important;
@@ -1563,3 +1559,202 @@ body.t20ah-chat-estilo .chat-message a.inline-roll i {
   filter: drop-shadow(0 0 0.25em color-mix(in srgb, var(--ir) 60%, transparent));
 }
 body.t20ah-chat-estilo .chat-message a.inline-roll:hover { filter: brightness(1.25); transform: translateY(-1px); }
+
+/* animação de fogo atrás do valor do dano: o número fica por cima e continua legível */
+body.t20ah-chat-estilo .chat-message .dice-total.t20ah-anim {
+  color: #fff !important;
+  text-shadow: 0 0 0.35em #000, 0 0 0.12em #000, 0 2px 0 #000, 1px 0 0 #000, -1px 0 0 #000 !important;
+  background: linear-gradient(180deg, rgba(14, 14, 16, 0.94), rgba(30, 30, 34, 0.8)) !important;
+}
+.t20ah-anim > canvas { opacity: 0.85; mix-blend-mode: normal; }
+
+/* ---------- aviso de Teste de Morte / sustentação (outro módulo): card no estilo do módulo ---------- */
+body.t20ah-chat-estilo .chat-message .t20-sustain-prompt {
+  --cc: #d64545;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+  font-family: var(--t20c-fonte);
+  color: var(--t20c-texto) !important;
+  background: linear-gradient(165deg, color-mix(in srgb, var(--cc) 7%, var(--t20c-bg2)), var(--t20c-bg1)) !important;
+  border: 1px solid color-mix(in srgb, var(--cc) 65%, transparent) !important;
+  border-left: 4px solid var(--cc) !important;
+  border-radius: 0.7em !important;
+  box-shadow: 0 0.3em 0.9em rgba(0, 0, 0, 0.45) !important;
+}
+body.t20ah-chat-estilo .chat-message .t20-sustain-prompt * { text-shadow: none !important; }
+body.t20ah-chat-estilo .chat-message .t20-sustain-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin: 0 !important;
+  padding: 0.55em 0.8em !important;
+  font-family: var(--t20c-titulo);
+  font-size: 1.25em;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+  color: var(--t20c-ouro) !important;
+  opacity: 1 !important;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--cc) 34%, transparent), transparent 85%) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--cc) 55%, transparent);
+}
+body.t20ah-chat-estilo .chat-message .t20-sustain-title i {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.9em;
+  height: 1.9em;
+  font-size: 0.85em;
+  color: #fff;
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--cc) 80%, #fff), color-mix(in srgb, var(--cc) 60%, #000));
+  border: 1px solid color-mix(in srgb, var(--cc) 70%, #fff);
+  border-radius: 0.45em;
+}
+body.t20ah-chat-estilo .chat-message .t20-sustain-body {
+  padding: 0.55em 0.9em 0.3em !important;
+  font-size: 0.95em;
+  line-height: 1.45;
+  color: var(--t20c-texto) !important;
+  opacity: 1 !important;
+}
+body.t20ah-chat-estilo .chat-message .t20-sustain-body b { color: var(--t20c-ouro) !important; font-weight: 700; opacity: 1 !important; }
+body.t20ah-chat-estilo .chat-message .t20-sustain-actions { padding: 0.4em 0.8em 0.7em !important; display: flex; gap: 0.4em; }
+body.t20ah-chat-estilo .chat-message .t20-sustain-actions button {
+  flex: 1;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  min-height: 2.3em;
+  padding: 0.3em 0.8em !important;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #f2e8d5 !important;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--cc) 40%, #131315), color-mix(in srgb, var(--cc) 14%, #131315)) !important;
+  border: 0 !important;
+  border-left: 3px solid var(--cc) !important;
+  border-radius: 0.25em 0.5em 0.5em 0.25em !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  transition: filter 0.12s, transform 0.12s;
+}
+body.t20ah-chat-estilo .chat-message .t20-sustain-actions button i { color: color-mix(in srgb, var(--cc) 55%, #fff); }
+body.t20ah-chat-estilo .chat-message .t20-sustain-actions button:hover { filter: brightness(1.25); transform: translateY(-1px); }
+
+/* variações do aviso: cada um com a cor da sua condição; botões de sim/não lado a lado e que quebram se faltar espaço */
+body.t20ah-chat-estilo .chat-message .t20-em-chamas-prompt { --cc: #f08a24; }
+body.t20ah-chat-estilo .chat-message .t20-sangrando-prompt { --cc: #d64545; }
+body.t20ah-chat-estilo .chat-message .t20-sustain-actions { flex-wrap: wrap; }
+body.t20ah-chat-estilo .chat-message .t20-sustain-actions button { flex: 1 1 9em; text-align: center; }
+body.t20ah-chat-estilo .chat-message .t20-sustain-actions button.sustain-no {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03)) !important;
+  border-left-color: color-mix(in srgb, var(--cc) 45%, #888) !important;
+}
+body.t20ah-chat-estilo .chat-message .t20-sustain-actions button.sustain-no i { color: #c9bfae; }
+
+/* os avisos (Teste de Morte, Em Chamas...) são um card único, sem moldura nem cabeçalho de mensagem em volta */
+body.t20ah-chat-estilo .chat-message:has(.t20-sustain-prompt) {
+  background: transparent !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0.35rem 0 !important;
+}
+body.t20ah-chat-estilo .chat-message:has(.t20-sustain-prompt) > .message-header { display: none !important; }
+body.t20ah-chat-estilo .chat-message:has(.t20-sustain-prompt) .message-content {
+  padding: 0 !important;
+  margin: 0 !important;
+  background: none !important;
+  border: 0 !important;
+}
+
+/* vários tipos de dano: uma faixa de animação por tipo, lado a lado, atrás do valor */
+.t20ah-anim-faixas { position: absolute; inset: 0; z-index: -1; display: flex; pointer-events: none; }
+.t20ah-anim-faixa { position: relative; flex: 1 1 0; min-width: 0; isolation: isolate; }
+
+/* ---------- marcador de rodada: faixa fina com linhas e losangos ---------- */
+body.t20ah-chat-estilo .chat-message.round-marker {
+  background: transparent !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0.45rem 0 !important;
+  min-height: 0;
+}
+body.t20ah-chat-estilo .chat-message.round-marker .message-content { display: none !important; }
+body.t20ah-chat-estilo .chat-message.round-marker > .message-header {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7em;
+  margin: 0 !important;
+  padding: 0.1em 0.3em !important;
+  background: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  position: relative;
+}
+body.t20ah-chat-estilo .chat-message.round-marker > .message-header > :not(.flavor-text) { display: none !important; }
+body.t20ah-chat-estilo .chat-message.round-marker .flavor-text {
+  order: 0;
+  flex: 1 1 auto;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7em;
+  margin: 0 !important;
+  font-family: var(--t20c-titulo);
+  font-size: 1.05em;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--t20c-ouro) !important;
+  text-shadow: 0 0 0.6em color-mix(in srgb, var(--t20c-ouro) 45%, transparent) !important;
+}
+body.t20ah-chat-estilo .chat-message.round-marker .flavor-text::before,
+body.t20ah-chat-estilo .chat-message.round-marker .flavor-text::after {
+  content: "";
+  flex: 1 1 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--t20c-ouro) 75%, transparent));
+}
+body.t20ah-chat-estilo .chat-message.round-marker .flavor-text::after { background: linear-gradient(270deg, transparent, color-mix(in srgb, var(--t20c-ouro) 75%, transparent)); }
+
+/* melhorias do item: discretas, só o losango e o texto (sem fundo nem borda) */
+body.t20ah-chat-estilo .chat-card.t20ah-item .card-upgrades li {
+  background: none !important;
+  border: 0 !important;
+  border-left: 0 !important;
+  border-radius: 0 !important;
+  padding: 0.05em 0.3em 0.05em 0.1em;
+  font-weight: 600;
+  color: var(--t20c-texto) !important;
+}
+
+/* mensagens compactas de outros módulos: mantêm o clique do mouse ativo (menu do botão direito) */
+.chat-message[class*="tiny-monitor"], .chat-message[class*="tiny-monitor"] * { pointer-events: auto; }
+
+/* botões de gasto de PM (e demais botões dos cards): mesmo estilo dos atalhos de condição, sempre visíveis */
+body.t20ah-chat-estilo .chat-message .chat-card :is(button, a.button, .pm-btn, [data-action*="pm" i], [data-action*="mana" i], [class*="gasto" i], [class*="spend" i]):not(.apply-dmg):not(.t20ah-desfazer) {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35em;
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: #f2e8d5 !important;
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.4) !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
+  border-radius: 0.4em !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+  text-shadow: none !important;
+  transition: filter 0.12s, border-color 0.12s, background 0.12s;
+}
+body.t20ah-chat-estilo .chat-message .chat-card :is(button, a.button, .pm-btn, [data-action*="pm" i], [data-action*="mana" i], [class*="gasto" i], [class*="spend" i]):not(.apply-dmg):not(.t20ah-desfazer):hover {
+  background: color-mix(in srgb, var(--ci, #e0b85c) 30%, #131315) !important;
+  border-color: var(--ci, #e0b85c) !important;
+  filter: brightness(1.15);
+}

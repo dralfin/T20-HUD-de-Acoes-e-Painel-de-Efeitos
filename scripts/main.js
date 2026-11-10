@@ -586,7 +586,11 @@ class AcoesHUD {
       else if (b.dataset.tipo) this.usar(b.dataset.tipo, "gastar");
       else if (b.dataset.acao === "reset") this.reiniciar();
       else if (b.dataset.acao === "passar") this.passarTurno();
+      else if (b.dataset.acao === "visual") abrirVisualHud(b);
       else if (b.dataset.acao === "tempo") this.definirTempo();
+      else if (b.dataset.acao === "limitarMov") {
+        if (game.user.isGM) game.settings.set(ID, "gastoMovimentoMestre", !cfg("gastoMovimentoMestre"));
+      }
       else if (b.dataset.acao === "som") this.alternarVolume(b);
       else if (b.dataset.acao === "recolher")
         game.settings.set(ID, "recolhido", !game.settings.get(ID, "recolhido"));
@@ -645,8 +649,9 @@ class AcoesHUD {
     return `<span class="pip ${classe}"></span>`;
   }
 
-  static tile(tipo, icone, rotulo, dica, { gasto, ativa = false, pips }) {
-    const desfazer = gasto || String(pips).includes("pip on");
+  static tile(tipo, icone, rotulo, dica, { gasto, ativa = false, pips, semDesfazer = false }) {
+    // a Completa mostra pips das outras ações; só ganha o botão se ela mesma foi gasta
+    const desfazer = !semDesfazer && (tipo === "completa" ? !!ativa : gasto || String(pips).includes("pip on"));
     // o botão de desfazer fica FORA do <button> do tile (controle dentro de botão perde o clique em alguns navegadores)
     return `
       <div class="t20ah-celula">
@@ -1209,7 +1214,7 @@ class AcoesHUD {
     let btnsTurno = "";
     if (turno) {
       const e = getEstado(c);
-      const limitar = cfg("limitarMovimento");
+      const limitar = cfg("limitarMovimento") && (!game.user.isGM || cfg("gastoMovimentoMestre") || cfg("regrasParaMestre"));
       const porAcao = quadradosPorAcao(actor);
       const extra = temExtra(actor);
       const capQuad = e.corrida ? e.corrida.max : maxMovimentos(e, extra) * porAcao;
@@ -1236,10 +1241,12 @@ class AcoesHUD {
       const tiles = [
         this.tile("padrao", "fa-hand-fist", "Padrão", "Clique: gastar • Botão direito: devolver", {
           gasto: e.std,
+          semDesfazer: !!e.full, // com a Completa gasta, o desfazer é o dela
           pips: this.pip(e.std ? "on" : "")
         }),
         this.tile("movimento", "fa-person-running", "Movimento", "Clique: gastar (2ª vez troca a padrão) • Botão direito: devolver", {
           gasto: e.mov && e.std,
+          semDesfazer: !!e.full,
           pips: this.pip(e.mov ? "on" : "") + this.pip(e.conv ? "on" : e.std ? "bloq" : "")
         }),
         this.tile("completa", "fa-burst", "Completa", "Gasta padrão + movimento • Botão direito: devolver", {
@@ -1294,6 +1301,8 @@ class AcoesHUD {
         <span class="t20ah-resumo"><span class="t20ah-resumo-rec">${resumoRec}</span>${resumoAcoes}</span>
         ${btnsTurno}
         ${game.user.isGM ? `<button type="button" class="t20ah-mini" data-acao="tempo" title="Definir o limite de tempo do turno${Number(cfg("tempoMaximo")) > 0 ? ` (atual: ${Number(cfg("tempoMaximo"))} s)` : " (atual: sem limite)"}"><i class="fa-solid fa-stopwatch"></i></button>` : ""}
+        ${game.user.isGM ? `<button type="button" class="t20ah-mini ${cfg("gastoMovimentoMestre") ? "" : "desligado"}" data-acao="limitarMov" title="${cfg("gastoMovimentoMestre") ? "Seu movimento GASTA ações (como o dos jogadores). Clique para mover livremente." : "Você move livremente (sem gasto de movimento). Clique para passar a gastar ações."}"><i class="fa-solid fa-shoe-prints"></i></button>` : ""}
+        <button type="button" class="t20ah-mini" data-acao="visual" title="Editar o visual da HUD"><i class="fa-solid fa-sliders"></i></button>
         <button type="button" class="t20ah-mini recolher" data-acao="recolher" title="Recolher / expandir"><i class="fa-solid fa-chevron-up"></i></button>
       </header>`;
     const esq = `
@@ -1688,7 +1697,26 @@ function listarPericias(actor) {
  * Rola a perícia pela rotina da própria ficha do Tormenta20 (com o diálogo e os efeitos de uso do sistema).
  * Retorna { roll, mensagem } ou null se o teste foi cancelado ou não pôde ser lido.
  */
-async function rolarPericiaNativa(actor, chave) {
+async function rolarPericiaNativa(actor, chave, { privada = false } = {}) {
+  // privada: a rolagem da ficha sai só para o Mestre (modo "cega"), como o teste de morte do Golpe de Misericórdia
+  let modoAntes = null;
+  if (privada) {
+    try {
+      modoAntes = game.settings.get("core", "rollMode");
+      await game.settings.set("core", "rollMode", CONST.DICE_ROLL_MODES?.BLIND ?? "blindroll");
+    } catch (err) {
+      modoAntes = null;
+    }
+  }
+  try {
+    return await rolarPericiaNativaInterna(actor, chave);
+  } finally {
+    if (modoAntes !== null) {
+      try { await game.settings.set("core", "rollMode", modoAntes); } catch (err) { /* ignora */ }
+    }
+  }
+}
+async function rolarPericiaNativaInterna(actor, chave) {
   const fn = ["rollPericia", "rollSkill"].map((m) => actor?.[m]).find((f) => typeof f === "function");
   if (!fn) {
     ui.notifications.error("Não encontrei a rolagem de perícias na ficha deste personagem.");
@@ -1765,6 +1793,7 @@ async function resolverFinta(d) {
   if (!ator) return { cancelado: true };
 
   const k = await MenuAcoes.escolherPericia(ator, {
+    cor: "#ff6b6b",
     padrao: "refl",
     titulo: `Reflexos · ${ator.name}`,
     subtitulo: `Teste oposto à finta de ${d.nomeFeinter}`,
@@ -1773,7 +1802,7 @@ async function resolverFinta(d) {
     obrigatorio: true
   });
   const chave = k ?? "refl";
-  const rf = await rolarPericiaNativa(ator, chave);
+  const rf = await rolarPericiaNativa(ator, chave, { privada: true });
   if (!rf) return { cancelado: true };
 
   const alvoTotal = Number(rf.roll.total);
@@ -1988,7 +2017,7 @@ class MenuAcoes {
       };
       ov.innerHTML = `
         <div class="ec-fundo"></div>
-        <div class="ec-janela">
+        <div class="ec-janela" style="--cor:#e0b85c">
           <header>
             <i class="fa-solid fa-burst"></i>
             <div><small>Ação Completa</small><strong>Golpe de Misericórdia</strong></div>
@@ -2165,7 +2194,7 @@ class MenuAcoes {
       };
       ov.innerHTML = `
         <div class="ec-fundo"></div>
-        <div class="ec-janela">
+        <div class="ec-janela" style="--cor:#ff6b6b">
           <header>
             <i class="fa-solid fa-masks-theater"></i>
             <div><small>${gm && nomeFeinter ? `Finta de ${esc(nomeFeinter)}` : "Ação Padrão"}</small><strong>Fintar</strong></div>
@@ -2249,7 +2278,7 @@ class MenuAcoes {
   static async fintar(alvo, escolha, chave) {
     const actor = alvo.actor;
     const nome = alvo.doc.name ?? actor.name;
-    const teste = await rolarPericiaNativa(actor, chave);
+    const teste = await rolarPericiaNativa(actor, chave, { privada: true });
     if (!teste) return null;
     const meuTotal = Number(teste.roll.total);
     const meuNomePericia = listarPericias(actor).find((p) => p.chave === chave)?.nome ?? NOMES_PERICIAS[chave] ?? chave;
@@ -2300,7 +2329,31 @@ class MenuAcoes {
     } else if (r.veredito === "empate") {
       linhas.push(`<div class="tc-nota">Empate nos totais e nos bônus: o Mestre decide ou os dois rolam de novo.</div>`);
     }
-    return { html: `<div class="tc-bloco">${linhas.join("")}</div>`, rolls: [] };
+    // o resultado vai só para o Mestre (mensagem privada, como o teste de morte do Golpe de Misericórdia)
+    const destinatarios = game.users.filter((u) => u.isGM).map((u) => u.id);
+    if (destinatarios.length) {
+      const cardMestre = `
+        <div class="t20ah-card t20ah-misericordia-gm" style="--cor:#ff6b6b">
+          <div class="tc-topo">
+            <i class="fa-solid fa-masks-theater tc-ico"></i>
+            <div class="tc-tit"><small>Fintar · Privado</small><strong>Enganação × Reflexos</strong></div>
+          </div>
+          <div class="tc-desc"><div class="tc-bloco">${linhas.join("")}</div></div>
+        </div>`;
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ token: alvo.doc }),
+        content: cardMestre,
+        whisper: destinatarios,
+        blind: true,
+        flags: { [ID]: { card: true, fintaGM: true } }
+      });
+    } else {
+      ui.notifications.warn("Não há nenhum Mestre disponível para receber o resultado privado da Finta.");
+    }
+    return {
+      html: `<div class="tc-bloco"><div class="tc-linha"><i class="fa-solid fa-eye-slash"></i><span>O resultado da Finta foi enviado em privado ao Mestre.</span></div></div>`,
+      rolls: []
+    };
   }
 
   /**
@@ -2319,7 +2372,7 @@ class MenuAcoes {
       ov.id = "t20ah-escolha";
       ov.innerHTML = `
         <div class="ec-fundo"></div>
-        <div class="ec-janela">
+        <div class="ec-janela" style="--cor:#6fd08c">
           <header>
             <i class="fa-solid fa-hourglass-half"></i>
             <div><small>Ação Livre</small><strong>Atrasar</strong></div>
@@ -2387,7 +2440,7 @@ class MenuAcoes {
    * Janela para escolher a perícia de um teste. A perícia padrão fica marcada (e selecionada de início).
    * Retorna a chave da perícia ou null se cancelou (não cancela se `obrigatorio`).
    */
-  static escolherPericia(actor, { padrao, titulo, subtitulo = "Teste", texto = "", icone = "fa-dice-d20", obrigatorio = false }) {
+  static escolherPericia(actor, { padrao, titulo, subtitulo = "Teste", texto = "", icone = "fa-dice-d20", obrigatorio = false, cor = "" }) {
     return new Promise((resolve) => {
       const lista = listarPericias(actor);
       let sel = lista.some((p) => p.chave === padrao) ? padrao : lista[0]?.chave;
@@ -2396,7 +2449,7 @@ class MenuAcoes {
       const fmtB = (n) => (n === null ? "" : `${n < 0 ? "−" : "+"}${Math.abs(n)}`);
       ov.innerHTML = `
         <div class="ec-fundo"></div>
-        <div class="ec-janela ec-larga">
+        <div class="ec-janela ec-larga"${cor ? ` style="--cor:${cor}"` : ""}>
           <header>
             <i class="fa-solid ${icone}"></i>
             <div><small>${esc(subtitulo)}</small><strong>${esc(titulo)}</strong></div>
@@ -2614,6 +2667,7 @@ class MenuAcoes {
       else escolhaFinta = await this.escolherAlvoFinta(alvo.doc);
       if (!escolhaFinta) return; // cancelou: nada é gasto
       periciaFinta = await this.escolherPericia(alvo.actor, {
+        cor: "#ff6b6b",
         padrao: "enga",
         titulo: "Fintar",
         subtitulo: "Ação Padrão · escolha a perícia",
@@ -2949,6 +3003,41 @@ Hooks.once("init", () => {
     default: true,
     onChange: () => aplicarEstiloChat()
   });
+  game.settings.register(ID, "animacoesDano", {
+    scope: "client",
+    config: false,
+    type: Object,
+    default: {}
+  });
+  class MenuAnimacoesDano extends foundry.applications.api.ApplicationV2 {
+    async render() {
+      abrirAnimacoesDano();
+      return this;
+    }
+  }
+  game.settings.registerMenu(ID, "menuAnimacoesDano", {
+    name: "Animações do dano e da cura",
+    label: "Escolher animações",
+    hint: "Abre a lista de efeitos animados atrás do valor do dano e da cura nos cards: ative um por um, ou todos de uma vez. Vale só para você.",
+    icon: "fa-solid fa-fire",
+    type: MenuAnimacoesDano,
+    restricted: false
+  });
+  game.settings.register(ID, "animarDanoTodos", {
+    name: "Animar todos os tipos de dano do card",
+    hint: "Quando a rolagem mistura tipos de dano (ex.: corte + fogo), mostra o efeito de cada tipo lado a lado atrás do valor. Desligado, só anima rolagens de um único tipo. Vale só para você.",
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: false
+  });
+  game.settings.register(ID, "visualHud", {
+    scope: "client",
+    config: false,
+    type: Object,
+    default: {},
+    onChange: () => aplicarVisualHud()
+  });
   game.settings.register(ID, "escala", {
     name: "Tamanho da HUD",
     hint: "Ajusta a escala da HUD.",
@@ -2983,6 +3072,15 @@ Hooks.once("init", () => {
     config: true,
     type: Boolean,
     default: true
+  });
+  game.settings.register(ID, "gastoMovimentoMestre", {
+    name: "Gastar movimento também do Mestre",
+    hint: "Só vale para o Mestre (cada Mestre escolhe o seu): quando ligado, o movimento dos tokens movidos por você em combate é medido e gasta ações de movimento, como o dos jogadores. Desligado, você move livremente. Também pode ser alternado pelo botão de pegadas no topo da HUD.",
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: false,
+    onChange: () => AcoesHUD.render()
   });
   game.settings.register(ID, "regrasParaMestre", {
     name: "Aplicar as regras também ao Mestre (teste)",
@@ -3096,9 +3194,9 @@ Hooks.once("init", () => {
 /* ---------- Organização da janela de configurações ---------- */
 
 const GRUPOS_CONFIG = [
-  ["Chat e cards", "fa-comments", ["estiloChat", "estiloChatLocal", "cardAcoes", "anunciarChat"]],
+  ["Chat e cards", "fa-comments", ["estiloChat", "estiloChatLocal", "animarDanoTodos", "cardAcoes", "anunciarChat"]],
   ["HUD", "fa-id-card", ["mostrarGM", "imagem", "layoutCombate", "menuAcoes", "escala"]],
-  ["Combate e regras", "fa-swords", ["limitarMovimento", "bloquearForaDoTurno", "gastarPorItem", "deslocamentoPadrao", "metrosPorQuadrado", "regrasParaMestre"]],
+  ["Combate e regras", "fa-swords", ["limitarMovimento", "gastoMovimentoMestre", "bloquearForaDoTurno", "gastarPorItem", "deslocamentoPadrao", "metrosPorQuadrado", "regrasParaMestre"]],
   ["Tempo do turno e som", "fa-hourglass-half", ["tempoMaximo", "passarAoFim", "somArquivo", "somVolume", "somQuemOuve"]],
   ["Painel de Efeitos (Mestre)", "fa-wand-sparkles", ["painelEfeitos"]],
   ["Avançado", "fa-gear", ["debug"]]
@@ -3300,7 +3398,7 @@ const quadradosDe = (doc, unidades) => unidades / (doc.parent?.grid?.distance ||
 /** Combate e combatente que se aplicam a este movimento (ou null se o token está livre). */
 function contextoMovimento(doc) {
   if (!cfg("limitarMovimento")) return null;
-  if (game.user.isGM && !cfg("regrasParaMestre")) return null;
+  if (game.user.isGM && !cfg("regrasParaMestre") && !cfg("gastoMovimentoMestre")) return null;
   const combat = game.combat;
   if (!combat?.started) return null;
   const c = combat.combatants.find((x) => x.tokenId === doc.id);
@@ -4071,8 +4169,8 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
         if (!/^dano/i.test(titulo) && !/dano/i.test(roll.dataset.rollTitle ?? "")) continue;
         row.dataset.t20ahTipo = "1";
         const tipos = tiposDaRolagem(roll);
-        if (tipos.some((t) => /cura/i.test(t)) || /cura/i.test(titulo)) row.textContent = "Cura";
-        else if (tipos.length) row.textContent = `${titulo} ${tipos.join(" + ")}`;
+        if (tipos.some((t) => /(cura|recupera\w*)\s*(de\s*)?-?\s*(pm|mana)/i.test(t.normalize("NFD").replace(/[\u0300-\u036f]/g, "")))) row.textContent = "Recuperação de mana";
+        else if (tipos.some((t) => /cura|recupera/i.test(t)) || /cura/i.test(titulo)) row.textContent = "Cura";
       }
     }
   });
@@ -4181,7 +4279,8 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
 function marcarNatural(roll) {
   const total = roll?.querySelector?.(".dice-total");
   if (!total) return;
-  const d20 = [...roll.querySelectorAll(".dice-tooltip li.roll.die.d20, .dice-tooltip .dice-rolls li.d20")];
+  // só contam os d20 que valem (descartados, como o menor de 2d20kh, ficam de fora)
+  const d20 = [...roll.querySelectorAll(".dice-tooltip li.roll.die.d20, .dice-tooltip .dice-rolls li.d20")].filter((li) => !li.classList.contains("discarded") && !li.classList.contains("dropped"));
   const unicos = [...new Set(d20)];
   let nat = null;
   if (unicos.length === 1) {
@@ -4196,8 +4295,8 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
   Hooks.on(hook, (message, html) => {
     const element = html?.[0] ?? html;
     if (!element?.querySelectorAll) return;
-    for (const card of element.querySelectorAll(".message-content .chat-card.t20ah-item")) marcarNatural(rolagemDeAtaque(card));
-    for (const r of element.querySelectorAll(".t20ah-rolagem .dice-roll")) marcarNatural(r);
+    // todo d20 que sai 1 é erro crítico, em qualquer rolagem do chat (ataque, perícia, teste, rolagem avulsa)
+    for (const r of element.querySelectorAll(".message-content .dice-roll")) marcarNatural(r);
   });
 }
 
@@ -4408,3 +4507,340 @@ function limparRolagens(element) {
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
   Hooks.on(hook, (message, html) => limparRolagens(html?.[0] ?? html));
 }
+
+/* ---------- dados do mesmo tipo juntos ----------
+   Quando uma habilidade rola mais dados do mesmo tipo de dano/cura (ex.: 1d8 + 2d8, ambos "Cura"),
+   o Foundry mostra um grupo por rolagem. Aqui eles viram um grupo só: dados lado a lado e subtotal somado. */
+function juntarGruposIguais(element) {
+  if (!element?.querySelectorAll) return;
+  for (const wrap of element.querySelectorAll(".dice-tooltip .wrapper")) {
+    if (wrap.dataset.t20ahJunto) continue;
+    wrap.dataset.t20ahJunto = "1";
+    const grupos = new Map();
+    for (const parte of wrap.querySelectorAll(":scope > .tooltip-part")) {
+      const flavor = parte.querySelector(".part-flavor")?.textContent.replace(/\s+/g, " ").trim().toLowerCase() ?? "";
+      if (!grupos.has(flavor)) grupos.set(flavor, []);
+      grupos.get(flavor).push(parte);
+    }
+    for (const lista of grupos.values()) {
+      if (lista.length < 2) continue;
+      const [primeira, ...resto] = lista;
+      const rolls = primeira.querySelector(".dice-rolls");
+      if (!rolls) continue;
+      let total = 0;
+      const somaTotal = (p) => {
+        const n = Number((p.querySelector(".part-total")?.textContent ?? "").replace(/[^\d-]/g, ""));
+        return Number.isFinite(n) ? n : 0;
+      };
+      total += somaTotal(primeira);
+      const formulas = [primeira.querySelector(".part-formula")?.textContent.trim() ?? ""];
+      for (const p of resto) {
+        total += somaTotal(p);
+        formulas.push(p.querySelector(".part-formula")?.textContent.trim() ?? "");
+        for (const li of [...(p.querySelector(".dice-rolls")?.children ?? [])]) rolls.append(li);
+        p.remove();
+      }
+      const ms = formulas.map((f) => /^(\d+)d(\d+)$/i.exec(f));
+      const fp = primeira.querySelector(".part-formula");
+      if (fp) {
+        fp.textContent = ms.every((m) => m && m[2] === ms[0][2])
+          ? `${ms.reduce((a, m) => a + Number(m[1]), 0)}d${ms[0][2]}`
+          : formulas.filter(Boolean).join(" + ");
+      }
+      const ft = primeira.querySelector(".part-total");
+      if (ft) ft.textContent = String(total);
+      // com mais de um dado, o subtotal volta a aparecer
+      primeira.querySelector(".dice-roll, .dice")?.classList.remove("um-dado");
+    }
+  }
+}
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  Hooks.on(hook, (message, html) => juntarGruposIguais(html?.[0] ?? html));
+}
+
+
+/* ---------- animação do dano e da cura nos cards ----------
+   Quando todo o dano (ou cura) da rolagem é de um único tipo, uma animação em pixel art roda atrás do valor
+   (o número fica por cima). Efeitos em scripts/dano-fx.js. */
+const ANIM_TIPOS = [
+  ["fire", "Fogo"], ["acid", "Ácido"], ["lightning", "Eletricidade"], ["force", "Essência"], ["cold", "Frio"],
+  ["radiant", "Luz"], ["psychic", "Psíquico"], ["necrotic", "Trevas"], ["slashing", "Corte"], ["piercing", "Perfuração"],
+  ["bludgeoning", "Impacto"], ["heal", "Cura de PV"], ["manaheal", "Recuperação de mana"], ["drain", "Perda de vida"]
+];
+/** Efeitos ligados para este usuário (por padrão, todos). */
+function animacoesAtivas() {
+  const cfgAtual = game.settings.get(ID, "animacoesDano") ?? {};
+  return new Set(ANIM_TIPOS.map(([k]) => k).filter((k) => cfgAtual[k] !== false));
+}
+async function abrirAnimacoesDano() {
+  const ativas = animacoesAtivas();
+  let fx = null;
+  try { fx = await import("./dano-fx.js"); } catch (err) { /* sem pré-visualização */ }
+  const cartas = ANIM_TIPOS.map(([k, nome]) => `
+    <label class="t20ah-anim-carta ${ativas.has(k) ? "on" : ""}">
+      <span class="pv-nome"><input type="checkbox" name="${k}" ${ativas.has(k) ? "checked" : ""}> ${nome}</span>
+      <span class="pv" data-fx="${k}"><b>31</b></span>
+    </label>`).join("");
+  const conteudo = `
+    <div class="t20ah-anim-topo">
+      <button type="button" data-todos="1"><i class="fa-solid fa-check-double"></i> Ativar todos</button>
+      <button type="button" data-todos="0"><i class="fa-solid fa-ban"></i> Desativar todos</button>
+    </div>
+    <div class="t20ah-anim-lista">${cartas}</div>`;
+  const montados = [];
+  try {
+    const r = await foundry.applications.api.DialogV2.prompt({
+      window: { title: "Animações do dano e da cura" },
+      classes: ["t20ah-anim-dialogo"],
+      position: { width: 640 },
+      content: conteudo,
+      render: (ev, dialog) => {
+        const raiz = dialog.element ?? ev.target?.element ?? ev.target;
+        raiz.querySelectorAll("[data-todos]").forEach((b) =>
+          b.addEventListener("click", () => raiz.querySelectorAll('.t20ah-anim-lista input[type="checkbox"]').forEach((c) => {
+            c.checked = b.dataset.todos === "1";
+            c.closest(".t20ah-anim-carta")?.classList.toggle("on", c.checked);
+          }))
+        );
+        raiz.querySelectorAll('.t20ah-anim-lista input[type="checkbox"]').forEach((c) =>
+          c.addEventListener("change", () => c.closest(".t20ah-anim-carta")?.classList.toggle("on", c.checked))
+        );
+        if (!fx) return;
+        // pré-visualização: o mesmo efeito do chat, numa caixa de dano de exemplo
+        raiz.querySelectorAll(".pv[data-fx]").forEach((pv) => {
+          try { montados.push(fx.mountFx(pv, pv.dataset.fx, { pixel: 2, rise: 14, intensity: 0.95 })); } catch (err) { /* ignora */ }
+        });
+      },
+      ok: {
+        label: "Salvar",
+        callback: (ev, btn) => Object.fromEntries(ANIM_TIPOS.map(([k]) => [k, !!btn.form.elements[k]?.checked]))
+      }
+    });
+    if (r) await game.settings.set(ID, "animacoesDano", r);
+  } catch (err) {
+    /* cancelado */
+  } finally {
+    montados.forEach((m) => m.destroy());
+  }
+}
+function chaveEfeito(tipo, resolver) {
+  const k = String(tipo).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+  if (/^cura\s*(de\s*)?(pm|mana)|^recuperacao.*(pm|mana)|^mana$/.test(k)) return "manaheal";
+  if (/^perda\s*(de\s*)?(pv|vida)/.test(k)) return "drain";
+  if (/^cura/.test(k)) return "heal";
+  return resolver(k);
+}
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  Hooks.on(hook, async (message, html) => {
+    const ativas = animacoesAtivas();
+    if (!ativas.size) return;
+    const element = html?.[0] ?? html;
+    const rolagens = element?.querySelectorAll?.(".message-content .dice-roll") ?? [];
+    if (!rolagens.length) return;
+    let fx;
+    for (const dr of rolagens) {
+      const total = dr.querySelector(".dice-total");
+      if (!total || total.dataset.t20ahAnim) continue;
+      const tipos = tiposDaRolagem(dr);
+      if (!tipos.length) continue; // sem tipo de dano associado (ex.: perícia): nada a animar
+      try {
+        fx ??= await import("./dano-fx.js");
+        const chaves = [...new Set(tipos.map((t) => chaveEfeito(t, fx.resolveName)))];
+        const validas = chaves.filter((c) => c && ativas.has(c));
+        const opcoes = { pixel: 2, rise: 12, intensity: 0.95 };
+        if (chaves.length === 1 && validas.length === 1) {
+          total.dataset.t20ahAnim = "1";
+          total.classList.add("t20ah-anim");
+          fx.mountFx(total, validas[0], opcoes);
+        } else if (chaves.length > 1 && validas.length && cfg("animarDanoTodos")) {
+          // vários tipos na mesma rolagem: cada tipo ocupa uma faixa do valor, lado a lado
+          total.dataset.t20ahAnim = "1";
+          total.classList.add("t20ah-anim", "t20ah-anim-multi");
+          if (getComputedStyle(total).position === "static") total.style.position = "relative";
+          total.style.isolation = "isolate";
+          const caixa = document.createElement("div");
+          caixa.className = "t20ah-anim-faixas";
+          validas.forEach((k) => {
+            const faixa = document.createElement("div");
+            faixa.className = "t20ah-anim-faixa";
+            caixa.append(faixa);
+            fx.mountFx(faixa, k, opcoes);
+          });
+          total.append(caixa);
+        }
+      } catch (err) {
+        console.warn(`${ID} | animação do dano indisponível`, err);
+      }
+    }
+  });
+}
+
+/* ---------- rolagens em linha com tipo de dano ----------
+   Em textos como "sofre [1d6] pontos de dano de fogo", a rolagem em linha não leva o tipo. Aqui o tipo lido do texto
+   entra na fórmula ("1d6[fogo]"), assim a rolagem sai com o tipo associado (etiqueta e animação do dano). */
+const TIPOS_TEXTO = /(fogo|[aá]cido|eletricidade|ess[eê]ncia|frio|luz|ps[ií]quico|trevas|corte|perfura[cç][aã]o|impacto)/i;
+function associarTipoRolagemEmLinha(element) {
+  if (!element?.querySelectorAll) return;
+  for (const a of element.querySelectorAll("a.inline-roll[data-formula]")) {
+    if (a.dataset.t20ahTipo) continue;
+    a.dataset.t20ahTipo = "1";
+    const f = a.dataset.formula ?? "";
+    if (f.includes("[")) continue;
+    // texto logo depois da rolagem, até o fim da frase
+    let depois = "";
+    for (let n = a.nextSibling; n && depois.length < 160; n = n.nextSibling) depois += n.textContent ?? "";
+    depois = depois.split(/[.;]/)[0];
+    const m = /dano\s+(?:de\s+|do\s+|da\s+)?(\S+)/i.exec(depois) ?? null;
+    const alvo = m ? TIPOS_TEXTO.exec(m[1]) : null;
+    let tipo = alvo ? alvo[1].toLowerCase() : null;
+    if (!tipo) {
+      // perda de vida (ex.: Sangrando): "perde 1d6 PV", "perda de pontos de vida"…
+      const par = (a.closest("p, li, div")?.textContent ?? "").replace(/\s+/g, " ");
+      if (/perd\w*[^.]{0,40}(pv|pontos? de vida|vida)|perda de (pv|vida)/i.test(par)) tipo = "perda de vida";
+    }
+    if (!tipo) continue;
+    a.dataset.formula = `${f}[${tipo}]`;
+    a.dataset.flavor ||= "";
+  }
+}
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  Hooks.on(hook, (message, html) => associarTipoRolagemEmLinha(html?.[0] ?? html));
+}
+
+
+/* ---------- Visual da HUD (por usuário) ---------- */
+const TEMAS_HUD = {
+  vinho: { nome: "Vinho", bg1: "#1a1013", bg2: "#2b1a1d", faixa: "#c0392b" },
+  cinza: { nome: "Cinza", bg1: "#101012", bg2: "#1f1f22", faixa: "#6b6b78" },
+  noite: { nome: "Azul-noite", bg1: "#0e1322", bg2: "#1b2236", faixa: "#2f6fd0" },
+  floresta: { nome: "Floresta", bg1: "#0e1a14", bg2: "#1a2a22", faixa: "#2f9e5a" },
+  ametista: { nome: "Ametista", bg1: "#150f20", bg2: "#2a1d3a", faixa: "#8a4fd0" }
+};
+const VISUAL_PADRAO = { tema: "vinho", opacidade: 100, desfoque: 6, cantos: 0.9, destaque: "#e0b85c", faixa: "" };
+
+function visualHud() {
+  let v = {};
+  try { v = game.settings.get(ID, "visualHud") ?? {}; } catch (err) { /* ainda não registrada */ }
+  return { ...VISUAL_PADRAO, ...v };
+}
+
+/** Aplica o visual escolhido por este usuário à HUD e à gaveta (folha de estilo própria). */
+function aplicarVisualHud() {
+  const v = visualHud();
+  const t = TEMAS_HUD[v.tema] ?? TEMAS_HUD.vinho;
+  const op = Math.min(100, Math.max(30, Number(v.opacidade) || 100));
+  const faixa = /^#[0-9a-f]{6}$/i.test(v.faixa ?? "") ? v.faixa : (t.faixa ?? "#c0392b");
+  let st = document.getElementById("t20ah-visual");
+  if (!st) {
+    st = document.createElement("style");
+    st.id = "t20ah-visual";
+    document.head.appendChild(st);
+  }
+  const fundo = `linear-gradient(165deg, color-mix(in srgb, ${t.bg2} ${op}%, transparent), color-mix(in srgb, ${t.bg1} ${op}%, transparent))`;
+  st.textContent = `
+    #t20ah, #t20ah-gaveta, #t20ah-vol-pop { --bg1: ${t.bg1}; --bg2: ${t.bg2}; --ouro: ${v.destaque}; }
+    #t20ah { background: ${fundo} !important; border-color: color-mix(in srgb, ${v.destaque} 45%, transparent) !important; border-radius: ${Number(v.cantos)}em !important; backdrop-filter: blur(${Number(v.desfoque)}px) !important; }
+    #t20ah-gaveta .gv-interno { background: ${fundo} !important; border-color: color-mix(in srgb, ${v.destaque} 45%, transparent) !important; backdrop-filter: blur(${Number(v.desfoque)}px); }
+    #t20ah-gaveta, #t20ah-gaveta .gv-corpo { background: none !important; border: 0 !important; backdrop-filter: none !important; box-shadow: none !important; }
+    #t20ah-gaveta .dn-titulo { background: ${t.bg2} !important; }
+    #t20ah-gaveta .gv-aba { background: linear-gradient(90deg, ${t.bg1}, ${t.bg2}) !important; color: ${v.destaque} !important; border-color: color-mix(in srgb, ${v.destaque} 45%, transparent) !important; }
+    #t20ah-gaveta:not(.aberta) .gv-corpo, #t20ah-gaveta:not(.aberta) .gv-interno { background: none !important; border: 0 !important; box-shadow: none !important; backdrop-filter: none !important; }
+    #t20ah .t20ah-cabeca { background: linear-gradient(90deg, color-mix(in srgb, ${faixa} 35%, transparent), transparent 75%) !important; border-bottom-color: color-mix(in srgb, ${v.destaque} 25%, transparent) !important; }
+  `;
+}
+Hooks.once("ready", aplicarVisualHud);
+
+let PAINEL_VISUAL_FECHAR = null;
+function abrirVisualHud(btn) {
+  if (document.getElementById("t20ah-visual-pop")) return PAINEL_VISUAL_FECHAR?.();
+  const salvar = (parc) => game.settings.set(ID, "visualHud", { ...visualHud(), ...parc });
+  const v = visualHud();
+  const esc1 = Number(game.settings.get(ID, "escala"));
+  const pop = document.createElement("div");
+  pop.id = "t20ah-visual-pop";
+  pop.innerHTML = `
+    <header><i class="fa-solid fa-sliders"></i><strong>Visual da HUD</strong>
+      <button type="button" class="vp-x" data-vp="fechar" title="Fechar"><i class="fa-solid fa-xmark"></i></button></header>
+    <div class="vp-temas">${Object.entries(TEMAS_HUD).map(([k, t]) => `
+      <button type="button" class="vp-tema ${v.tema === k ? "sel" : ""}" data-tema="${k}" title="${t.nome}" style="--a:${t.bg2};--b:${t.bg1}"><span>${t.nome}</span></button>`).join("")}</div>
+    <label class="vp-lin"><span>Tamanho</span><input type="range" data-k="escala" min="0.8" max="1.5" step="0.05" value="${esc1}"><output>${Math.round(esc1 * 100)}%</output></label>
+    <label class="vp-lin"><span>Opacidade</span><input type="range" data-k="opacidade" min="30" max="100" step="5" value="${v.opacidade}"><output>${v.opacidade}%</output></label>
+    <label class="vp-lin"><span>Desfoque</span><input type="range" data-k="desfoque" min="0" max="16" step="1" value="${v.desfoque}"><output>${v.desfoque}px</output></label>
+    <label class="vp-lin"><span>Cantos</span><input type="range" data-k="cantos" min="0" max="1.6" step="0.1" value="${v.cantos}"><output>${v.cantos}</output></label>
+    <label class="vp-lin"><span>Destaque</span><input type="color" data-k="destaque" value="${v.destaque}"></label>
+    <label class="vp-lin"><span>Faixa do topo</span><input type="color" data-k="faixa" value="${/^#[0-9a-f]{6}$/i.test(v.faixa ?? "") ? v.faixa : (TEMAS_HUD[v.tema]?.faixa ?? "#c0392b")}"></label>
+    <footer><button type="button" data-vp="padrao"><i class="fa-solid fa-rotate-left"></i> Restaurar padrão</button></footer>`;
+  document.body.appendChild(pop);
+  const r = btn.getBoundingClientRect();
+  pop.style.left = `${Math.min(Math.max(r.right - 150, 8), window.innerWidth - 308)}px`;
+  pop.style.top = `${Math.max(8, r.top - pop.offsetHeight - 8)}px`;
+  const fechar = () => {
+    pop.remove();
+    document.removeEventListener("pointerdown", fora, true);
+    PAINEL_VISUAL_FECHAR = null;
+  };
+  const fora = (ev) => { if (!pop.contains(ev.target) && !ev.target.closest?.('[data-acao="visual"]')) fechar(); };
+  PAINEL_VISUAL_FECHAR = fechar;
+  setTimeout(() => document.addEventListener("pointerdown", fora, true), 0);
+  pop.addEventListener("input", (ev) => {
+    const i = ev.target.closest("input[data-k]");
+    if (!i) return;
+    const k = i.dataset.k;
+    const val = k === "destaque" || k === "faixa" ? i.value : Number(i.value);
+    const out = i.parentElement.querySelector("output");
+    if (out) out.textContent = k === "escala" ? `${Math.round(val * 100)}%` : k === "opacidade" ? `${val}%` : k === "desfoque" ? `${val}px` : val;
+    if (k === "escala") game.settings.set(ID, "escala", val);
+    else salvar({ [k]: val });
+  });
+  pop.addEventListener("click", (ev) => {
+    const b = ev.target.closest("button");
+    if (!b) return;
+    if (b.dataset.vp === "fechar") return fechar();
+    if (b.dataset.tema) {
+      pop.querySelectorAll(".vp-tema").forEach((x) => x.classList.toggle("sel", x === b));
+      salvar({ tema: b.dataset.tema, faixa: "" }); // o tema traz a sua própria faixa
+      const fx = pop.querySelector('input[data-k="faixa"]');
+      if (fx) fx.value = TEMAS_HUD[b.dataset.tema]?.faixa ?? "#c0392b";
+    }
+    if (b.dataset.vp === "padrao") {
+      game.settings.set(ID, "visualHud", {});
+      game.settings.set(ID, "escala", 1);
+      fechar();
+    }
+  });
+}
+
+/* ---------- mensagens compactas de outros módulos (ex.: Tiny Monitor) ----------
+   Elas não têm lixeira e bloqueiam o menu do botão direito. Aqui o clique direito sempre abre um menu:
+   se o menu nativo do Foundry não aparecer, mostramos um com Excluir e Copiar texto. */
+Hooks.once("ready", () => {
+  // captura na janela (antes de qualquer outro módulo) e abre o menu na hora
+  window.addEventListener("contextmenu", (ev) => {
+    const li = ev.target.closest?.(".chat-message.tiny-monitor-msg, .chat-message[class*='tiny-monitor']");
+    if (!li || ev.target.closest("a.content-link")) return;
+    const msg = game.messages.get(li.dataset.messageId);
+    if (!msg) return;
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    const x = ev.clientX, y = ev.clientY;
+    document.getElementById("t20ah-menu-msg")?.remove();
+    const m = document.createElement("div");
+    m.id = "t20ah-menu-msg";
+    const itens = [];
+    itens.push(["fa-copy", "Copiar texto", async () => {
+      try { await navigator.clipboard.writeText(li.querySelector(".message-content")?.innerText?.trim() ?? ""); } catch (err) { /* ignora */ }
+    }]);
+    if (msg.canUserModify(game.user, "delete")) itens.push(["fa-trash", "Excluir mensagem", () => msg.delete()]);
+    m.innerHTML = itens.map(([ic, t], i) => `<button type="button" data-i="${i}"><i class="fa-solid ${ic}"></i> ${t}</button>`).join("");
+    document.body.appendChild(m);
+    m.style.left = `${Math.max(4, Math.min(x, window.innerWidth - m.offsetWidth - 8))}px`;
+    m.style.top = `${Math.max(4, Math.min(y, window.innerHeight - m.offsetHeight - 8))}px`;
+    const fechar = () => { m.remove(); document.removeEventListener("pointerdown", fora, true); };
+    const fora = (e) => { if (!m.contains(e.target)) fechar(); };
+    m.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (b) { itens[Number(b.dataset.i)][2](); fechar(); }
+    });
+    setTimeout(() => document.addEventListener("pointerdown", fora, true), 0);
+  }, true);
+});
