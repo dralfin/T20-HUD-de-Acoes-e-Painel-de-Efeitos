@@ -168,6 +168,7 @@ export const CATEGORIAS_ACOES = [
       },
       {
         nome: "Largar um Item",
+        especial: "largar",
         desc: "Deixar cair um item que esteja segurando é uma ação livre. Mas deixar cair (ou jogar) um item com a intenção de acertar algo é uma ação padrão. E deixar cair (ou jogar) um item para que outra pessoa agarre é uma ação de movimento."
       }
     ]

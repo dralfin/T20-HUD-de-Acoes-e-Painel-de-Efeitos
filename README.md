@@ -79,11 +79,19 @@ Uma interface arrastável, recolhível e personalizável que acompanha o token s
 - **PV e PM:** acompanhe os valores atuais, máximos e as respectivas barras.
 - **Recursos temporários:** visualize e edite PV e PM temporários.
 - **Defesa e CD:** consulte a Defesa total e a CD das magias.
-- **Edição rápida:** clique em um valor para alterá-lo diretamente. Digite um número absoluto ou use `+5` e `-5` para ajustar o valor atual.
+- **Edição rápida:** clique em um valor para alterá-lo diretamente. Digite um número absoluto ou use `+5` e `-5` para ajustar o valor atual. Apagar o campo de PV, PM ou dos temporários volta o valor a 0.
+- **Defesa, RD e imunidades:** a Defesa aparece como um **escudo** com o número dentro (ocupa menos espaço), com o campo de bônus logo ao lado. Cada **redução de dano** ganha a sua tag (**RD** geral e uma para cada tipo, como **Fogo 10**) e cada **imunidade a dano** da ficha também. Os valores são lidos de `system.tracos` (`resistencias` e `imunidades`); o que a ficha não expuser não aparece.
+- **Bônus de defesa:** ao lado do escudo há um campo para somar um bônus temporário (digite `2`, ou `+1` / `-1` para ajustar). Ele vale só na HUD (não altera a ficha) e é guardado no personagem.
+- **Gaveta de dano, cura e mana:** uma aba **Dano** na borda esquerda da HUD abre uma gaveta colada à HUD (mesma altura e mesmo estilo; ela acompanha a HUD quando você a arrasta). Um único campo de **valor** serve para todos os botões: **Causar dano** (com o **tipo** de dano e a opção de ignorar a RD, e uma prévia do dano final), **Curar** (recupera PV até o máximo), **Gastar PM** (usa primeiro os PM temporários e avisa se faltar mana) e **Receber PM** (até o máximo). **Causar dano** (ou `Enter`) desconta a RD (geral + do tipo; se o personagem é **imune** ao tipo, o dano final é 0), tira primeiro dos PV temporários e depois dos PV. Apenas o **Mestre** vê os botões **Zerar vida** (PV e PV temporários a 0) e **Curar tudo** (PV ao máximo), ambos com confirmação.
 - **Animação de perda e ganho:** quando PV, PM, PV temporário ou PM temporário diminuem (por dano, gasto de PM ou edição na HUD, não importa a origem), a linha treme, a barra pisca, o ícone "bate", um rastro claro escorre até o novo valor e um número flutuante (por exemplo, **−8**) sobe a partir do campo. Cada recurso tem a sua cor: vermelho para vida e azul para mana, em tom mais claro para os temporários. Com a HUD recolhida, o resumo de PV e PM pisca. Nos ganhos (cura, recuperação de PM, PV/PM temporários) a linha acende em verde (PV) ou ciano (PM), a barra enche com um brilho até o novo valor, o ícone pulsa e um número flutuante (por exemplo, **+8**) sobe a partir do campo. A animação é desligada para quem usa a opção de reduzir movimento do sistema.
 - **Modo compacto:** recolha a HUD para manter um resumo dos recursos e das ações disponíveis.
 - **Imagem personalizável:** escolha entre a imagem do token e o retrato do personagem.
 - **Controle de acesso:** jogadores visualizam os tokens que controlam; o Mestre pode visualizar qualquer token.
+- **Visual da HUD:** o botão de ajustes (sliders) no cabeçalho abre um painel com **tema** de cores (Vinho, Cinza, Azul-noite, Floresta, Ametista), **tamanho**, **opacidade**, **desfoque**, **cantos**, **cor principal** (o fundo, a gaveta, os menus e a faixa do topo derivam dela), **cor de destaque** e **faixa do topo**. Cada usuário escolhe o seu, e há botão para restaurar o padrão. O menu de ações, o tooltip das regras, a gaveta de dano e o volume acompanham o tema escolhido.
+- **Volume do alerta:** o botão de volume do cabeçalho abre, acima da HUD, um controle horizontal (como o do YouTube) com botão de mudo e barra deslizante; o valor é o volume máximo do alerta de fim de tempo.
+- **Limite de tempo no cabeçalho:** o botão do cronômetro (Mestre) fica ao lado de recolher. Com o limite em 0, a HUD mostra só o contador.
+- **Gastar movimento do Mestre:** botão de pegadas no cabeçalho (só para o Mestre) liga e desliga o gasto de movimento dos tokens movidos por ele. É uma preferência individual de cada Mestre.
+- **Desfazer ação:** cada ação gasta ganha um ícone de desfazer (↺) no canto (Padrão, Movimento e Completa); o botão direito continua funcionando.
 
 ### 🎯 Gerenciamento de ações
 
@@ -138,7 +146,10 @@ Quatro categorias **dentro da HUD** (**Padrão**, **Movimento**, **Completa** e 
   - **Fôlego:** o personagem aguenta **1 + Constituição** rodadas seguidas de corrida. Depois disso, cada nova rodada pede um teste de **Fortitude** (CD 15, +1 por teste anterior). O teste de Fortitude também abre a janela de perícia (com Fortitude marcada) e é rolado pela ficha. Se falhar, recebe **Fatigado**; uma nova falha estando fatigado aplica **Exausto**.
   - As rolagens usam `actor.rollPericia(chave)` do sistema. O bônus mostrado na janela é lido de `system.pericias`.
 - **Atrasar:** só no próprio turno, em combate. Abre uma janela para escolher **depois de quem** o personagem vai agir (a Iniciativa vira a do escolhido menos 0,01) ou para digitar uma **Iniciativa específica** (menor que a atual e até o limite de –10 menos o bônus de Iniciativa). A nova Iniciativa vale pelo resto do combate, o card informa a mudança e o turno passa para quem vinha depois. Se o personagem não é o Mestre, o pedido é executado pelo Mestre conectado. O novo valor não pode ser fixado "em tempo real" no turno de outra criatura; escolha o valor ou a criatura de antemão.
+- **Fintar:** usa o **alvo marcado** (tecla `T`) quando há exatamente um; senão abre uma janela com as criaturas em **alcance curto** (9 m) para escolher, com a distância de cada uma. O Mestre pode listar todos os tokens da cena ou **arrastar para a janela qualquer ator da lista de Atores (ou de um compêndio), mesmo que não esteja em cena** (a janela deixa a barra lateral clicável para isso; em atores de compêndio a condição não pode ser aplicada e o card avisa), e o jogador pode **deixar o Mestre escolher** quem faz o teste. Depois, abre a janela de perícia (**Enganação** marcada como padrão) e rola pela ficha. O alvo faz o teste de **Reflexos** (também com a janela de perícia e a rolagem da ficha; se o alvo é do Mestre, o teste é feito no computador do Mestre). Vence o maior total; em empate, o maior bônus; persistindo, o card avisa o empate. Se passar, o alvo recebe **Desprevenido**, removido automaticamente no fim do **próximo turno** de quem fintou (ou ao fim do combate). Cancelar qualquer etapa antes da rolagem não gasta a ação; se o teste for cancelado depois, a ação padrão é devolvida.
+- **Largar um Item:** abre uma janela (no verde da ação livre) com os itens da ficha (armas, equipamentos, consumíveis, tesouros e ferramentas) e, para pilhas, a quantidade a largar. Usa o **Item Piles** para criar o token do item na casa do personagem, por baixo do token dele (se já houver uma pilha ali, o item entra nela), e tira o item da ficha. Sem o Item Piles ativo, o módulo avisa e não faz nada.
 - **Condição Caído:** **Jogar-se no Chão** aplica a condição Caído ao personagem, e **Levantar-se** a remove. Se o personagem já estiver caído, Jogar-se no Chão avisa e não faz nada. Se não estiver caído, Levantar-se avisa e não gasta a ação de movimento.
+- **Investida:** gasta a ação completa e libera o deslocamento de até **o dobro do seu deslocamento (mínimo 3 m)**, só **em linha reta** e **sem terreno difícil** (a barra de deslocamento usa esse limite). O card lembra **+2 no ataque** (aplique ao rolar o ataque pela ficha) e **Atropelar como ação livre**. O **−2 na Defesa** entra automaticamente no bônus de defesa da HUD e é desfeito no início do próximo turno do personagem (ou ao fim do combate).
 - **Golpe de Misericórdia:** ao clicar, abre uma janela no estilo da HUD para escolher uma **arma corpo a corpo equipada**. Sem arma corpo a corpo equipada, a ação não é permitida e nada é gasto. Escolhida a arma, o módulo gasta a ação completa e envia ao chat um card com:
   - o ataque, que é sempre um **20 natural automático** (acerto crítico), com o multiplicador de crítico da arma;
   - uma rolagem de **1d4** para a morte instantânea, com o resultado para **personagens e NPCs importantes** (25%: morre com 1) e para **NPCs secundários** (75%: morre com 1 a 3), cada um marcado como MORRE ou SOBREVIVE;
@@ -148,9 +159,47 @@ Quatro categorias **dentro da HUD** (**Padrão**, **Movimento**, **Completa** e 
 - O menu fecha ao clicar fora, ao apertar Esc ou quando a HUD é recolhida.
 - Os textos ficam no arquivo `scripts/acoes-t20.js`, onde você pode ajustar uma regra ou incluir outra ação.
 
-### 💬 Estilo do módulo nos cards do chat
+### 💬 Estilo do módulo no chat
 
-Opção pessoal (**Estilo do módulo nos cards do chat**, desligada por padrão) que aplica o visual da HUD às mensagens padrão do chat: moldura dourada, fundo escuro, cabeçalho em degradê, títulos, rolagens (fórmula, total, crítico e falha desastrosa) e botões. É só CSS (`styles/chat-estilo.css`), então todas as informações continuam nas mensagens. Os cards do próprio módulo não são alterados.
+Opção do **mundo** (**Estilo do módulo no chat**, ligada por padrão) que aplica o visual da HUD às mensagens do chat. O Mestre liga e desliga para todos; cada jogador pode desmarcar **Ver o estilo do módulo no meu chat** para ver o chat original só para si. É só CSS e pequenos ajustes de HTML (`styles/chat-estilo.css`): todas as informações e botões das mensagens continuam, só muda o estilo.
+
+- **Cores e cartões neutros:** fundo cinza bem escuro em todos os cards (sem fundos avermelhados), legível também no tema claro do Foundry. As cores de destaque seguem a **cor do jogador dono da ficha** (sem dono jogador, a de quem rolou).
+- **Card único de item, ataque, magia e poder:** o cabeçalho da mensagem vira a faixa de identificação (retrato que abre a ficha + nome); título, descrição, fichas (Execução, Alcance, Duração, Resistência), melhorias, rolagens e rodapé ficam numa só peça. **Ataque e Dano ficam lado a lado, com a mesma altura.** Tags como `[corte]` e custos de 0 PM não aparecem; o título do dano é "Dano", "Cura" ou "Recuperação de mana".
+- **Rolagens:** fórmula discreta, total grande, dados com o formato de cada tipo (d4 triângulo, d6 quadrado arredondado, d8 losango, d10 losango alongado, d12 pentágono, d20 hexágono), maior valor em verde, menor em vermelho e rerrolado riscado. Grupos de dados do mesmo tipo de dano são unidos; vários tipos viram células lado a lado. Rolagens avulsas (`/r`, perícias, testes) recebem o mesmo acabamento.
+- **Resultado do ataque:** só o símbolo (✓ verde, ✗ vermelho, estrela dourada no crítico) ao lado do total; alvo e Defesa ficam na dica.
+- **Falha crítica:** qualquer d20 que tire 1 ganha a moldura vermelha quebrada.
+- **Botões:** aplicar dano (dano, dobro, metade, cura), gasto de PM, aplicar condição, "Colocar Área de Efeito" e os de rolagem têm o mesmo estilo dos atalhos de condição e ficam sempre visíveis. Rolagens em linha (`[[1d6]]`) viram botões que combinam com o card.
+- **Rolagens em linha com tipo de dano:** em textos como "sofre 1d6 de dano de fogo", o tipo é lido do texto e associado à rolagem; Em Chamas vira fogo e Sangrando vira perda de vida.
+- **Cards únicos de condições e ações:** condições (cor por tipo), Teste de Morte, Em Chamas, Fintar e os cards dos botões de Ações têm fundo cinza escuro com a cor do tipo de ação.
+- **Marcador de rodada:** uma faixa fina com o losango, sem ocupar espaço vertical.
+- **Mensagens digitadas e privadas:** texto com o visual do módulo; sussurros e rolagens cegas mantêm as indicações do Foundry e do `t20-hayd-ui`.
+- **Mensagens de outros módulos:** o botão direito em mensagens compactas (como as do Tiny Monitor) abre um menu para **copiar** ou **excluir**.
+
+### 🔥 Animações do dano e da cura
+
+Quando todo o dano de uma rolagem é de um único tipo, uma animação em pixel art roda atrás do valor (o número continua legível). Há efeitos para fogo, ácido, eletricidade, essência, frio, luz, psíquico, trevas, corte, perfuração, impacto, cura de PV, recuperação de mana e perda de vida.
+
+- **Escolher efeitos:** Configurações > Animações do dano e da cura > **Escolher animações**. A janela mostra uma grade com a prévia de cada efeito; ative um por um ou use **Ativar todos** / **Desativar todos**. Cada usuário escolhe os seus.
+- **Versões alternativas:** cada efeito tem uma versão **Original** e versões alternativas; escolha pela lista de cada carta, com prévia ao vivo.
+- **Todos os tipos do card:** a opção **Animar todos os tipos de dano do card** (desligada por padrão) mostra, em rolagens com tipos misturados, o efeito de cada tipo lado a lado.
+- **Animação por item:** na ficha do item, o botão **Animação** (ícone de fogo) escolhe o efeito do dano daquele item: **Automática** (pelo tipo do dano), **Nenhuma** ou um efeito específico com a versão desejada. Por exemplo, um arco pode sempre animar com fogo. Só vale se o efeito estiver ativo nas configurações.
+
+### 🤝 Compatibilidade com outros módulos de chat
+
+O módulo foi preparado para conviver com módulos que também alteram o chat, mantendo o visual do módulo e os recursos de cada um:
+
+| Módulo | Integração |
+| --- | --- |
+| **t20-hayd-ui** | Descrição recolhível pelo clique no nome, resumo "Encantos e melhorias" com popover, listas de Aprimoramentos e Outros bônus, "Mostrar mais" e o selo de privacidade continuam funcionando, com o visual do módulo. O avatar duplicado é escondido; no estilo "novo" dele, os blocos de rolagem são desfeitos para o layout do módulo. |
+| **t20-hayd-gmtools** | Barras de ação nos cards (resistência, manobra, engenhocas, venenos, contadores), auras, mensagens de dano/cura/mana, prévia de dano e pedidos de rolagem, com o visual do módulo. |
+| **t20-hayd-loja** | Cards de compra, venda, saldo, estoque, construção e aprimoramento viram cards únicos no estilo dos cards de ação (moedas, melhorias e o botão de trocar sucesso/falha incluídos). |
+| **t20a-chat** | As variáveis e classes dele são redefinidas pelo visual do módulo. |
+| **Item Piles** | Cards de compra e venda no estilo do módulo; as mensagens do Item Piles que montam o próprio cabeçalho ficam como estão. É também o que cria o token da ação **Largar um Item**. |
+| **Munição e melhorias** (`hayd-municao`, `hbdg`), resultado contra a Defesa, aviso de camuflagem e dano maximizado | Reestilizados e agrupados logo abaixo do título do card de item. Nenhum elemento é removido. |
+
+Os ajustes do módulo no chat são registrados depois dos de todos os outros módulos, para sempre enxergarem o HTML já alterado por eles.
+
+**Ignorar alterações de outros módulos no chat** (opção pessoal, desligada por padrão): desfaz no chat tudo o que módulos de terceiros acrescentam (elementos, classes e variáveis de estilo com os **prefixos** listados em *Prefixos de classes a ignorar*, padrão `t20a-`), para o card ficar só com o visual do módulo. Útil se uma atualização de outro módulo bagunçar os cards.
 
 ### ⏱️ Temporizador de turno
 
@@ -210,6 +259,7 @@ Depois ative o módulo no mundo.
 
 - **Foundry Virtual Tabletop:** versões 13 e 14.
 - **Sistema de jogo:** Tormenta20.
+- **Opcionais:** Item Piles (ação Largar um Item); t20-hayd-ui, t20-hayd-gmtools e t20-hayd-loja (integração no chat).
 
 ---
 
@@ -232,6 +282,7 @@ Disponíveis para o Mestre:
 - Configurar o som de tempo esgotado e quem pode ouvi-lo.
 - Passar o turno automaticamente ao final do temporizador.
 - Ativar ou desativar o Painel de Efeitos.
+- Ligar ou desligar o **estilo do módulo no chat** para todos.
 
 ### Configurações pessoais
 
@@ -239,8 +290,12 @@ Disponíveis individualmente:
 
 - Mostrar ou ocultar a HUD para o Mestre.
 - Mostrar ou ocultar os botões de Ações (regras rápidas).
-- Escolher o layout da HUD no turno do personagem (largo, com painel de ações ao lado, ou compacto).
+- Escolher o layout da HUD em combate (largo, com painel de ações ao lado, ou compacto).
 - Escolher entre a imagem do token e o retrato do personagem.
+- Personalizar o **visual da HUD** (tema, cores, opacidade, desfoque, cantos).
+- Escolher as **animações do dano e da cura** (efeitos e versões) e se animam todos os tipos do card.
+- **Gastar movimento também do Mestre** (só Mestre).
+- **Ver o estilo do módulo no meu chat** e **Ignorar alterações de outros módulos no chat** (com os prefixos a ignorar).
 - Ajustar o tamanho da HUD.
 - Configurar o volume dos sons.
 - Ativar o modo de teste que aplica ao Mestre as mesmas restrições de um jogador.
@@ -281,7 +336,9 @@ Os métodos do Painel de Efeitos são destinados ao Mestre.
 
 ## ⚠️ Limitações conhecidas
 
-- A edição direta de PV e PM modifica os valores da ficha sem executar o cálculo de dano do sistema. Portanto, redução de dano e imunidades não são aplicadas.
+- A edição direta de PV e PM modifica os valores da ficha sem executar o cálculo de dano do sistema. Já o menu de dano da HUD aplica a redução de dano da ficha e as imunidades a tipos de dano, mas não considera vulnerabilidades.
+- **Largar um Item** depende do módulo Item Piles e da configuração de quantidade dele para o sistema Tormenta20.
+- Os recursos de integração com outros módulos foram feitos a partir do HTML que eles geram hoje; uma atualização que mude esse HTML pode exigir ajustes (use *Ignorar alterações de outros módulos no chat* nesse caso).
 - O controle de deslocamento não considera condições que alteram a velocidade nem outros tipos de deslocamento, como voo e natação.
 - O temporizador não pausa quando o jogo está pausado.
 - A integração depende de campos específicos da ficha do Tormenta20, incluindo recursos, Defesa, atributo de conjuração e execução dos itens.

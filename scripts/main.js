@@ -1291,6 +1291,12 @@ class AcoesHUD {
     el.classList.toggle("recolhido", recolhido);
     el.classList.toggle("em-turno", turno);
     el.classList.toggle("largo", largo);
+    const minis = `
+        ${game.user.isGM ? `<button type="button" class="t20ah-mini" data-acao="tempo" title="Definir o limite de tempo do turno${Number(cfg("tempoMaximo")) > 0 ? ` (atual: ${Number(cfg("tempoMaximo"))} s)` : " (atual: sem limite)"}"><i class="fa-solid fa-stopwatch"></i></button>` : ""}
+        ${game.user.isGM ? `<button type="button" class="t20ah-mini ${cfg("gastoMovimentoMestre") ? "" : "desligado"}" data-acao="limitarMov" title="${cfg("gastoMovimentoMestre") ? "Seu movimento GASTA ações (como o dos jogadores). Clique para mover livremente." : "Você move livremente (sem gasto de movimento). Clique para passar a gastar ações."}"><i class="fa-solid fa-shoe-prints"></i></button>` : ""}
+        <button type="button" class="t20ah-mini" data-acao="visual" title="Editar o visual da HUD"><i class="fa-solid fa-sliders"></i></button>
+        <button type="button" class="t20ah-mini recolher" data-acao="recolher" title="Recolher / expandir"><i class="fa-solid fa-chevron-up"></i></button>
+      `;
     const cabecalho = `
       <header class="t20ah-cabeca" title="Arraste para mover • Duplo clique para recentralizar">
         <img class="t20ah-retrato" src="${esc(img || "icons/svg/mystery-man.svg")}" alt="" draggable="false">
@@ -1300,10 +1306,7 @@ class AcoesHUD {
         </div>
         <span class="t20ah-resumo"><span class="t20ah-resumo-rec">${resumoRec}</span>${resumoAcoes}</span>
         ${btnsTurno}
-        ${game.user.isGM ? `<button type="button" class="t20ah-mini" data-acao="tempo" title="Definir o limite de tempo do turno${Number(cfg("tempoMaximo")) > 0 ? ` (atual: ${Number(cfg("tempoMaximo"))} s)` : " (atual: sem limite)"}"><i class="fa-solid fa-stopwatch"></i></button>` : ""}
-        ${game.user.isGM ? `<button type="button" class="t20ah-mini ${cfg("gastoMovimentoMestre") ? "" : "desligado"}" data-acao="limitarMov" title="${cfg("gastoMovimentoMestre") ? "Seu movimento GASTA ações (como o dos jogadores). Clique para mover livremente." : "Você move livremente (sem gasto de movimento). Clique para passar a gastar ações."}"><i class="fa-solid fa-shoe-prints"></i></button>` : ""}
-        <button type="button" class="t20ah-mini" data-acao="visual" title="Editar o visual da HUD"><i class="fa-solid fa-sliders"></i></button>
-        <button type="button" class="t20ah-mini recolher" data-acao="recolher" title="Recolher / expandir"><i class="fa-solid fa-chevron-up"></i></button>
+        ${minis}
       </header>`;
     const esq = `
         <div class="t20ah-recursos">${recursos}</div>
@@ -2004,6 +2007,96 @@ class MenuAcoes {
   }
 
   /** Janela (no estilo da HUD) para escolher a arma do Golpe de Misericórdia. Resolve com o item ou null. */
+  /** Largar um item: janela para escolher o item (e a quantidade) da ficha. Retorna { item, qtd } ou null. */
+  static escolherItemLargar(actor, itens) {
+    return new Promise((resolve) => {
+      const ov = document.createElement("div");
+      ov.id = "t20ah-escolha";
+      const qtdDe = (i) => Math.max(1, Math.floor(Number(i.system?.qtd ?? 1)) || 1);
+      ov.innerHTML = `
+        <div class="ec-fundo"></div>
+        <div class="ec-janela" style="--cor:#6fd08c">
+          <header>
+            <i class="fa-solid fa-hand-holding-hand"></i>
+            <div><small>Ação Livre</small><strong>Largar um Item</strong></div>
+            <button type="button" class="ec-x" data-ec="cancelar" title="Cancelar"><i class="fa-solid fa-xmark"></i></button>
+          </header>
+          <p>Escolha o item que cai no chão. Ele vira um token (Item Piles) na casa do seu personagem.</p>
+          <div class="ec-lista">${itens
+            .map((a, i) => {
+              const q = qtdDe(a);
+              return `
+            <div class="ec-linha-item">
+              <button type="button" class="ec-arma" data-ec-i="${i}">
+                <img src="${esc(a.img || "icons/svg/item-bag.svg")}" alt="" draggable="false">
+                <span class="ec-n">${esc(a.name)}</span>
+                <span class="ec-d">${esc(a.type)}${q > 1 ? ` · ×${q}` : ""}</span>
+              </button>
+              ${q > 1 ? `<input type="number" class="ec-qtd" data-ec-q="${i}" min="1" max="${q}" value="1" title="Quantidade a largar">` : ""}
+            </div>`;
+            })
+            .join("")}</div>
+          <footer><button type="button" class="ec-cancelar" data-ec="cancelar">Cancelar</button></footer>
+        </div>`;
+      const fim = (r) => {
+        document.removeEventListener("keydown", tecla, true);
+        ov.remove();
+        resolve(r);
+      };
+      const tecla = (ev) => {
+        if (ev.key === "Escape") {
+          ev.stopPropagation();
+          fim(null);
+        }
+      };
+      ov.addEventListener("click", (ev) => {
+        const b = ev.target.closest("[data-ec-i]");
+        if (b) {
+          const i = Number(b.dataset.ecI);
+          const campo = ov.querySelector(`[data-ec-q="${i}"]`);
+          const max = qtdDe(itens[i]);
+          const qtd = campo ? clamp(Math.floor(Number(campo.value)) || 1, 1, max) : 1;
+          return fim({ item: itens[i], qtd });
+        }
+        if (ev.target.closest("[data-ec]") || ev.target.classList.contains("ec-fundo")) fim(null);
+      });
+      document.addEventListener("keydown", tecla, true);
+      document.body.appendChild(ov);
+    });
+  }
+
+  /** Cria (ou completa) uma pilha do Item Piles sob o token e tira o item da ficha. Retorna o HTML do resultado. */
+  static async largarItem(alvo, { item, qtd }) {
+    const API = game.itempiles?.API;
+    const tokenDoc = alvo.doc;
+    const cena = tokenDoc.parent ?? canvas.scene;
+    const dados = item.toObject();
+    delete dados._id;
+    const total = Math.max(1, Math.floor(Number(item.system?.qtd ?? 1)) || 1);
+    try {
+      const existente = cena.tokens.find(
+        (t) => t.id !== tokenDoc.id && t.x === tokenDoc.x && t.y === tokenDoc.y && API.isValidItemPile?.(t)
+      );
+      if (existente) {
+        await API.addItems(existente, [{ item: dados, quantity: qtd }]);
+      } else {
+        await API.createItemPile({
+          sceneId: cena.id,
+          position: { x: tokenDoc.x, y: tokenDoc.y },
+          items: [{ item: dados, quantity: qtd }],
+          tokenOverrides: { sort: (Number(tokenDoc.sort) || 0) - 1 }
+        });
+      }
+      if (qtd >= total) await item.delete();
+      else await item.update({ "system.qtd": total - qtd });
+    } catch (err) {
+      console.error(`${ID} | não foi possível largar o item`, err);
+      ui.notifications.error("Não foi possível largar o item (Item Piles). Veja o console (F12).");
+      return "";
+    }
+    return `<div class="tc-bloco"><div class="tc-linha"><i class="fa-solid fa-hand-holding-hand"></i><span>Larga <b>${esc(item.name)}</b>${qtd > 1 ? ` (×${qtd})` : ""} no chão, sob o token.</span></div></div>`;
+  }
+
   static escolherArma(actor, armas) {
     return new Promise((resolve) => {
       const ov = document.createElement("div");
@@ -2684,6 +2777,16 @@ class MenuAcoes {
       atraso = await this.escolherAtraso(alvo, combat);
       if (!atraso) return; // cancelou
     }
+    let largar = null;
+    if (acao.especial === "largar") {
+      if (!game.modules.get("item-piles")?.active || !game.itempiles?.API) return ui.notifications.warn("Largar um item cria um token pelo módulo Item Piles, que não está ativo.");
+      if (!alvo.doc?.parent) return ui.notifications.warn("O token precisa estar em uma cena.");
+      const TIPOS = ["arma", "equipamento", "consumivel", "tesouro", "ferramenta"];
+      const itens = alvo.actor.items.filter((i) => TIPOS.includes(normalizar(i.type)));
+      if (!itens.length) return ui.notifications.warn(`${nome} não tem itens para largar.`);
+      largar = await this.escolherItemLargar(alvo.actor, itens);
+      if (!largar) return;
+    }
     let periciaCorrida = null;
     if (acao.especial === "corrida") {
       periciaCorrida = await this.escolherPericia(alvo.actor, {
@@ -2759,6 +2862,7 @@ class MenuAcoes {
         ui.notifications.error("Não foi possível concluir a Corrida. Veja o console (F12).");
       }
     }
+    if (largar) extra += await this.largarItem(alvo, largar);
     if (acao.especial === "investida") {
       const r = this.investida(alvo);
       extra += r.html;
@@ -2994,6 +3098,24 @@ Hooks.once("init", () => {
     default: true,
     onChange: () => aplicarEstiloChat()
   });
+  game.settings.register(ID, "ignorarTerceiros", {
+    name: "Ignorar alterações de outros módulos no chat",
+    hint: "Desfaz no chat tudo o que outros módulos acrescentam aos cards e mensagens (inclusive o resumo de encantos, a descrição recolhível e o selo de privacidade do t20-hayd-ui). Deixe desligado para usar os dois módulos juntos (padrão); o visual é sempre o deste módulo. Vale só para você. O chat é redesenhado ao mudar",
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: false,
+    onChange: () => ui.chat?.render?.(true)
+  });
+  game.settings.register(ID, "prefixosTerceiros", {
+    name: "Prefixos de classes a ignorar",
+    hint: "Prefixos (separados por vírgula) das classes dos módulos de terceiros. Elementos cujas classes são todas desse prefixo são removidos; nos demais, só as classes e variáveis com o prefixo saem. Padrão: t20a- (módulo t20a-chat).",
+    scope: "client",
+    config: true,
+    type: String,
+    default: "t20a-",
+    onChange: () => ui.chat?.render?.(true)
+  });
   game.settings.register(ID, "estiloChatLocal", {
     name: "Ver o estilo do módulo no meu chat",
     hint: "Desmarque para ver o chat com o visual original só no seu computador, mesmo com o estilo ligado pelo Mestre.",
@@ -3004,6 +3126,12 @@ Hooks.once("init", () => {
     onChange: () => aplicarEstiloChat()
   });
   game.settings.register(ID, "animacoesDano", {
+    scope: "client",
+    config: false,
+    type: Object,
+    default: {}
+  });
+  game.settings.register(ID, "animacoesVariante", {
     scope: "client",
     config: false,
     type: Object,
@@ -3194,7 +3322,7 @@ Hooks.once("init", () => {
 /* ---------- Organização da janela de configurações ---------- */
 
 const GRUPOS_CONFIG = [
-  ["Chat e cards", "fa-comments", ["estiloChat", "estiloChatLocal", "animarDanoTodos", "cardAcoes", "anunciarChat"]],
+  ["Chat e cards", "fa-comments", ["estiloChat", "estiloChatLocal", "ignorarTerceiros", "prefixosTerceiros", "animarDanoTodos", "cardAcoes", "anunciarChat"]],
   ["HUD", "fa-id-card", ["mostrarGM", "imagem", "layoutCombate", "menuAcoes", "escala"]],
   ["Combate e regras", "fa-swords", ["limitarMovimento", "gastoMovimentoMestre", "bloquearForaDoTurno", "gastarPorItem", "deslocamentoPadrao", "metrosPorQuadrado", "regrasParaMestre"]],
   ["Tempo do turno e som", "fa-hourglass-half", ["tempoMaximo", "passarAoFim", "somArquivo", "somVolume", "somQuemOuve"]],
@@ -4014,10 +4142,81 @@ Hooks.on("createChatMessage", (message) => {
 
 window.addEventListener("resize", () => AcoesHUD.el?.isConnected && AcoesHUD.aplicarPosicao());
 
+// Os ajustes deste módulo no chat são registrados no "setup", depois de todos os outros módulos terem registrado os seus:
+// assim rodam por último e enxergam o HTML já alterado por eles (ex.: t20-hayd-ui, que reagrupa ataque e dano em blocos).
+const filaChat = [];
+const hookChat = { on(hook, fn) { filaChat.push([hook, fn]); }, primeiro(hook, fn) { filaChat.unshift([hook, fn]); } };
+Hooks.once("setup", () => {
+  for (const [hook, fn] of filaChat) Hooks.on(hook, fn);
+  filaChat.length = 0;
+});
+
+// Ignorar alterações de módulos de terceiros no chat (opção do usuário). Para cada elemento marcado com um dos prefixos:
+//  - invólucros (ex.: blocos que agrupam o título e a rolagem) são desfeitos: o conteúdo original volta ao lugar;
+//  - elementos acrescentados pelo outro módulo (selos, etiquetas, fichas duplicadas, avatar) são removidos;
+//  - elementos do sistema que só ganharam uma classe (ex.: o parágrafo escondido) apenas perdem a classe.
+const ESTRUTURA_SISTEMA = new Set(["H2", "H3", "H4", "P", "LI", "UL", "OL", "B", "TIME", "A"]);
+const MANTER_CLASSE = /^t20a-(descricao|recolhida)/; // o outro módulo controla a descrição por estas classes
+function limparTerceiros(raiz) {
+  let prefixos = [];
+  try {
+    if (!game.settings.get(ID, "ignorarTerceiros")) return;
+    prefixos = String(game.settings.get(ID, "prefixosTerceiros") || "").split(",").map((x) => x.trim()).filter(Boolean);
+  } catch (err) { return; }
+  if (!prefixos.length) return;
+  const eh = (c) => prefixos.some((p) => c.startsWith(p)) && !MANTER_CLASSE.test(c);
+  const proprios = (el) => el.matches?.("[class*='t20ah']");
+  const elementos = [raiz, ...raiz.querySelectorAll("*")].reverse(); // de dentro para fora
+  for (const el of elementos) {
+    if (!el.isConnected && el !== raiz) continue;
+    const classes = [...el.classList];
+    const deles = classes.filter(eh);
+    if (deles.length && el !== raiz && deles.length === classes.length && !proprios(el)) {
+      const temConteudoDoSistema = !!el.querySelector(".roll, .row, .dice-roll, .card-content, .card-upgrades, li, p, h4, h3, img:not([class]), button:not([class*='t20a'])");
+      if (temConteudoDoSistema) { el.replaceWith(...el.childNodes); continue; } // desfaz o invólucro
+      if (!ESTRUTURA_SISTEMA.has(el.tagName)) { el.remove(); continue; }       // acréscimo do outro módulo
+    }
+    if (deles.length) el.classList.remove(...deles);
+    if (el.style?.length) {
+      for (const prop of [...el.style]) if (prop.startsWith("--") && prefixos.some((p) => prop.slice(2).startsWith(p.replace(/-$/, "")))) el.style.removeProperty(prop);
+    }
+    for (const a of [...el.attributes]) if (a.name.startsWith("data-") && prefixos.some((p) => a.name.slice(5).startsWith(p))) el.removeAttribute(a.name);
+  }
+}
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  hookChat.primeiro(hook, (message, html) => {
+    const element = html?.[0] ?? html;
+    if (element?.querySelectorAll) limparTerceiros(element);
+  });
+}
+
+// Compatibilidade com o t20-hayd-ui (estilo "novo" do chat dele): ele reagrupa título e rolagem em blocos de grade e cria
+// etiqueta do tipo e ficha própria, escondendo os originais. Aqui o card volta à estrutura que o visual deste módulo
+// espera (título e rolagem como filhos diretos, tipo e ficha originais à vista); o que é função do outro módulo continua:
+// descrição com três estados, resumo "Encantos e melhorias" com popover, listas de aprimoramentos, "mostrar mais" e o selo
+// de privacidade. Roda depois dele (os ajustes são registrados no "setup") e antes dos demais ajustes deste módulo.
+function adaptarHayd(raiz) {
+  for (const card of raiz.querySelectorAll(".message-content .chat-card.t20a-cartao")) {
+    for (const w of [...card.querySelectorAll(".t20a-rolagem")]) w.replaceWith(...w.childNodes);
+    for (const w of [...card.querySelectorAll(".t20a-cartao-rolagens")]) w.replaceWith(...w.childNodes);
+    card.querySelectorAll(".t20a-rolagem-titulo").forEach((r) => r.classList.remove("t20a-rolagem-titulo"));
+    card.querySelectorAll(".t20a-cartao-ficha, .t20a-cartao-tipo").forEach((x) => x.remove());
+    card.querySelectorAll(":scope > .card-item-header > .t20a-oculto").forEach((x) => x.classList.remove("t20a-oculto"));
+    for (const c of [...card.classList]) if (c === "t20a-cartao" || /^t20a-cartao--(?!com-descricao)/.test(c)) card.classList.remove(c);
+  }
+  raiz.querySelectorAll(".t20a-rolagem-titulo").forEach((r) => r.classList.remove("t20a-rolagem-titulo"));
+}
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  hookChat.primeiro(hook, (message, html) => {
+    const element = html?.[0] ?? html;
+    if (element?.querySelectorAll) adaptarHayd(element);
+  });
+}
+
 // Cards de ação: a identificação já está dentro do HTML do card; oculta o cabeçalho padrão do chat.
 // "renderChatMessage" existe no v13 (antigo); "renderChatMessageHTML" é o atual (v13 em diante). Os dois são seguros juntos.
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
-  Hooks.on(hook, (message, html) => {
+  hookChat.on(hook, (message, html) => {
     if (!message.flags?.[ID]?.card) return;
     const element = html?.[0] ?? html;
     element?.classList?.add("t20ah-card-message");
@@ -4051,7 +4250,7 @@ function corDoTipo(tipo, fallback) {
   return fallback || "#e0b85c";
 }
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
-  Hooks.on(hook, (message, html) => {
+  hookChat.on(hook, (message, html) => {
     const element = html?.[0] ?? html;
     // reconhece pelo título (label.titulo) ou, nas versões sem ele, pelo ícone em .../conditions/
     const conteudo = element?.querySelector?.(".message-content");
@@ -4090,15 +4289,38 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
   });
 }
 
+// Linha "Encantos e melhorias" que o módulo do chat (t20a-chat) acrescenta ao card: vira uma ficha discreta dentro do bloco
+// de melhorias (o gatilho original, com o clique, é mantido). Observa o card porque o outro módulo pode inseri-la depois.
+function ajustarResumoEfeitos(card) {
+  const mover = () => {
+    for (const r of card.querySelectorAll(":scope > .t20a-efeitos-resumo")) {
+      for (const n of [...r.childNodes]) if (n.nodeType === 3) n.remove(); // "de <nome do item>"
+      const custo = r.querySelector(".t20a-efeitos-custo");
+      if (custo && /^\s*0\s*PM/i.test(custo.textContent)) custo.remove();
+      let alvo = card.querySelector(":scope > .card-upgrades");
+      if (!alvo) {
+        alvo = document.createElement("div");
+        alvo.className = "card-upgrades";
+        card.querySelector(":scope > .card-header")?.after(alvo);
+      }
+      alvo.classList.remove("t20a-oculto"); // o bloco só tinha linhas resumidas (cada <li> continua escondido): o resumo mora nele
+      alvo.prepend(r);
+    }
+  };
+  mover();
+  new MutationObserver(mover).observe(card, { childList: true });
+}
+
 // Card de item rolado (ataque, magia, poder): só reagrupa o que já existe (os botões e os eventos do sistema continuam
 // nos mesmos elementos). Transforma a linha "Execução: ...; Alcance: ...;" em fichas e marca o card para o novo visual (CSS).
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
-  Hooks.on(hook, (message, html) => {
+  hookChat.on(hook, (message, html) => {
     const element = html?.[0] ?? html;
     const card = element?.querySelector?.(".message-content .chat-card");
     if (!card || card.dataset.t20ahItem) return;
     card.dataset.t20ahItem = "1";
     card.classList.add("t20ah-item");
+    ajustarResumoEfeitos(card);
     const p = card.querySelector(".card-item-header p");
     if (!p) return;
     const fichas = [];
@@ -4159,7 +4381,7 @@ function tiposDaRolagem(roll) {
   return [...set];
 }
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
-  Hooks.on(hook, (message, html) => {
+  hookChat.on(hook, (message, html) => {
     const element = html?.[0] ?? html;
     for (const card of element?.querySelectorAll?.(".message-content .chat-card") ?? []) {
       for (const row of card.querySelectorAll(":scope > .row")) {
@@ -4180,7 +4402,7 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
 // módulos que acrescentam coisas ao card continuam achando a estrutura de sempre). Os botões de aplicar dano/cura
 // formam uma linha horizontal única, embaixo, com a largura toda.
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
-  Hooks.on(hook, (message, html) => {
+  hookChat.on(hook, (message, html) => {
     const element = html?.[0] ?? html;
     const card = element?.querySelector?.(".message-content .chat-card.t20ah-item");
     if (!card || card.dataset.t20ahPares) return;
@@ -4258,7 +4480,7 @@ function agruparExtras(card) {
   box.append(...[...box.children, ...soltos].sort((a, b) => peso(a) - peso(b)));
 }
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
-  Hooks.on(hook, (message, html) => {
+  hookChat.on(hook, (message, html) => {
     const element = html?.[0] ?? html;
     const card = element?.querySelector?.(".message-content .chat-card.t20ah-item");
     if (!card) return;
@@ -4292,7 +4514,7 @@ function marcarNatural(roll) {
   else delete total.dataset.nat;
 }
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
-  Hooks.on(hook, (message, html) => {
+  hookChat.on(hook, (message, html) => {
     const element = html?.[0] ?? html;
     if (!element?.querySelectorAll) return;
     // todo d20 que sai 1 é erro crítico, em qualquer rolagem do chat (ataque, perícia, teste, rolagem avulsa)
@@ -4339,7 +4561,7 @@ function marcarResultado(card, res) {
   if (res.label && total.title !== res.label) total.title = res.label;
 }
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
-  Hooks.on(hook, (message, html) => {
+  hookChat.on(hook, (message, html) => {
     const element = html?.[0] ?? html;
     const card = element?.querySelector?.(".message-content .chat-card.t20ah-item");
     if (!card || card.dataset.t20ahRes) return;
@@ -4384,7 +4606,7 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
 
 // Rolagem avulsa do Foundry (/r, rolagem da ficha sem card): marca a mensagem para receber o visual dos dados do módulo.
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
-  Hooks.on(hook, (message, html) => {
+  hookChat.on(hook, (message, html) => {
     const element = html?.[0] ?? html;
     const conteudo = element?.querySelector?.(".message-content");
     if (!conteudo || conteudo.querySelector(".chat-card, .t20ah-card, .t20ah-cond")) return;
@@ -4392,30 +4614,19 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
   });
 }
 
-// Mensagem privada (sussurro ou rolagem cega): faixa no topo com um símbolo e, no sussurro, quem recebe.
+// Cards do t20-hayd-loja (compra, venda, saldo, estoque, construção, aprimoramento): são cards próprios, como os de tipo de ação:
+// a moldura e o cabeçalho da mensagem saem (o nome do personagem já está dentro do card) e o visual é o deste módulo.
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
-  Hooks.on(hook, (message, html) => {
+  hookChat.on(hook, (message, html) => {
     const element = html?.[0] ?? html;
-    if (!element?.prepend || element.querySelector(":scope > .t20ah-privada")) return;
-    const cega = !!message?.blind;
-    const ids = message?.whisper ?? [];
-    if (!cega && !ids.length) return;
-    const nomes = ids.map((id) => game.users?.get(id)?.name).filter(Boolean);
-    const lista = nomes.length > 3 ? `${nomes.slice(0, 3).join(", ")} +${nomes.length - 3}` : nomes.join(", ");
-    // bandeirinha com o símbolo de oculto; quem recebe o sussurro fica na dica
-    const faixa = document.createElement("div");
-    faixa.className = `t20ah-privada ${cega ? "cega" : "sussurro"}`;
-    const ico = document.createElement("i");
-    ico.className = "fa-solid fa-eye-slash";
-    faixa.append(ico);
-    faixa.title = cega ? "Rolagem cega: o jogador não vê o resultado" : lista ? `Mensagem privada para ${lista}` : "Mensagem privada";
-    element.prepend(faixa);
+    if (!element?.querySelector?.(".message-content .t20-loja-message")) return;
+    element.classList.add("t20ah-card-message", "t20ah-loja-message");
   });
 }
 
 // Mensagem digitada (só texto, sem card nem rolagem): marcada para receber o visual de texto do módulo.
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
-  Hooks.on(hook, (message, html) => {
+  hookChat.on(hook, (message, html) => {
     const element = html?.[0] ?? html;
     const conteudo = element?.querySelector?.(".message-content");
     if (!conteudo || element.classList.contains("t20ah-card-message")) return;
@@ -4427,7 +4638,7 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
 
 // Cards padrão do chat (opção de estilo ligada): retrato do personagem antes do nome, na cor do usuário.
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
-  Hooks.on(hook, (message, html) => {
+  hookChat.on(hook, (message, html) => {
     if (message.flags?.[ID]?.card) return;
     const element = html?.[0] ?? html;
     if (!element?.querySelector) return;
@@ -4437,13 +4648,16 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
       return;
     }
     const autor = message.author ?? message.user;
-    const cor = String(autor?.color?.css ?? autor?.color ?? "");
+    const sp = message.speaker ?? {};
+    const tokenDoc = sp.scene && sp.token ? game.scenes?.get(sp.scene)?.tokens?.get(sp.token) : null;
+    const ator = (sp.actor && game.actors?.get(sp.actor)) || tokenDoc?.actor || null;
+    // a cor é a do jogador dono da ficha (não de quem rolou, que pode ser o Mestre); sem dono jogador, a de quem rolou
+    const dono = ator ? game.users?.find((u) => !u.isGM && ator.testUserPermission?.(u, "OWNER")) : null;
+    const corUsuario = dono ?? autor;
+    const cor = String(corUsuario?.color?.css ?? corUsuario?.color ?? "");
     if (cor) element.style.setProperty("--cor-user", cor);
     const cab = element.querySelector(".message-header");
     if (!cab || cab.querySelector(".t20ah-retrato-msg")) return;
-    const sp = message.speaker ?? {};
-    const ator = (sp.actor && game.actors?.get(sp.actor)) || null;
-    const tokenDoc = sp.scene && sp.token ? game.scenes?.get(sp.scene)?.tokens?.get(sp.token) : null;
     const img = ator?.img || tokenDoc?.texture?.src || autor?.avatar || "";
     if (!img) return;
     const el = document.createElement("img");
@@ -4505,7 +4719,7 @@ function limparRolagens(element) {
   }
 }
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
-  Hooks.on(hook, (message, html) => limparRolagens(html?.[0] ?? html));
+  hookChat.on(hook, (message, html) => limparRolagens(html?.[0] ?? html));
 }
 
 /* ---------- dados do mesmo tipo juntos ----------
@@ -4555,7 +4769,7 @@ function juntarGruposIguais(element) {
   }
 }
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
-  Hooks.on(hook, (message, html) => juntarGruposIguais(html?.[0] ?? html));
+  hookChat.on(hook, (message, html) => juntarGruposIguais(html?.[0] ?? html));
 }
 
 
@@ -4572,15 +4786,29 @@ function animacoesAtivas() {
   const cfgAtual = game.settings.get(ID, "animacoesDano") ?? {};
   return new Set(ANIM_TIPOS.map(([k]) => k).filter((k) => cfgAtual[k] !== false));
 }
+/** Versão escolhida (0 = original, 1 e 2 = alternativas) de cada efeito, para este usuário. */
+function variantesAnim() {
+  return game.settings.get(ID, "animacoesVariante") ?? {};
+}
 async function abrirAnimacoesDano() {
   const ativas = animacoesAtivas();
+  const variantes = variantesAnim();
   let fx = null;
   try { fx = await import("./dano-fx.js"); } catch (err) { /* sem pré-visualização */ }
-  const cartas = ANIM_TIPOS.map(([k, nome]) => `
+  const cartas = ANIM_TIPOS.map(([k, nome]) => {
+    const vs = fx?.variantsOf ? fx.variantsOf(k) : [];
+    const seletor = vs.length > 1
+      ? `<select class="pv-versao" name="v_${k}" title="Versão do efeito">${vs
+          .map((v, i) => `<option value="${i}" ${Number(variantes[k] ?? 0) === i ? "selected" : ""}>${esc(v.label)}</option>`)
+          .join("")}</select>`
+      : "";
+    return `
     <label class="t20ah-anim-carta ${ativas.has(k) ? "on" : ""}">
       <span class="pv-nome"><input type="checkbox" name="${k}" ${ativas.has(k) ? "checked" : ""}> ${nome}</span>
       <span class="pv" data-fx="${k}"><b>31</b></span>
-    </label>`).join("");
+      ${seletor}
+    </label>`;
+  }).join("");
   const conteudo = `
     <div class="t20ah-anim-topo">
       <button type="button" data-todos="1"><i class="fa-solid fa-check-double"></i> Ativar todos</button>
@@ -4607,22 +4835,127 @@ async function abrirAnimacoesDano() {
         );
         if (!fx) return;
         // pré-visualização: o mesmo efeito do chat, numa caixa de dano de exemplo
+        const montar = (pv, variant) => {
+          try {
+            const m = fx.mountFx(pv, pv.dataset.fx, { pixel: 2, rise: 14, intensity: 0.95, variant });
+            montados.push(m);
+            return m;
+          } catch (err) { return null; /* ignora */ }
+        };
         raiz.querySelectorAll(".pv[data-fx]").forEach((pv) => {
-          try { montados.push(fx.mountFx(pv, pv.dataset.fx, { pixel: 2, rise: 14, intensity: 0.95 })); } catch (err) { /* ignora */ }
+          let m = montar(pv, Number(variantes[pv.dataset.fx] ?? 0));
+          const sel = pv.closest(".t20ah-anim-carta")?.querySelector(".pv-versao");
+          sel?.addEventListener("change", () => {
+            m?.destroy();
+            m = montar(pv, Number(sel.value));
+          });
         });
       },
       ok: {
         label: "Salvar",
-        callback: (ev, btn) => Object.fromEntries(ANIM_TIPOS.map(([k]) => [k, !!btn.form.elements[k]?.checked]))
+        callback: (ev, btn) => ({
+          ativas: Object.fromEntries(ANIM_TIPOS.map(([k]) => [k, !!btn.form.elements[k]?.checked])),
+          versoes: Object.fromEntries(ANIM_TIPOS.map(([k]) => [k, Number(btn.form.elements[`v_${k}`]?.value ?? 0) || 0]))
+        })
       }
     });
-    if (r) await game.settings.set(ID, "animacoesDano", r);
+    if (r) {
+      await game.settings.set(ID, "animacoesVariante", r.versoes);
+      await game.settings.set(ID, "animacoesDano", r.ativas);
+    }
   } catch (err) {
     /* cancelado */
   } finally {
     montados.forEach((m) => m.destroy());
   }
 }
+/** Animação escolhida na ficha do item que gerou o card desta rolagem: { efeito: "fire" | "none" | "", versao }. */
+function escolhaAnimacaoDoItem(dr) {
+  const card = dr.closest(".chat-card[data-item-id]");
+  if (!card) return null;
+  const msgId = dr.closest("[data-message-id]")?.dataset.messageId;
+  const sp = msgId ? game.messages?.get(msgId)?.speaker : null;
+  const tokenDoc = sp?.scene && sp?.token ? game.scenes?.get(sp.scene)?.tokens?.get(sp.token) : null;
+  const ator = game.actors?.get(card.dataset.actorId) ?? tokenDoc?.actor ?? (sp?.actor ? game.actors?.get(sp.actor) : null);
+  const item = ator?.items?.get(card.dataset.itemId);
+  const escolha = item?.getFlag?.(ID, "animacao");
+  return escolha && typeof escolha === "object" ? escolha : null;
+}
+
+/** Janela "Animação do card" de um item: escolhe o efeito (ou nenhum) e a versão, com prévia. */
+async function abrirAnimacaoDoItem(item) {
+  let fx = null;
+  try { fx = await import("./dano-fx.js"); } catch (err) { /* sem prévia */ }
+  const atual = item.getFlag(ID, "animacao") ?? {};
+  const opcoes = [
+    ["", "Automática (pelo tipo do dano)"],
+    ["none", "Nenhuma animação"],
+    ...ANIM_TIPOS
+  ];
+  const conteudo = `
+    <div class="t20ah-anim-item">
+      <p>Animação do dano no card de <b>${esc(item.name)}</b>. Só aparece se o efeito estiver ativo em Configurações → Animações do dano.</p>
+      <label>Efeito
+        <select name="efeito">${opcoes.map(([k, n]) => `<option value="${k}" ${String(atual.efeito ?? "") === k ? "selected" : ""}>${n}</option>`).join("")}</select>
+      </label>
+      <label class="ai-versao">Versão <select name="versao"></select></label>
+      <div class="ai-previa"><span class="pv" data-fx=""><b>31</b></span></div>
+    </div>`;
+  let montado = null;
+  try {
+    const r = await foundry.applications.api.DialogV2.prompt({
+      window: { title: `Animação do card — ${item.name}` },
+      classes: ["t20ah-anim-dialogo", "t20ah-anim-item-dlg"],
+      position: { width: 380 },
+      content: conteudo,
+      render: (ev, dialog) => {
+        const raiz = dialog.element ?? ev.target?.element ?? ev.target;
+        const efeito = raiz.querySelector('[name="efeito"]');
+        const versao = raiz.querySelector('[name="versao"]');
+        const previa = raiz.querySelector(".ai-previa .pv");
+        const atualizar = (manter) => {
+          montado?.destroy();
+          montado = null;
+          const k = efeito.value;
+          const vs = fx?.variantsOf && k && k !== "none" ? fx.variantsOf(k) : [];
+          versao.innerHTML = vs.map((v, i) => `<option value="${i}">${esc(v.label)}</option>`).join("");
+          versao.value = String(manter ? Number(atual.versao) || 0 : 0);
+          raiz.querySelector(".ai-versao").style.display = vs.length > 1 ? "" : "none";
+          previa.parentElement.style.display = vs.length ? "" : "none";
+          if (!vs.length || !fx) return;
+          previa.dataset.fx = k;
+          try { montado = fx.mountFx(previa, k, { pixel: 2, rise: 14, intensity: 0.95, variant: Number(versao.value) || 0 }); } catch (err) { /* ignora */ }
+        };
+        efeito.addEventListener("change", () => atualizar(false));
+        versao.addEventListener("change", () => {
+          montado?.destroy();
+          try { montado = fx.mountFx(previa, efeito.value, { pixel: 2, rise: 14, intensity: 0.95, variant: Number(versao.value) || 0 }); } catch (err) { /* ignora */ }
+        });
+        atualizar(true);
+      },
+      ok: { label: "Salvar", callback: (ev, btn) => ({ efeito: btn.form.elements.efeito.value, versao: Number(btn.form.elements.versao.value) || 0 }) }
+    });
+    if (r) {
+      if (!r.efeito) await item.unsetFlag(ID, "animacao");
+      else await item.setFlag(ID, "animacao", r);
+      ui.chat?.render?.(true);
+    }
+  } catch (err) {
+    /* cancelado */
+  } finally {
+    montado?.destroy();
+  }
+}
+// Botão "Animação" no cabeçalho da ficha do item (ficha antiga e ApplicationV2)
+Hooks.on("getItemSheetHeaderButtons", (sheet, buttons) => {
+  if (!sheet.item) return;
+  buttons.unshift({ label: "Animação", class: "t20ah-anim-item", icon: "fa-solid fa-fire", onclick: () => abrirAnimacaoDoItem(sheet.item) });
+});
+Hooks.on("getHeaderControlsApplicationV2", (app, controls) => {
+  const doc = app.document ?? app.item;
+  if (!doc || doc.documentName !== "Item") return;
+  controls.push({ icon: "fa-solid fa-fire", label: "Animação do card", action: "t20ahAnimacao", onClick: () => abrirAnimacaoDoItem(doc) });
+});
 function chaveEfeito(tipo, resolver) {
   const k = String(tipo).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
   if (/^cura\s*(de\s*)?(pm|mana)|^recuperacao.*(pm|mana)|^mana$/.test(k)) return "manaheal";
@@ -4631,7 +4964,7 @@ function chaveEfeito(tipo, resolver) {
   return resolver(k);
 }
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
-  Hooks.on(hook, async (message, html) => {
+  hookChat.on(hook, async (message, html) => {
     const ativas = animacoesAtivas();
     if (!ativas.size) return;
     const element = html?.[0] ?? html;
@@ -4641,17 +4974,22 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
     for (const dr of rolagens) {
       const total = dr.querySelector(".dice-total");
       if (!total || total.dataset.t20ahAnim) continue;
-      const tipos = tiposDaRolagem(dr);
+      // animação escolhida na ficha do item (se houver): vale para as rolagens de dano do card desse item
+      const escolhaItem = escolhaAnimacaoDoItem(dr);
+      if (escolhaItem?.efeito === "none") continue;
+      const sobrescrita = escolhaItem?.efeito && dr.closest(".roll--dano") && ativas.has(escolhaItem.efeito) ? escolhaItem : null;
+      const tipos = sobrescrita ? [sobrescrita.efeito] : tiposDaRolagem(dr);
       if (!tipos.length) continue; // sem tipo de dano associado (ex.: perícia): nada a animar
       try {
         fx ??= await import("./dano-fx.js");
         const chaves = [...new Set(tipos.map((t) => chaveEfeito(t, fx.resolveName)))];
         const validas = chaves.filter((c) => c && ativas.has(c));
+        const versoes = sobrescrita ? { [sobrescrita.efeito]: Number(sobrescrita.versao) || 0 } : variantesAnim();
         const opcoes = { pixel: 2, rise: 12, intensity: 0.95 };
         if (chaves.length === 1 && validas.length === 1) {
           total.dataset.t20ahAnim = "1";
           total.classList.add("t20ah-anim");
-          fx.mountFx(total, validas[0], opcoes);
+          fx.mountFx(total, validas[0], { ...opcoes, variant: Number(versoes[validas[0]] ?? 0) });
         } else if (chaves.length > 1 && validas.length && cfg("animarDanoTodos")) {
           // vários tipos na mesma rolagem: cada tipo ocupa uma faixa do valor, lado a lado
           total.dataset.t20ahAnim = "1";
@@ -4664,7 +5002,7 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
             const faixa = document.createElement("div");
             faixa.className = "t20ah-anim-faixa";
             caixa.append(faixa);
-            fx.mountFx(faixa, k, opcoes);
+            fx.mountFx(faixa, k, { ...opcoes, variant: Number(versoes[k] ?? 0) });
           });
           total.append(caixa);
         }
@@ -4704,7 +5042,7 @@ function associarTipoRolagemEmLinha(element) {
   }
 }
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
-  Hooks.on(hook, (message, html) => associarTipoRolagemEmLinha(html?.[0] ?? html));
+  hookChat.on(hook, (message, html) => associarTipoRolagemEmLinha(html?.[0] ?? html));
 }
 
 
@@ -4716,7 +5054,14 @@ const TEMAS_HUD = {
   floresta: { nome: "Floresta", bg1: "#0e1a14", bg2: "#1a2a22", faixa: "#2f9e5a" },
   ametista: { nome: "Ametista", bg1: "#150f20", bg2: "#2a1d3a", faixa: "#8a4fd0" }
 };
-const VISUAL_PADRAO = { tema: "vinho", opacidade: 100, desfoque: 6, cantos: 0.9, destaque: "#e0b85c", faixa: "" };
+const VISUAL_PADRAO = { tema: "vinho", opacidade: 100, desfoque: 6, cantos: 0.9, destaque: "#e0b85c", faixa: "", principal: "" };
+
+/** Mistura duas cores #rrggbb (p = parte da primeira, 0 a 1). */
+function misturarHex(a, b, p) {
+  const n = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const [x, y] = [n(a), n(b)];
+  return `#${x.map((c, i) => Math.round(c * p + y[i] * (1 - p)).toString(16).padStart(2, "0")).join("")}`;
+}
 
 function visualHud() {
   let v = {};
@@ -4727,7 +5072,11 @@ function visualHud() {
 /** Aplica o visual escolhido por este usuário à HUD e à gaveta (folha de estilo própria). */
 function aplicarVisualHud() {
   const v = visualHud();
-  const t = TEMAS_HUD[v.tema] ?? TEMAS_HUD.vinho;
+  let t = TEMAS_HUD[v.tema] ?? TEMAS_HUD.vinho;
+  // cor principal personalizada: o fundo e a faixa do topo derivam dela (no lugar das cores do tema)
+  if (/^#[0-9a-f]{6}$/i.test(v.principal ?? "")) {
+    t = { ...t, bg2: misturarHex(v.principal, "#08080a", 0.3), bg1: misturarHex(v.principal, "#050507", 0.13), faixa: v.principal };
+  }
   const op = Math.min(100, Math.max(30, Number(v.opacidade) || 100));
   const faixa = /^#[0-9a-f]{6}$/i.test(v.faixa ?? "") ? v.faixa : (t.faixa ?? "#c0392b");
   let st = document.getElementById("t20ah-visual");
@@ -4738,7 +5087,7 @@ function aplicarVisualHud() {
   }
   const fundo = `linear-gradient(165deg, color-mix(in srgb, ${t.bg2} ${op}%, transparent), color-mix(in srgb, ${t.bg1} ${op}%, transparent))`;
   st.textContent = `
-    #t20ah, #t20ah-gaveta, #t20ah-vol-pop { --bg1: ${t.bg1}; --bg2: ${t.bg2}; --ouro: ${v.destaque}; }
+    #t20ah, #t20ah-gaveta, #t20ah-vol-pop, #t20ah-acoes, #t20ah-acoes-tip { --bg1: ${t.bg1}; --bg2: ${t.bg2}; --ouro: ${v.destaque}; }
     #t20ah { background: ${fundo} !important; border-color: color-mix(in srgb, ${v.destaque} 45%, transparent) !important; border-radius: ${Number(v.cantos)}em !important; backdrop-filter: blur(${Number(v.desfoque)}px) !important; }
     #t20ah-gaveta .gv-interno { background: ${fundo} !important; border-color: color-mix(in srgb, ${v.destaque} 45%, transparent) !important; backdrop-filter: blur(${Number(v.desfoque)}px); }
     #t20ah-gaveta, #t20ah-gaveta .gv-corpo { background: none !important; border: 0 !important; backdrop-filter: none !important; box-shadow: none !important; }
@@ -4767,6 +5116,7 @@ function abrirVisualHud(btn) {
     <label class="vp-lin"><span>Opacidade</span><input type="range" data-k="opacidade" min="30" max="100" step="5" value="${v.opacidade}"><output>${v.opacidade}%</output></label>
     <label class="vp-lin"><span>Desfoque</span><input type="range" data-k="desfoque" min="0" max="16" step="1" value="${v.desfoque}"><output>${v.desfoque}px</output></label>
     <label class="vp-lin"><span>Cantos</span><input type="range" data-k="cantos" min="0" max="1.6" step="0.1" value="${v.cantos}"><output>${v.cantos}</output></label>
+    <label class="vp-lin"><span>Cor principal</span><input type="color" data-k="principal" value="${/^#[0-9a-f]{6}$/i.test(v.principal ?? "") ? v.principal : (TEMAS_HUD[v.tema]?.faixa ?? "#c0392b")}"></label>
     <label class="vp-lin"><span>Destaque</span><input type="color" data-k="destaque" value="${v.destaque}"></label>
     <label class="vp-lin"><span>Faixa do topo</span><input type="color" data-k="faixa" value="${/^#[0-9a-f]{6}$/i.test(v.faixa ?? "") ? v.faixa : (TEMAS_HUD[v.tema]?.faixa ?? "#c0392b")}"></label>
     <footer><button type="button" data-vp="padrao"><i class="fa-solid fa-rotate-left"></i> Restaurar padrão</button></footer>`;
@@ -4786,7 +5136,7 @@ function abrirVisualHud(btn) {
     const i = ev.target.closest("input[data-k]");
     if (!i) return;
     const k = i.dataset.k;
-    const val = k === "destaque" || k === "faixa" ? i.value : Number(i.value);
+    const val = k === "destaque" || k === "faixa" || k === "principal" ? i.value : Number(i.value);
     const out = i.parentElement.querySelector("output");
     if (out) out.textContent = k === "escala" ? `${Math.round(val * 100)}%` : k === "opacidade" ? `${val}%` : k === "desfoque" ? `${val}px` : val;
     if (k === "escala") game.settings.set(ID, "escala", val);
@@ -4798,7 +5148,9 @@ function abrirVisualHud(btn) {
     if (b.dataset.vp === "fechar") return fechar();
     if (b.dataset.tema) {
       pop.querySelectorAll(".vp-tema").forEach((x) => x.classList.toggle("sel", x === b));
-      salvar({ tema: b.dataset.tema, faixa: "" }); // o tema traz a sua própria faixa
+      salvar({ tema: b.dataset.tema, faixa: "", principal: "" }); // o tema traz as suas próprias cores
+      const pr = pop.querySelector('input[data-k="principal"]');
+      if (pr) pr.value = TEMAS_HUD[b.dataset.tema]?.faixa ?? "#c0392b";
       const fx = pop.querySelector('input[data-k="faixa"]');
       if (fx) fx.value = TEMAS_HUD[b.dataset.tema]?.faixa ?? "#c0392b";
     }

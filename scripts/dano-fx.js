@@ -684,6 +684,675 @@ function fumble(f, t, o) {
   glow(f, cx, cy, W * 0.42, bh * 0.9, [190, 40, 60], 0.14 + 0.07 * Math.sin(u * TAU * 2));
 }
 
+// ############################################################################
+// ##  VARIAÇÕES: cada efeito tem 2 desenhos alternativos, diferentes em forma,   ##
+// ##  movimento e composição (não só na cor). variant: 0 = original, 1, 2.       ##
+// ############################################################################
+
+// ======================= FOGO B: tochas laterais =======================
+function fireB(f, t, o) {
+  const dur = 1.2, W = f.w, Hh = f.h, base = Hh - 1, u = t / dur;
+  [[11, 0], [W - 12, 3]].forEach(([cx0, sd]) => {
+    for (let y = 0; y < Hh; y++) for (let x = cx0 - 11; x <= cx0 + 11; x++) {
+      if (x < 0 || x >= W) continue;
+      const yb = base - y, g = yb / (Hh * 1.3), dxn = Math.abs(x - cx0) / 10;
+      const xs = x + Math.sin(yb * 0.25 - (t / dur) * TAU + sd) * 1.8 * g;
+      const n0 = vnoise(xs * 0.2, yb * 0.1 - u * 4, 4, 9 + sd) * 0.62 + vnoise(xs * 0.4 + 5, yb * 0.2 - u * 8, 8, 10 + sd) * 0.38;
+      const n = clamp((n0 - 0.5) * 1.7 + 0.5);
+      let h = n * 1.05 + 0.62 * Math.pow(1 - clamp(g), 1.5) - g * 0.85 - (dxn / (1 - g * 0.5)) * 0.55;
+      const j = (BAYER[(y & 3) * 4 + (x & 3)] + 0.5) / 16 - 0.5;
+      h += j * 0.14;
+      if (h < 0.2) continue;
+      put(f, x, y, FIRE[clamp(Math.round(((h - 0.2) / 0.85) * 7 + j * 0.5), 0, 7)]);
+    }
+    glow(f, cx0, base - 4, 13, 12, [255, 110, 25], 0.32 + 0.06 * Math.sin(u * TAU * 2));
+  });
+  for (let i = 0; i < 10; i++) { // brasas à deriva entre as tochas
+    const ph = R(i, 1, 61), k = fr(u * (1 + (i % 2)) + ph), x = lerp(14, W - 15, R(i, 2, 61)) + Math.sin((k + ph) * TAU) * 3, y = base - 2 - k * (Hh - 4);
+    put(f, x, y, FIRE[clamp(Math.round(7 - k * 4), 3, 7)], (1 - k * k) * smooth(0, 0.1, k));
+  }
+}
+
+// ======================= FOGO C: bola de fogo =======================
+function fireC(f, t, o) {
+  const dur = 2.0, W = f.w, Hh = f.h, u = t / dur, bt = o.boxTop ?? Hh - 16, bh = Hh - bt, cy0 = bt + bh * 0.5;
+  const pos = (p) => [lerp(-14, W + 14, p), cy0 + Math.sin(p * TAU * 2) * 3.5];
+  for (let j = 28; j >= 0; j--) { // rastro de chamas
+    const [x, y] = pos(u - j * 0.011), r = Math.max(0.6, 4.4 - j * 0.14);
+    const yy = y - j * 0.16 * (0.5 + 0.5 * Math.sin(j * 1.7 + u * TAU * 3)) - j * 0.12;
+    disc(f, Math.round(x - j * 0.15), Math.round(yy), r, FIRE[clamp(Math.round(6 - j * 0.2), 1, 6)], clamp(1 - j / 30) * 0.95 + 0.05);
+  }
+  const [hx, hy] = pos(u);
+  disc(f, Math.round(hx), Math.round(hy), 5, FIRE[3]); disc(f, Math.round(hx), Math.round(hy), 4, FIRE[4]);
+  disc(f, Math.round(hx + 0.5), Math.round(hy), 3, FIRE[5]); disc(f, Math.round(hx + 1), Math.round(hy), 1.7, FIRE[7]);
+  for (let i = 0; i < 9; i++) { // faíscas soltas
+    const k = fr(u * 4 + i / 9), [ex, ey] = pos(u - k * 0.05);
+    put(f, ex - k * 8, ey - k * 9 * (0.4 + R(i, 3, 62)) + (R(i, 4, 62) - 0.5) * 3, FIRE[clamp(Math.round(7 - k * 4), 3, 7)], 1 - k);
+  }
+  glow(f, hx, hy, 18, 12, [255, 120, 30], 0.5);
+}
+
+// ======================= ÁCIDO B: corrosão =======================
+function acidB(f, t, o) {
+  const dur = 2.4, W = f.w, Hh = f.h, u = t / dur, bt = o.boxTop ?? Hh - 16, bh = Hh - bt, tf = (y) => smooth(0, 8, y);
+  for (let i = 0; i < 7; i++) {
+    const ph = R(i, 1, 63), k = fr(u + ph), cx0 = Math.round(6 + R(i, 2, 63) * (W - 12)), cy0 = Math.round(bt + 3 + R(i, 3, 63) * (bh - 6));
+    const rad = (k < 0.75 ? eo3(k / 0.75) : 1) * (2.5 + R(i, 4, 63) * 3.2), al = k < 0.75 ? 1 : 1 - (k - 0.75) / 0.25;
+    if (rad < 0.4) continue;
+    const n = Math.ceil(rad + 2);
+    for (let y = -n; y <= n; y++) for (let x = -n; x <= n; x++) { // buraco corroído: miolo escuro, borda borbulhando
+      const d = Math.hypot(x + 0.5, y + 0.5) - 0.6 * Math.sin(Math.atan2(y, x) * 3 + i);
+      if (d < rad - 0.9) put(f, cx0 + x, cy0 + y, ACID[0], al * 0.95);
+      else if (d < rad + 0.7) put(f, cx0 + x, cy0 + y, ACID[(x + y) & 1 ? 5 : 4], al);
+      else if (d < rad + 1.8) put(f, cx0 + x, cy0 + y, ACID[2], al * 0.55);
+    }
+    for (let j = 0; j < 4; j++) { // bolhinhas chiando na borda
+      const a = R(j + i * 5, 5, 63) * TAU;
+      if (Math.sin(u * TAU * 6 + j * 1.9 + i) > 0.6) put(f, cx0 + Math.cos(a) * (rad + 0.5), cy0 + Math.sin(a) * (rad + 0.5), ACID[5], al);
+    }
+    for (let j = 0; j < 3; j++) { // fumaça verde subindo
+      const kk = fr(u * 2 + ph + j / 3), yy = cy0 - 1 - kk * 11;
+      put(f, cx0 + Math.sin((kk + j) * TAU) * 2, yy, ACID[2 + (j & 1)], 0.6 * (1 - kk) * al * tf(yy));
+    }
+    glow(f, cx0, cy0, rad * 3 + 3, rad * 2 + 3, [110, 255, 40], 0.18 * al);
+  }
+}
+
+// ======================= ÁCIDO C: gosma escorrendo do teto =======================
+function acidC(f, t, o) {
+  const dur = 2.4, W = f.w, Hh = f.h, base = Hh - 1, u = t / dur, bt = o.boxTop ?? Hh - 16;
+  const ceil = (x) => bt + 0.5 + 1.2 * Math.sin(x * 0.3 + u * TAU) + 0.8 * Math.sin(x * 0.13 - u * TAU * 2);
+  for (let x = 0; x < W; x++) { // massa de gosma no topo da caixa
+    const c = ceil(x);
+    for (let y = Math.max(0, Math.floor(c) - 3); y <= Math.ceil(c); y++) {
+      const d = c - y;
+      put(f, x, y, ACID[d < 0.8 ? 5 : d < 2 ? 4 : d < 3 ? 3 : 2], Math.max(0.15, smooth(0, 6, y)));
+    }
+  }
+  for (let i = 0; i < 8; i++) { // gotas que esticam, se soltam e caem
+    const ph = R(i, 1, 64), k = fr(u + ph), x = Math.round(5 + (i + R(i, 2, 64) * 0.6) * ((W - 10) / 8)), cy0 = Math.round(ceil(x)), Lmax = 9 + R(i, 3, 64) * 8;
+    if (k < 0.7) {
+      const len = Lmax * Math.pow(k / 0.7, 1.4);
+      for (let j = 0; j < len; j++) { put(f, x, cy0 + j, ACID[3]); put(f, x + 1, cy0 + j, ACID[j < 3 ? 3 : 2]); }
+      put(f, x, cy0 + len, ACID[5]); put(f, x + 1, cy0 + len, ACID[4]); put(f, x, cy0 + len + 1, ACID[4]); put(f, x + 1, cy0 + len + 1, ACID[3]);
+    } else {
+      const q = (k - 0.7) / 0.3, stem = Lmax * Math.max(0, 1 - q / 0.2), y = lerp(cy0 + Lmax, base - 1, q * q);
+      for (let j = 0; j < stem; j++) put(f, x, cy0 + j, ACID[3]);
+      if (q < 0.93) { put(f, x, y, ACID[5]); put(f, x, y + 1, ACID[4]); put(f, x + 1, y + 1, ACID[3]); put(f, x, y - 1, ACID[4], 0.7); }
+      else { const s2 = (q - 0.93) / 0.07; put(f, x - 1 - s2 * 2, base - 1 - s2, ACID[5], 1 - s2); put(f, x + 2 + s2 * 2, base - 1 - s2, ACID[4], 1 - s2); }
+    }
+  }
+  glow(f, W / 2, bt, W * 0.5, 9, [100, 230, 40], 0.22);
+}
+
+// ======================= ELETRICIDADE B: orbe de plasma =======================
+function lightningB(f, t, o) {
+  const dur = 1.2, W = f.w, Hh = f.h, u = t / dur, bt = o.boxTop ?? Hh - 16, bh = Hh - bt, cx = W / 2, cy = bt + bh * 0.5;
+  const slot = Math.floor(u * 12), p = u * 12 - slot, fl = 0.55 + 0.45 * Math.sin(u * TAU * 12);
+  for (let a = 0; a < 6; a++) { // arcos saindo do orbe, mudando a cada 0,1 s
+    const ang = (a / 6) * TAU + (R(slot, a, 70) - 0.5) * 0.9 + slot * 0.4, len = 16 + R(slot, a + 9, 70) * 22;
+    drawBolt(f, jag(cx, cy, cx + Math.cos(ang) * len * 1.6, cy + Math.sin(ang) * len * 0.45, 3.5, slot * 17 + a, 3), fl * (1 - p * 0.4), p < 0.3);
+  }
+  disc(f, Math.round(cx), Math.round(cy), 3, ELEC[3]); disc(f, Math.round(cx), Math.round(cy), 2, ELEC[5]); put(f, cx, cy, ELEC[6]);
+  for (let i = 0; i < 4; i++) { const a = u * TAU * 3 + (i / 4) * TAU; put(f, cx + Math.cos(a) * 8, cy + Math.sin(a) * 4.5, ELEC[6]); put(f, cx + Math.cos(a - 0.3) * 8, cy + Math.sin(a - 0.3) * 4.5, ELEC[4], 0.7); }
+  glow(f, cx, cy, 16, 9, [80, 150, 255], 0.55 * fl);
+}
+
+// ======================= ELETRICIDADE C: corrente correndo pela borda =======================
+function lightningC(f, t, o) {
+  const dur = 1.2, W = f.w, Hh = f.h, u = t / dur, bt = o.boxTop ?? Hh - 16, bh = Hh - bt, w = W - 2, h = bh - 1, P = 2 * w + 2 * h;
+  const perim = (s) => { // posição na borda da caixa + direção para dentro
+    s = mod(s, P);
+    if (s < w) return [1 + s, bt, 0, 1];
+    if (s < w + h) return [W - 2, bt + (s - w), -1, 0];
+    if (s < 2 * w + h) return [W - 2 - (s - w - h), Hh - 1, 0, -1];
+    return [1, Hh - 1 - (s - 2 * w - h), 1, 0];
+  };
+  const slot = Math.floor(u * 16);
+  for (let s = 0; s < P; s++) { const [px, py] = perim(s); if (R(slot, s, 72) < 0.22) put(f, px, py, ELEC[3], 0.7); } // borda crepitando
+  for (let k = 0; k < 3; k++) {
+    const head = fr(u + k / 3) * P, trail = [];
+    for (let i = 30; i >= 0; i--) { // trilha irregular rente à borda, da cauda até a cabeça
+      const [px, py, nx, ny] = perim(head - i), jt = Math.abs((R(slot, i + k * 31, 71) - 0.5) * 4.6 * (1 - i / 36));
+      trail.push([px + nx * jt, py + ny * jt]);
+    }
+    drawBolt(f, trail, 1, true);
+    const [hx, hy, nx, ny] = perim(head), L = 7 + R(slot, k + 40, 71) * 9;
+    drawBolt(f, jag(hx, hy, hx + nx * L, hy + ny * L + (R(slot, k + 50, 71) - 0.5) * 6, 3, slot * 7 + k, 3), 0.9, false); // raio saltando para dentro
+    lum(f, hx, hy, [120, 190, 255], 0.5);
+  }
+}
+
+// ======================= ESSÊNCIA MÁGICA B: círculo rúnico =======================
+const GLYPHS = [["111", "101", "111", "101", "101"], ["010", "111", "010", "010", "111"], ["101", "111", "010", "111", "101"], ["110", "101", "110", "101", "110"], ["111", "010", "111", "010", "111"]];
+function forceB(f, t, o) {
+  const dur = 4.8, W = f.w, Hh = f.h, u = t / dur, bt = o.boxTop ?? Hh - 16, bh = Hh - bt, cx = W / 2, cy = bt + bh * 0.45, tf = (y) => smooth(0, 8, y);
+  for (const [rx, ry, dir, n] of [[24, 8, 1, 170], [17, 5.6, -1, 120]]) { // anéis rúnicos girando em sentidos opostos
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * TAU;
+      if (fr((i / n) * 12 + dir * u * 3) > 0.62) continue;
+      const hot = Math.sin(a * 2 - dir * u * TAU * 2) > 0.5, y = cy + Math.sin(a) * ry;
+      put(f, cx + Math.cos(a) * rx, y, AUV[hot ? 5 : 3], tf(y)); if (hot) put(f, cx + Math.cos(a) * (rx - 1), y + 0.5, AUV[2], 0.8 * tf(y));
+    }
+  }
+  for (let i = 0; i < 6; i++) { // runas orbitando o círculo
+    const a = u * TAU + (i / 6) * TAU, gx = cx + Math.cos(a) * 29, gy = cy + Math.sin(a) * 8.6, back = Math.sin(a) < 0;
+    const pulse = 0.55 + 0.45 * Math.sin(u * TAU * 2 + i), g = GLYPHS[i % 5];
+    for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) if (g[r][c] === "1") put(f, gx + c - 1, gy + r - 2, AUV[back ? 3 : 5], pulse * (back ? 0.6 : 1));
+    lum(f, gx, gy, [150, 100, 255], 0.3 * pulse);
+  }
+  for (let i = 0; i < 8; i++) { const k = fr(u + R(i, 1, 81)), x = cx + (R(i, 2, 81) - 0.5) * 36, y = cy + 6 - k * 18; put(f, x, y, AUC[3], smooth(0, 0.15, k) * (1 - k) * tf(y)); }
+  glow(f, cx, cy + 2, 26, 9, [120, 70, 255], 0.22 + 0.06 * Math.sin(u * TAU * 2));
+}
+
+// ======================= ESSÊNCIA MÁGICA C: constelação arcana =======================
+function forceC(f, t, o) {
+  const dur = 4.8, W = f.w, Hh = f.h, u = t / dur, bt = o.boxTop ?? Hh - 16, tf = (y) => smooth(0, 8, y), N = 14, pts = [];
+  for (let i = 0; i < N; i++) {
+    const m = 1 + (i % 2);
+    pts.push([4 + (((i * 5) % N) + R(i, 1, 80) * 0.8) / N * (W - 8) + Math.sin(u * TAU * m + i) * 2.5, bt - 3 + R(i, 2, 80) * (Hh - bt + 1) + Math.cos(u * TAU * m + i * 1.7) * 2]);
+  }
+  for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) {
+    const d = Math.hypot(pts[i][0] - pts[j][0], (pts[i][1] - pts[j][1]) * 1.6);
+    if (d > 24) continue;
+    const al = 1 - d / 24, ym = (pts[i][1] + pts[j][1]) / 2;
+    seg(f, pts[i][0], pts[i][1], pts[j][0], pts[j][1], AUV[al > 0.45 ? 4 : 3], Math.min(1, 0.55 + al * 0.8) * tf(ym));
+    if (al > 0.35) { const k = fr(u * 2 + (i * 7 + j * 3) / 20), sy = lerp(pts[i][1], pts[j][1], k); put(f, lerp(pts[i][0], pts[j][0], k), sy, AUV[5], tf(sy)); } // sinal viajando
+  }
+  pts.forEach(([x, y], i) => {
+    const tw = Math.sin(u * TAU * 2 + i) ** 2;
+    star(f, x, y, tw > 0.5 ? 2 : 1, i % 4 === 0 ? AUC[3] : AUV[5], tf(y)); put(f, x, y, AUV[5]);
+    lum(f, x, y, i % 4 === 0 ? [90, 220, 240] : [140, 90, 255], 0.2 * tw);
+  });
+}
+
+// ======================= FRIO B: nevasca =======================
+function coldB(f, t, o) {
+  const dur = 2.4, W = f.w, Hh = f.h, u = t / dur, tf = (y) => smooth(0, 6, y);
+  for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) { // geada crescendo nas laterais, ao ritmo do vento
+    const d = Math.min(x, W - 1 - x), reach = 10 + 2 * Math.sin(u * TAU);
+    if (d > reach) continue;
+    const n = vnoise(x * 0.5, y * 0.45, 8, 21), th = 0.3 + (d / reach) * 0.8;
+    if (n > th) put(f, x, y, ICE[d < 3 ? 4 : n > th + 0.18 ? 3 : 2], tf(y));
+  }
+  for (let i = 0; i < 24; i++) { // rajadas de vento
+    const m = 1 + (i % 3), k = fr(u * m + R(i, 1, 81)), y = 1 + R(i, 2, 81) * (Hh - 2), len = 3 + m * 3, x = k * (W + 40) - 20;
+    for (let j = 0; j < len; j++) put(f, x - j, y + Math.sin((x - j) * 0.2 + i) * 0.7, ICE[j < 2 ? 5 : j < len / 2 ? 4 : 3], (1 - j / len) * tf(y));
+  }
+  for (let i = 0; i < 16; i++) { // flocos empurrados na diagonal
+    const m = 1 + (i % 2), k = fr(u * m + R(i, 3, 81)), x = mod(R(i, 4, 81) * W + k * 46, W + 8) - 4, y = k * (Hh + 4) - 2;
+    if (i % 4 === 0) star(f, x, y, 1, ICE[5], tf(y)); else put(f, x, y, ICE[5], tf(y));
+  }
+  glow(f, W / 2, Hh * 0.6, W * 0.5, Hh * 0.8, [150, 210, 255], 0.14);
+}
+
+// ======================= FRIO C: flocos de neve gigantes =======================
+function snowflake(f, cx, cy, r, rot, c1, c2, a) {
+  for (let k = 0; k < 6; k++) {
+    const ang = rot + (k * TAU) / 6, dx = Math.cos(ang), dy = Math.sin(ang);
+    for (let s = r * 0.35; s <= r; s += 0.7) put(f, cx + dx * s, cy + dy * s, s > r * 0.8 ? c1 : c2, a);
+    for (const [s0, bl] of [[0.55, 0.38], [0.78, 0.26]]) { // galhos
+      const bx = cx + dx * r * s0, by = cy + dy * r * s0;
+      for (const sg of [-1, 1]) { const ba = ang + sg * 1.05; for (let s = 0.6; s <= r * bl; s += 0.7) put(f, bx + Math.cos(ba) * s, by + Math.sin(ba) * s, c1, a); }
+    }
+    put(f, cx + dx * (r + 1), cy + dy * (r + 1), c1, a);
+  }
+}
+function coldC(f, t, o) {
+  const dur = 4.8, W = f.w, Hh = f.h, u = t / dur, bt = o.boxTop ?? Hh - 16, bh = Hh - bt, cy = bt + bh * 0.5, rot = u * (TAU / 6);
+  snowflake(f, W / 2, cy, 12, rot, ICE[5], ICE[4], 0.75);
+  snowflake(f, 12, cy - 1, 7, -rot, ICE[5], ICE[3], 1);
+  snowflake(f, W - 13, cy + 1, 7.5, rot + 0.3, ICE[5], ICE[3], 1);
+  for (let i = 0; i < 12; i++) { // brilhos de gelo
+    const tw = Math.sin(fr(u * (1 + (i % 2)) + R(i, 1, 82)) * TAU) ** 2, x = 3 + R(i, 2, 82) * (W - 6), y = 2 + R(i, 3, 82) * (Hh - 5);
+    if (tw > 0.7) star(f, x, y, 1, ICE[5]); else if (tw > 0.3) put(f, x, y, ICE[4]);
+  }
+  glow(f, W / 2, cy, W * 0.5, bh * 0.9, [120, 190, 255], 0.2 + 0.05 * Math.sin(u * TAU * 2));
+}
+
+// ======================= LUZ B: luz divina (raios do alto) =======================
+function radiantB(f, t, o) {
+  const dur = 4.8, W = f.w, Hh = f.h, u = t / dur;
+  for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) { // feixes inclinados descendo do alto
+    const s = x + y * 0.8, v = (0.5 + 0.5 * Math.sin(s * 0.34 + u * TAU * 2)) * (0.5 + 0.5 * Math.sin(s * 0.09 - u * TAU));
+    const a = (v - 0.3) * 2.6 * smooth(0, 5, y) * (1 - 0.55 * (y / Hh)) * edgeFade(x, W, 6);
+    if (a > 0.06) put(f, x, y, GOLD[clamp(Math.round(2 + v * 2.2), 1, 4)], Math.min(0.9, a));
+  }
+  for (let i = 0; i < 16; i++) { // poeira flutuando na luz
+    const m = 1 + (i % 2), ph = R(i, 1, 90) * TAU, x = 4 + R(i, 2, 90) * (W - 8) + Math.sin(u * TAU * m + ph) * 3, y = 4 + R(i, 3, 90) * (Hh - 8) + Math.cos(u * TAU * m + ph) * 2;
+    const tw = Math.sin(u * TAU * 2 + ph) ** 2;
+    put(f, x, y, GOLD[tw > 0.6 ? 6 : 5], 0.5 + tw * 0.5); lum(f, x, y, [255, 220, 120], 0.18 * tw);
+  }
+  glow(f, W / 2, 0, W * 0.55, 14, [255, 210, 100], 0.24 + 0.05 * Math.sin(u * TAU * 2));
+}
+
+// ======================= LUZ C: penas de luz =======================
+function radiantC(f, t, o) {
+  const dur = 4.8, W = f.w, Hh = f.h, u = t / dur;
+  for (let i = 0; i < 9; i++) {
+    const ph = R(i, 1, 91), k = fr(u + ph), x = 5 + R(i, 2, 91) * (W - 10) + Math.sin(k * TAU * 1.5 + ph * TAU) * 6, y = -4 + k * (Hh + 8);
+    const sway = Math.cos(k * TAU * 1.5 + ph * TAU), al = smooth(0, 0.1, k) * (1 - smooth(0.85, 1, k)), len = 9 + (i % 3) * 2;
+    for (let j = 0; j < len; j++) { // pena: haste curva com barbas que alargam no meio e afinam na ponta
+      const px = x + sway * j * 0.5, py = y + j * 0.85, bw = Math.sin((j / len) * Math.PI) * 3.2;
+      put(f, px, py, GOLD[j < 2 ? 6 : 5], al);
+      for (let q = 1; q <= bw; q++) { put(f, px - q, py + q * 0.5, GOLD[q < bw - 1 ? 4 : 3], al * 0.95); put(f, px + q, py - q * 0.3, GOLD[q < bw - 1 ? 5 : 4], al * 0.85); }
+    }
+    for (let j = 1; j < 4; j++) put(f, x + (R(i * 4 + j, 5, 92) - 0.5) * 3, y - j * 2, GOLD[5], al * 0.5 * (1 - j / 4)); // rastro de brilho
+    lum(f, x, y + 2, [255, 215, 110], 0.3 * al);
+  }
+  glow(f, W / 2, 0, W * 0.55, 12, [255, 210, 100], 0.26);
+}
+
+// ======================= PSÍQUICO B: espiral hipnótica =======================
+function psychicB(f, t, o) {
+  const dur = 2.4, W = f.w, Hh = f.h, u = t / dur, bt = o.boxTop ?? Hh - 16, bh = Hh - bt, cx = W / 2, cy = bt + bh * 0.52, tf = (y) => smooth(0, 8, y);
+  for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) {
+    const dx = x + 0.5 - cx, dy = (y + 0.5 - cy) * 1.7, r = Math.hypot(dx, dy);
+    if (r < 5 || r > 31) continue;
+    const v = Math.sin(Math.atan2(dy, dx) * 3 + r * 0.42 - u * TAU * 2) * 0.5 + 0.5, val = v * smooth(5, 9, r) * (1 - smooth(20, 31, r));
+    if (val > 0.5) put(f, x, y, PSY[clamp(Math.round(2 + (val - 0.5) * 7), 2, 5)], Math.min(1, (val - 0.45) * 3) * tf(y));
+    else if (val > 0.3) put(f, x, y, PSY[1], (val - 0.3) * 2.2 * tf(y));
+  }
+  for (let i = 0; i < 44; i++) { const a = (i / 44) * TAU; put(f, cx + Math.cos(a) * 7, cy + Math.sin(a) * 4.1, PSY[5], 0.75 + 0.25 * Math.sin(u * TAU * 4)); }
+  glow(f, cx, cy, W * 0.45, bh * 0.9, [255, 70, 180], 0.18 + 0.06 * Math.sin(u * TAU * 2));
+}
+
+// ======================= PSÍQUICO C: ondas mentais =======================
+function psychicC(f, t, o) {
+  const dur = 2.4, W = f.w, Hh = f.h, u = t / dur, bt = o.boxTop ?? Hh - 16, bh = Hh - bt;
+  for (let k = 0; k < 3; k++) {
+    const yb = bt + bh * (0.22 + 0.28 * k), dir = k === 1 ? -1 : 1, pc = dir > 0 ? fr(u + k / 3) * (W + 50) - 25 : W + 25 - fr(u + k / 3) * (W + 50);
+    let px = 0, py = yb;
+    for (let x = 0; x < W; x++) {
+      const env = Math.exp(-(((x - pc) / 15) ** 2)), y = yb + 5.2 * env * Math.sin(x * 0.58 - dir * u * TAU * 4);
+      if (x > 0) seg(f, px, py, x, y, PSY[clamp(Math.round(2 + env * 3.4), 2, 5)], 0.55 + env * 0.45);
+      if (env < 0.15 && x % 3 === 0) put(f, x, yb, PSY[1], 0.7); // linha de base pontilhada
+      px = x; py = y;
+    }
+    const pyk = yb + 5.2 * Math.sin(pc * 0.58 - dir * u * TAU * 4); // brilho no pico do pacote
+    lum(f, pc, pyk, [255, 90, 190], 0.45); put(f, pc, pyk, PSY[5]);
+  }
+}
+
+// ======================= TREVAS B: tentáculos de sombra =======================
+function necroticB(f, t, o) {
+  const dur = 3.2, W = f.w, Hh = f.h, base = Hh - 1, u = t / dur;
+  for (let y = Hh - 6; y < Hh; y++) for (let x = 0; x < W; x++) { // névoa escura no chão
+    const n = vnoise(x * 0.14, y * 0.4 - u * 4, 4, 33);
+    if (n > 0.38) put(f, x, y, DARK[n > 0.62 ? 1 : 2], 0.75);
+  }
+  [7, 22, 54, 69].forEach((x0, i) => {
+    const L = 17 + (i % 2) * 4, sg = i < 2 ? 1 : -1, pts = [];
+    for (let s = 0; s <= 1.0001; s += 0.05) pts.push([Math.round(x0 + Math.sin(s * 3.6 - u * TAU + i * 1.3) * (2 + s * 6) * sg + s * s * 7 * sg), Math.round(base - s * L), (1 - s) * 2.8 + 0.6, s]);
+    for (const [x, y, w] of pts) disc(f, x, y, w + 1, DARK[4]);                       // contorno violeta
+    for (const [x, y, w, s] of pts) disc(f, x, y, w, DARK[s < 0.5 ? 1 : 2]);          // corpo escuro
+    const [tx, ty] = pts[pts.length - 1];
+    put(f, tx, ty, SOUL[3]); put(f, tx, ty - 1, SOUL[2], 0.8); lum(f, tx, ty, [100, 255, 120], 0.35);
+  });
+  glow(f, W / 2, base, W * 0.5, 9, [110, 50, 200], 0.2);
+}
+
+// ======================= TREVAS C: almas errantes =======================
+function necroticC(f, t, o) {
+  const dur = 4.8, W = f.w, Hh = f.h, base = Hh - 1, u = t / dur, tf = (y) => smooth(0, 8, y);
+  for (let y = Hh - 5; y < Hh; y++) for (let x = 0; x < W; x++) {
+    const n = vnoise(x * 0.15, y * 0.4 - u * 3, 3, 34);
+    if (n > 0.4) put(f, x, y, DARK[n > 0.6 ? 1 : 2], 0.7);
+  }
+  for (let i = 0; i < 5; i++) {
+    const ph = R(i, 1, 100), k = fr(u + ph), x0 = 8 + R(i, 2, 100) * (W - 16);
+    const path = (kk) => [x0 + Math.sin(kk * TAU * 1.2 + ph * TAU) * 5, base + 3 - kk * (Hh + 8)];
+    const al = smooth(0, 0.12, k) * (1 - smooth(0.8, 1, k));
+    for (let j = 18; j >= 1; j--) { const kk = k - j * 0.012; if (kk < 0) continue; const [x, y] = path(kk), w = 2.4 * (1 - j / 19); disc(f, Math.round(x), Math.round(y + 2), w, SOUL[j < 6 ? 1 : 0], (1 - j / 19) * al * 0.75 * tf(y)); }
+    const [x, y] = path(k), a = al * tf(y);
+    disc(f, Math.round(x), Math.round(y), 3.6, SOUL[1], a); disc(f, Math.round(x - 0.5), Math.round(y - 0.5), 2.8, SOUL[2], a);
+    for (let j = 0; j < 5; j++) disc(f, Math.round(x - 3 + j * 1.5), Math.round(y + 3.5 + (j & 1)), 1, SOUL[2], a * 0.9);   // barra ondulada
+    put(f, x - 1.5, y - 1, DARK[0], a); put(f, x - 1.5, y, DARK[0], a); put(f, x + 1.5, y - 1, DARK[0], a); put(f, x + 1.5, y, DARK[0], a); put(f, x, y + 1.5, DARK[0], a * 0.8); // olhos e boca
+    lum(f, x, y, [100, 255, 130], 0.3 * a);
+  }
+  glow(f, W / 2, base, W * 0.5, 9, [100, 50, 180], 0.18);
+}
+
+// ======================= CORTE: helper de golpe em arco =======================
+function clawArc(f, x0, y0, x1, y1, curv, reveal, thick, al, core, edge) {
+  const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy), mx = (x0 + x1) / 2 - (dy / len) * curv * 2, my = (y0 + y1) / 2 + (dx / len) * curv * 2;
+  for (let i = 0; i <= 60; i++) {
+    const sN = i / 60;
+    if (sN > reveal) break;
+    const px = (1 - sN) ** 2 * x0 + 2 * sN * (1 - sN) * mx + sN * sN * x1, py = (1 - sN) ** 2 * y0 + 2 * sN * (1 - sN) * my + sN * sN * y1;
+    let tx = 2 * (1 - sN) * (mx - x0) + 2 * sN * (x1 - mx), ty = 2 * (1 - sN) * (my - y0) + 2 * sN * (y1 - my);
+    const tl = Math.hypot(tx, ty) || 1; tx /= tl; ty /= tl;
+    const w = thick * Math.pow(Math.sin(Math.PI * sN), 0.7);
+    for (let j = -Math.ceil(w); j <= Math.ceil(w); j++) { const aj = Math.abs(j); if (aj > w + 0.2) continue; put(f, px - ty * j, py + tx * j, aj < 0.6 ? core : edge, al * (aj < 0.6 ? 1 : 0.85)); }
+  }
+}
+
+// ======================= CORTE B: garras =======================
+function slashingB(f, t, o) {
+  const dur = 1.6, W = f.w, Hh = f.h, u = t / dur, bt = o.boxTop ?? Hh - 16, slot = Math.floor(u * 2), A = fr(u * 2) * 0.8, mir = slot % 2;
+  const X = (x) => (mir ? W - 1 - x : x), bx = 8 + (mir ? 8 : 0) + R(slot, 1, 101) * 14, RED = [235, 70, 70];
+  for (let c = 0; c < 3; c++) { // três arranhões paralelos, um logo depois do outro
+    const rv = eo3((A - c * 0.05) / 0.1), th = 2.3 * (A < 0.4 ? 1 : 1 - (A - 0.4) / 0.4), al = 1 - smooth(0.5, 0.8, A);
+    if (rv <= 0 || th <= 0) continue;
+    const x0 = X(bx + c * 7), y0 = bt - 6, x1 = X(bx + c * 7 + 15), y1 = Hh;
+    clawArc(f, x0 + (mir ? -1 : 1), y0 + 1, x1 + (mir ? -1 : 1), y1 + 1, mir ? -3 : 3, rv, th, al * 0.7, RED, [150, 40, 50]); // sangue na borda
+    clawArc(f, x0, y0, x1, y1, mir ? -3 : 3, rv, th, al, STEEL[5], STEEL[3]);
+    if (A < 0.3) lum(f, (x0 + x1) / 2, (y0 + y1) / 2, [255, 150, 150], 0.25 * (1 - A / 0.3));
+  }
+  if (A > 0.04 && A < 0.45) for (let j = 0; j < 8; j++) { // fagulhas
+    const q = A - 0.04, a = R(j + slot * 9, 2, 101) * TAU, sp = 10 + R(j + slot * 9, 3, 101) * 22;
+    put(f, X(bx + 12) + Math.cos(a) * sp * q, bt + 6 + Math.sin(a) * sp * q + 30 * q * q, j & 1 ? RED : STEEL[5], 1 - q / 0.41);
+  }
+}
+
+// ======================= CORTE C: redemoinho de lâminas =======================
+function slashingC(f, t, o) {
+  const dur = 2.4, W = f.w, Hh = f.h, u = t / dur, bt = o.boxTop ?? Hh - 16, bh = Hh - bt, cx = W / 2, cy = bt + bh * 0.48;
+  for (const [rx, ry, n, dir] of [[27, 8.2, 4, 1], [17, 5.4, 3, -1]]) {
+    for (let i = 0; i < n; i++) {
+      const a0 = u * TAU * dir + (i / n) * TAU;
+      for (let j = 14; j >= 0; j--) { // rastro curvo atrás da lâmina
+        const a = a0 - dir * j * 0.045;
+        put(f, cx + Math.cos(a) * rx, cy + Math.sin(a) * ry, STEEL[clamp(5 - Math.floor(j / 3), 1, 5)], (1 - j / 15) * (Math.sin(a) < -0.2 ? 0.55 : 1)); put(f, cx + Math.cos(a) * rx, cy + Math.sin(a) * ry + 1, STEEL[2], (1 - j / 15) * 0.6);
+      }
+      const px = cx + Math.cos(a0) * rx, py = cy + Math.sin(a0) * ry, tx = -Math.sin(a0) * rx * dir, ty = Math.cos(a0) * ry * dir, tl = Math.hypot(tx, ty), ux = tx / tl, uy = ty / tl, nx = -uy, ny = ux;
+      for (let j = -6; j <= 6; j++) { // lâmina em crescente
+        const bow = -0.1 * j * j;
+        put(f, px + ux * j + nx * bow, py + uy * j + ny * bow, STEEL[Math.abs(j) < 3 ? 5 : 4]);
+        put(f, px + ux * j + nx * (bow + 1), py + uy * j + ny * (bow + 1), STEEL[3]);
+        put(f, px + ux * j + nx * (bow + 2), py + uy * j + ny * (bow + 2), STEEL[2], 0.8);
+      }
+      lum(f, px, py, [170, 200, 255], 0.3);
+    }
+  }
+  glow(f, cx, cy, W * 0.45, bh * 0.8, [150, 180, 255], 0.1);
+}
+
+// ======================= PERFURAÇÃO B: flechas =======================
+function piercingB(f, t, o) {
+  const dur = 1.6, W = f.w, Hh = f.h, u = t / dur, bt = o.boxTop ?? Hh - 16, bh = Hh - bt;
+  for (let i = 0; i < 6; i++) {
+    const k = fr(u + ((i * 0.37) % 1)), y = Math.round(bt + 1.5 + i * ((bh - 3) / 5) + Math.sin(k * TAU) * 0.8), x = Math.round(lerp(-16, W + 6, k));
+    for (let j = 1; j < 10; j++) put(f, x - 12 - j, y, STEEL[2], (1 - j / 10) * 0.5); // rastro
+    for (let j = 0; j < 12; j++) put(f, x - j, y, j < 2 ? BRONZE[5] : BRONZE[3]);       // haste
+    put(f, x + 1, y, STEEL[5]); put(f, x + 2, y, STEEL[5]); put(f, x, y - 1, STEEL[4]); put(f, x, y + 1, STEEL[4]); put(f, x - 1, y - 1, STEEL[3]); put(f, x - 1, y + 1, STEEL[3]); // ponta
+    for (let j = 0; j < 3; j++) { put(f, x - 9 - j, y - 1 - (j > 0), STEEL[4]); put(f, x - 9 - j, y + 1 + (j > 0), STEEL[4]); } // penas
+    lum(f, x + 1, y, [190, 215, 255], 0.2);
+  }
+}
+
+// ======================= PERFURAÇÃO C: estacas do alto =======================
+function piercingC(f, t, o) {
+  const dur = 1.6, W = f.w, Hh = f.h, base = Hh - 1, u = t / dur, n = 6, L = 13, tf = (y) => smooth(0, 7, y);
+  for (let i = 0; i < n; i++) {
+    const x = Math.round(7 + i * ((W - 14) / (n - 1)) + (R(i, 1, 111) - 0.5) * 3), k = fr(u - i * 0.1);
+    let tipY, al = 1, vib = 0;
+    if (k < 0.22) tipY = lerp(-L, base - 1, Math.pow(k / 0.22, 2));
+    else { tipY = base - 1; const q = (k - 0.22) / 0.78; vib = q < 0.3 ? Math.round(Math.sin(q * 60) * (1 - q / 0.3)) : 0; al = q < 0.6 ? 1 : 1 - (q - 0.6) / 0.4; }
+    for (let j = 0; j < L; j++) {
+      const y = tipY - j, xx = x + Math.round(vib * (j / L)), a = al * tf(y);
+      put(f, xx, y, STEEL[j < 2 ? 5 : j < 9 ? 4 : 3], a);
+      put(f, xx + 1, y, STEEL[j < 2 ? 4 : 2], a); if (j > 1) put(f, xx - 1, y, STEEL[5], a * 0.9);
+    }
+    for (let q = -2; q <= 2; q++) { put(f, x + q, tipY - L + 1, BRONZE[Math.abs(q) > 1 ? 2 : q ? 3 : 5], al * tf(tipY - L + 1)); put(f, x + q, tipY - L, BRONZE[2], al * tf(tipY - L)); } // cabo na ponta de cima
+    if (k > 0.22 && k < 0.34) { const q = (k - 0.22) / 0.12; for (const sg of [-1, 1]) { put(f, x + sg * (2 + q * 4), base - 1 - q * 3, BRONZE[5], 1 - q); put(f, x + sg * (3 + q * 5), base - q * 2, BRONZE[3], 1 - q); } lum(f, x, base - 1, [255, 200, 120], 0.4 * (1 - q)); }
+  }
+}
+
+// ======================= IMPACTO B: explosão de impacto (estilo quadrinhos) =======================
+const IMP = pal(["#5a1a05", "#c4450a", "#ff8a1c", "#ffd84a", "#fff6c8"]);
+function bludgeoningB(f, t, o) {
+  const dur = 1.2, W = f.w, Hh = f.h, u = t / dur, bt = o.boxTop ?? Hh - 16, bh = Hh - bt, cy = bt + bh * 0.5;
+  const sc = u < 0.12 ? 0.3 + 0.7 * eo3(u / 0.12) : 1 + 0.05 * Math.sin(u * TAU * 6), fade = 1 - smooth(0.85, 1, u);
+  const sh = u > 0.12 && u < 0.5 ? Math.round(Math.sin(u * TAU * 14) * 1.2 * (1 - (u - 0.12) / 0.38)) : 0, cx = W / 2 + sh, nS = 12, R1 = 21 * sc, R2 = 11 * sc;
+  for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) {
+    const dx = x + 0.5 - cx, dy = (y + 0.5 - cy) * 1.9, r = Math.hypot(dx, dy);
+    if (r > R1 + 1) continue;
+    const tw = Math.abs(fr((Math.atan2(dy, dx) / TAU) * nS) * 2 - 1), rth = R2 + (R1 - R2) * Math.pow(tw, 1.3), d = rth - r;
+    if (d < 0) continue;
+    if (d < 1.5) put(f, x, y, IMP[4], fade); else if (d < 3.2) put(f, x, y, IMP[d < 2.4 ? 3 : 2], fade);
+  }
+  for (let i = 0; i < 14; i++) { // riscos de velocidade saindo do centro
+    const a = (i / 14) * TAU + 0.2, k = fr(u * 3 + i / 14), r0 = R1 * 1.08 + k * 9;
+    for (let j = 0; j < 4; j++) put(f, cx + Math.cos(a) * (r0 + j), cy + Math.sin(a) * (r0 + j) / 1.9, IMP[3], (1 - k) * fade * (u > 0.1 ? 1 : 0));
+  }
+  glow(f, cx, cy, W * 0.4, bh * 0.9, [255, 150, 40], 0.3 * fade);
+}
+
+// ======================= IMPACTO C: martelo pendular =======================
+function bludgeoningC(f, t, o) {
+  const dur = 2.0, W = f.w, Hh = f.h, base = Hh - 1, u = t / dur, cx = W / 2, py0 = -3, L = 24, ang = (uu) => 1.05 * Math.sin(uu * TAU);
+  const head = (th, al, hot) => {
+    const tx = cx + Math.sin(th) * L, ty = py0 + Math.cos(th) * L, dx = Math.sin(th), dy = Math.cos(th), px = Math.cos(th), py = -Math.sin(th);
+    for (let a = -4.5; a <= 4.5; a += 0.6) for (let b = -2.6; b <= 2.6; b += 0.6) put(f, tx + px * a + dx * b, ty + py * a + dy * b, STEEL[b < -1.4 ? 5 : b > 1.4 ? 1 : hot ? 4 : 3], al);
+  };
+  for (let j = 7; j >= 1; j--) head(ang(u - j * 0.012), (1 - j / 8) * 0.45, false); // rastro do balanço
+  const th = ang(u), tx = cx + Math.sin(th) * L, ty = py0 + Math.cos(th) * L;
+  seg(f, cx, py0, tx, ty, BRONZE[3], 1); seg(f, cx + 1, py0, tx + 1, ty, BRONZE[2], 1);
+  head(th, 1, true);
+  const q = fr(u * 2); // a cada passagem pelo ponto mais baixo: onda de poeira e fagulhas
+  if (q < 0.35) {
+    const k = q / 0.35;
+    for (let i = 0; i < 160; i++) { const a = (i / 160) * TAU, r = q * 70; put(f, cx + Math.cos(a) * r, base - 1 + Math.sin(a) * r * 0.25, DUST[4], (1 - k) * 0.9); }
+    for (let i = 0; i < 10; i++) { const a = Math.PI * (1.12 + R(i, 1, 112) * 0.76), sp = 20 + R(i, 2, 112) * 30; put(f, cx + Math.cos(a) * sp * q, base - 1 + Math.sin(a) * sp * q + 60 * q * q, DUST[3 + (i & 1)], 1 - k); }
+    glow(f, cx, base - 1, 22, 10, [255, 210, 130], 0.7 * (1 - k));
+  }
+}
+
+// ======================= MANA B: absorção de mana =======================
+function manaB(f, t, o) {
+  const dur = 2.4, W = f.w, Hh = f.h, u = t / dur, bt = o.boxTop ?? Hh - 16, bh = Hh - bt, cx = W / 2, cy = bt + bh * 0.5, tf = (y) => smooth(0, 8, y);
+  for (let i = 0; i < 40; i++) { // partículas de mana espiralando para o centro
+    const m = 1 + (i % 2), ph = R(i, 1, 120), a0 = R(i, 2, 120) * TAU;
+    for (let j = 0; j < 9; j++) {
+      const k = fr(u * m + ph - j * 0.014), r = 1 - k, a = a0 + k * 2.4, x = cx + Math.cos(a) * (38 * r + 3), y = cy + Math.sin(a) * (12 * r + 1.5);
+      const al = smooth(0, 0.1, k) * (1 - smooth(0.9, 1, k)) * (1 - j * 0.1);
+      put(f, x, y, MANA[clamp(5 - Math.floor(j / 2), 2, 5)], al * tf(y));
+      if (j < 3) put(f, x + 1, y, MANA[clamp(5 - j, 2, 5)], al * tf(y)); if (j === 0) { put(f, x, y + 1, MANA[4], al * tf(y)); put(f, x + 1, y + 1, MANA[3], al * tf(y)); lum(f, x, y, [80, 180, 255], 0.25 * al); }
+    }
+  }
+  const pulse = bump(fr(u * 2), 0.06, 0.05); // clarão quando as partículas chegam
+  for (let i = 0; i < 48; i++) { const a = (i / 48) * TAU, r = 3 + pulse * 9; put(f, cx + Math.cos(a) * r * 1.6, cy + Math.sin(a) * r * 0.7, MANA[5], pulse * 0.9); }
+  glow(f, cx, cy, 16, 9, [90, 190, 255], 0.2 + 0.5 * pulse);
+}
+
+// ======================= MANA C: fonte de mana =======================
+function manaC(f, t, o) {
+  const dur = 2.4, W = f.w, Hh = f.h, base = Hh - 1, u = t / dur;
+  for (const [x0, Hmax, sp] of [[W * 0.18, 17, 15], [W * 0.5, 21, 11], [W * 0.82, 17, 15]]) {
+    for (let j = 0; j < 12; j++) { // gotas em arcos parabólicos
+      const dirx = ((j % 5) - 2) / 2, k = fr(u * 2 + j / 12 + 0.02);
+      for (let tr = 0; tr < 6; tr++) {
+        const kk = k - tr * 0.022; if (kk < 0) continue;
+        const x = x0 + dirx * sp * kk, y = base - 4 * Hmax * kk * (1 - kk), a = (1 - tr * 0.16) * smooth(0, 0.05, kk);
+        put(f, x, y, MANA[tr < 2 ? 5 : tr < 4 ? 4 : 3], a);
+        if (tr < 2) { put(f, x + 1, y, MANA[4], a); put(f, x, y + 1, MANA[3], a); }
+      }
+      if (k > 0.93) { const q = (k - 0.93) / 0.07; put(f, x0 + dirx * sp - 1 - q, base - q, MANA[5], 1 - q); put(f, x0 + dirx * sp + 1 + q, base - q, MANA[5], 1 - q); }
+    }
+    const rr = fr(u * 2) * 10; // ondas na base
+    for (let i = 0; i < 40; i++) { const a = (i / 40) * TAU; put(f, x0 + Math.cos(a) * rr * 1.5, base - 0.5 + Math.sin(a) * rr * 0.28, MANA[4], 1 - rr / 10); }
+    lum(f, x0, base - 2, [90, 190, 255], 0.3);
+  }
+  for (let x = 0; x < W; x++) { put(f, x, base, MANA[2]); if (Math.sin(x * 0.55 + u * TAU * 3) > 0.6) put(f, x, base - 1, MANA[4]); }
+  glow(f, W / 2, base, W * 0.5, 10, [60, 160, 255], 0.22);
+}
+
+// ======================= CURA B: brotos e flores =======================
+function healB(f, t, o) {
+  const dur = 4.8, W = f.w, Hh = f.h, base = Hh - 1, u = t / dur, n = 6, GOLDF = [255, 232, 130];
+  for (let i = 0; i < n; i++) {
+    const x0 = 6 + i * ((W - 12) / (n - 1)) + (R(i, 1, 130) - 0.5) * 3, Hm = 11 + R(i, 2, 130) * 8, k = fr(u + i * 0.16);
+    const grow = eo3(Math.min(1, k / 0.55)), al = 1 - smooth(0.82, 1, k), Hn = Hm * grow;
+    const vx = (s) => x0 + Math.sin(s * 0.45 + i + u * TAU) * 1.6 * (s / Hm);
+    let lx = x0, ly = base;
+    for (let s = 0; s <= Hn; s += 0.5) { // caule
+      lx = vx(s); ly = base - s;
+      put(f, lx, ly, HEAL[s < 3 ? 1 : 2], al); put(f, lx + 1, ly, HEAL[1], al * 0.8);
+    }
+    for (const [sl, sg] of [[3, 1], [6.4, -1], [9.8, 1], [13.2, -1]]) { // folhas
+      if (Hn < sl + 1 || sl > Hm) continue;
+      const lf = Math.min(1, (Hn - sl) / 3);
+      for (let q = 1; q <= 4 * lf; q++) put(f, vx(sl) + sg * q, base - sl - q * 0.55, HEAL[q < 3 ? 3 : 4], al);
+    }
+    if (k > 0.5) { // flor abrindo
+      const b = eo3((k - 0.5) / 0.15) * al, fx = lx, fy = ly - 1;
+      for (const [dx, dy] of [[-2, 0], [2, 0], [0, -2], [0, 2], [-1, -1], [1, -1], [-1, 1], [1, 1]]) put(f, fx + dx, fy + dy, i % 2 ? HEAL[5] : [255, 190, 210], b);
+      put(f, fx, fy, GOLDF, b); put(f, fx + 1, fy, GOLDF, b * 0.8);
+      lum(f, fx, fy, [140, 255, 150], 0.3 * b);
+    }
+  }
+  for (let i = 0; i < 8; i++) { // pétalas subindo
+    const k = fr(u * 2 + R(i, 3, 130)), x = 4 + R(i, 4, 130) * (W - 8) + Math.sin(k * TAU * 2 + i) * 3, y = base - 2 - k * (Hh - 4);
+    put(f, x, y, i % 2 ? HEAL[5] : [255, 190, 210], (1 - k) * smooth(0, 0.1, k) * smooth(0, 7, y));
+  }
+  glow(f, W / 2, base, W * 0.5, 10, [70, 230, 110], 0.26);
+}
+
+// ======================= CURA C: batimento cardíaco =======================
+function healC(f, t, o) {
+  const dur = 2.4, W = f.w, Hh = f.h, u = t / dur, bt = o.boxTop ?? Hh - 16, bh = Hh - bt, yb = bt + bh * 0.62, P = 38;
+  const wave = [[0, 0], [8, 0], [9.5, 1.4], [11, 0], [13, 0], [14, -1.8], [15.5, 9], [17, -3.5], [18.5, 0], [22, 0], [25, 2.4], [28, 0], [38, 0]];
+  const hAt = (p) => { for (let i = 1; i < wave.length; i++) if (p <= wave[i][0]) { const [x0, y0] = wave[i - 1], [x1, y1] = wave[i]; return lerp(y0, y1, (p - x0) / (x1 - x0)); } return 0; };
+  let px = 0, py = yb;
+  for (let x = 0; x < W; x++) { // traçado rolando para a direita
+    const h = hAt(mod(x - u * P, P)), y = yb - h;
+    if (x > 0) { seg(f, px, py, x, y, HEAL[Math.abs(h) > 4 ? 5 : 4], 1); seg(f, px, py + 1, x, y + 1, HEAL[2], 0.85); }
+    if (Math.abs(h) > 4) lum(f, x, y, [110, 255, 140], 0.35);
+    px = x; py = y;
+  }
+  for (let k = 0; k < 2; k++) { // sinal de + subindo de cada pico
+    const xp = mod(15.5 + u * P + k * P, 2 * P), q = fr(u * 2 + k * 0.5);
+    star(f, xp, yb - 10 - q * 6, 1, HEAL[5], (1 - q) * smooth(0, 8, yb - 10 - q * 6));
+  }
+  glow(f, W / 2, yb, W * 0.5, 9, [70, 230, 110], 0.2);
+}
+
+// ======================= PERDA DE VIDA B: respingos de sangue =======================
+function drainB(f, t, o) {
+  const dur = 2.4, W = f.w, Hh = f.h, u = t / dur, bt = o.boxTop ?? Hh - 16, bh = Hh - bt, tf = (y) => smooth(0, 8, y);
+  for (let i = 0; i < 5; i++) {
+    const k = fr(u + i / 5), cx0 = Math.round(8 + R(i, 1, 140) * (W - 16)), cy0 = Math.round(bt + 3 + R(i, 2, 140) * (bh - 7)), rad = 2.8 + R(i, 3, 140) * 2.6;
+    const al = 1 - smooth(0.8, 1, k), burst = Math.min(1, k / 0.07), bs = eo4(burst);
+    for (let j = 0; j < 12; j++) { // gotas voando no impacto
+      const a = (j / 12) * TAU + R(i * 12 + j, 4, 140), sp = (5 + R(i * 12 + j, 5, 140) * 12) * bs;
+      if (sp > rad + 0.5) put(f, cx0 + Math.cos(a) * sp, cy0 + Math.sin(a) * sp * 0.8, BLOOD[3 + (j & 1)], al * 0.9 * tf(cy0));
+    }
+    const n = Math.ceil(rad + 3);
+    for (let y = -n; y <= n; y++) for (let x = -n; x <= n; x++) { // mancha irregular
+      const ang = Math.atan2(y, x), rr = rad * (0.75 + 0.45 * R(Math.floor((ang + Math.PI) / (TAU / 9)), 6, 140 + i)) * bs, d = Math.hypot(x + 0.5, y + 0.5);
+      if (d < rr) put(f, cx0 + x, cy0 + y, d < rr * 0.55 ? BLOOD[2] : BLOOD[3], al * tf(cy0 + y));
+      if (d < rr && x < 0 && y < 0 && d > rr * 0.55) put(f, cx0 + x, cy0 + y, BLOOD[5], al * 0.9);
+    }
+    const run = clamp((k - 0.1) / 0.6) * (5 + R(i, 7, 140) * 8), rx = cx0 + Math.round((R(i, 8, 140) - 0.5) * 2); // escorrimento
+    for (let j = 0; j < run; j++) { put(f, rx, cy0 + rad * 0.6 + j, BLOOD[3], al); put(f, rx + 1, cy0 + rad * 0.6 + j, BLOOD[2], al); }
+    if (run > 1) put(f, rx, cy0 + rad * 0.6 + run, BLOOD[5], al);
+  }
+  glow(f, W / 2, bt + bh / 2, W * 0.45, bh * 0.8, [200, 20, 30], 0.1);
+}
+
+// ======================= PERDA DE VIDA C: coração partido =======================
+function drainC(f, t, o) {
+  const dur = 2.4, W = f.w, Hh = f.h, base = Hh - 1, u = t / dur, bt = o.boxTop ?? Hh - 16, bh = Hh - bt, cx = W / 2, cy = bt + bh * 0.5;
+  const pulse = bump(fr(u * 2), 0.08, 0.07) + 0.6 * bump(fr(u * 2), 0.3, 0.08), sc = 1 + 0.16 * pulse, hw = 8.5 * sc, hh = 7.5 * sc;
+  for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) { // coração (equação clássica), com batimento
+    const lx = ((x + 0.5 - cx) / hw) * 1.2, ly = (-(y + 0.5 - cy - 0.8) / hh) * 1.2, v = (lx * lx + ly * ly - 1) ** 3 - lx * lx * ly ** 3;
+    if (v > 0) continue;
+    put(f, x, y, v > -0.06 ? BLOOD[4] : lx < -0.2 && ly > 0.2 && v > -0.35 ? BLOOD[3] : BLOOD[v > -0.5 ? 2 : 1]);
+  }
+  const crack = jag(cx, cy - hh * 0.85, cx + 1, cy + hh * 0.95, 2.2, 5, 3); // rachadura no meio
+  for (let i = 0; i < crack.length - 1; i++) { seg(f, crack[i][0], crack[i][1], crack[i + 1][0], crack[i + 1][1], BLOOD[0], 1); seg(f, crack[i][0] + 1, crack[i][1], crack[i + 1][0] + 1, crack[i + 1][1], BLOOD[5], 0.8); }
+  for (let i = 0; i < 3; i++) { // sangue pingando da rachadura
+    const k = fr(u + i / 3), y0 = cy + hh * 0.95, y = lerp(y0, base, k * k), x = cx + 1 + (i - 1) * 1.5;
+    put(f, x, y, BLOOD[4], 1 - k * 0.3); put(f, x, y + 1, BLOOD[3], 1 - k * 0.3); put(f, x, y - 1, BLOOD[5], 0.8 * (1 - k));
+  }
+  glow(f, cx, cy, 18, 10, [230, 30, 50], 0.25 + 0.4 * pulse);
+}
+
+// ======================= ACERTO CRÍTICO B: estrela radiante (permanente, lenta) =======================
+function critB(f, t, o) {
+  const dur = 4.8, W = f.w, Hh = f.h, u = t / dur, bt = o.boxTop ?? Hh - 16, bh = Hh - bt, cx = W / 2, cy = bt + bh * 0.5, tf = (y) => smooth(0, 8, y), rot = u * (TAU / 8);
+  for (let k = 0; k < 8; k++) { // pontas da estrela, alternando longas e curtas
+    const a = rot + (k * TAU) / 8, L = k % 2 === 0 ? 31 : 18;
+    for (let r = 7; r < L; r += 0.45) {
+      const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r * 0.5, g = (r - 7) / (L - 7);
+      put(f, x, y, CRIT[clamp(Math.round(6 - g * 4), 2, 6)], (1 - g * 0.8) * tf(y));
+      if (r < 22) { put(f, x, y + 1, CRIT[clamp(Math.round(5 - g * 3), 2, 5)], (1 - g) * 0.9 * tf(y + 1)); put(f, x, y - 1, CRIT[3], (1 - g) * 0.6 * tf(y - 1)); }
+    }
+  }
+  for (let i = 0; i < 56; i++) { const a = (i / 56) * TAU, pr = 1 + 0.06 * Math.sin(u * TAU * 2); put(f, cx + Math.cos(a) * 9 * pr, cy + Math.sin(a) * 5 * pr, CRIT[4], 0.9); }
+  for (let i = 0; i < 8; i++) { // brilhos
+    const tw = Math.sin(fr(u * (1 + (i % 2)) + R(i, 1, 150)) * TAU) ** 2, x = 3 + R(i, 2, 150) * (W - 6), y = bt - 2 + R(i, 3, 150) * (bh + 1);
+    if (tw > 0.75) star(f, x, y, 2, CRIT[6], tf(y)); else if (tw > 0.35) star(f, x, y, 1, CRIT[5], tf(y));
+  }
+  glow(f, cx, cy, W * 0.5, bh * 0.95, [255, 190, 60], 0.28 + 0.1 * Math.sin(u * TAU * 2));
+}
+
+// ======================= ACERTO CRÍTICO C: coroa de louros (permanente, lenta) =======================
+function critC(f, t, o) {
+  const dur = 4.8, W = f.w, Hh = f.h, u = t / dur, bt = o.boxTop ?? Hh - 16, bh = Hh - bt, cx = W / 2, cy = bt + bh * 0.46, rx = 21, ry = 8.2, tf = (y) => smooth(0, 8, y);
+  for (const side of [-1, 1]) {
+    let prev = null;
+    for (let i = 0; i < 8; i++) {
+      const s = i / 7, phi = Math.PI - s * 0.85 * Math.PI, x = cx - side * rx * Math.sin(phi), y = cy - ry * Math.cos(phi);
+      if (prev) seg(f, prev[0], prev[1], x, y, CRIT[2], tf(y)); // ramo
+      prev = [x, y];
+      const nx = x - cx, ny = (y - cy) * 2, nl = Math.hypot(nx, ny) || 1, sway = Math.sin(u * TAU + i * 0.6 + side) * 0.35;
+      const glint = Math.sin(u * TAU * 2 - i * 0.7 - side) > 0.93;
+      for (const off of [-0.75, 0.75]) { // duas folhas por ponto, abrindo para fora
+        const ang = Math.atan2(ny, nx) + off + sway, lx = x + Math.cos(ang) * 3.3, ly = y + Math.sin(ang) * 3.3 * 0.65, a = tf(ly);
+        disc(f, Math.round(lx), Math.round(ly), 2.3, glint ? CRIT[6] : CRIT[3], a);
+        put(f, lx - 0.5, ly - 0.5, glint ? CRIT[6] : CRIT[5], a); put(f, lx + 1, ly + 1, CRIT[2], a * 0.9);
+        seg(f, x, y, lx, ly, CRIT[2], a * 0.8);
+      }
+      if (glint) lum(f, x, y, [255, 230, 140], 0.5);
+    }
+  }
+  for (let i = -1; i <= 1; i++) put(f, cx + i, cy + ry + 1, CRIT[i ? 3 : 5]);                       // laço embaixo
+  star(f, cx, bt - 1, 1 + (Math.sin(u * TAU * 2) > 0.3 ? 1 : 0), CRIT[6], tf(bt - 1));            // estrela no topo
+  glow(f, cx, cy, W * 0.45, bh * 0.9, [255, 190, 60], 0.24 + 0.08 * Math.sin(u * TAU * 2));
+}
+
+// ======================= ERRO CRÍTICO B: dados trincados (permanente, lento) =======================
+function fumbleB(f, t, o) {
+  const dur = 4.0, W = f.w, Hh = f.h, base = Hh - 1, u = t / dur, bt = o.boxTop ?? Hh - 16, bh = Hh - bt, cy = bt + bh * 0.5, tf = (y) => smooth(0, 8, y);
+  for (const [dxc, side, ph] of [[15, -1, 0], [W - 16, 1, 1.7]]) {
+    const rot = Math.sin(u * TAU + ph) * 0.2, bob = Math.round(Math.sin(u * TAU * 2 + ph) * 0.8), cyd = cy + bob;
+    for (let y = -9; y <= 9; y++) for (let x = -9; x <= 9; x++) { // hexágono: dentro se estiver aquém do apótema em todas as 6 direções
+      let inside = true, edge = false;
+      for (let k = 0; k < 6; k++) { const na = rot + (k * TAU) / 6, d = x * Math.cos(na) + y * Math.sin(na); if (d > 6.5) inside = false; else if (d > 5.4) edge = true; }
+      if (!inside) continue;
+      put(f, dxc + x, cyd + y, edge ? GLASS[3] : x + y < -2 ? GLASS[1] : GLASS[0]);
+    }
+    const g = ["010", "110", "010", "010", "111"]; // o "1" do dado
+    for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) if (g[r][c] === "1") put(f, dxc + c - 1, cyd + r - 2, FUMB[4]);
+    lum(f, dxc, cyd, [255, 60, 70], 0.3);
+    const cr = jag(dxc - 1, cyd - 6, dxc + 2, cyd + 6, 2, ph * 3 + 7, 3); // rachadura
+    for (let i = 0; i < cr.length - 1; i++) seg(f, cr[i][0], cr[i][1], cr[i + 1][0], cr[i + 1][1], FUMB[1], 1);
+    for (let j = 0; j < 3; j++) { // fumaça subindo do dado
+      const k = fr(u * 2 + ph / 4 + j / 3), y = cyd - 8 - k * 9;
+      put(f, dxc + Math.sin((k + j) * TAU) * 2 + side * 0, y, GLASS[1], 0.55 * (1 - k) * tf(y));
+    }
+  }
+  glow(f, W / 2, cy, W * 0.45, bh * 0.8, [190, 40, 60], 0.1);
+}
+
+// ======================= ERRO CRÍTICO C: falha de sinal (permanente, lenta) =======================
+function fumbleC(f, t, o) {
+  const dur = 4.0, W = f.w, Hh = f.h, u = t / dur, bt = o.boxTop ?? Hh - 16, bh = Hh - bt, slot = Math.floor(u * 12), s2 = Math.floor(u * 26), CY = [90, 210, 230];
+  for (let y = bt; y < Hh; y += 3) for (let x = 0; x < W; x++) put(f, x, y, FUMB[0], 0.22); // linhas de varredura
+  for (let b = 0; b < 6; b++) { // faixas de glitch com aberração de cor, trocando a cada ~0,33 s
+    const y = Math.round(bt + R(slot, b, 150) * (bh - 1)), hgt = 1 + Math.floor(R(slot, b + 8, 150) * 3), x0 = R(slot, b + 16, 150) * W * 0.6, len = 14 + R(slot, b + 24, 150) * 34, off = Math.round((R(slot, b + 30, 150) - 0.5) * 6);
+    for (let yy = 0; yy < hgt; yy++) for (let x = x0; x < x0 + len; x++) { put(f, x + off, y + yy, FUMB[4], 0.8); put(f, x - off, y + yy, CY, 0.45); }
+  }
+  for (let i = 0; i < 16; i++) { // blocos de ruído
+    const x = Math.floor(R(s2, i, 151) * (W - 2)), y = Math.floor(bt - 3 + R(s2, i + 20, 151) * (bh + 3));
+    for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) put(f, x + dx, y + dy, i % 3 ? FUMB[2] : GLASS[1], 0.85);
+  }
+  if (R(s2, 99, 151) > 0.45) { const g = ["10001", "01010", "00100", "01010", "10001"]; for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) if (g[r][c] === "1") put(f, 10 + c, bt + 4 + r, FUMB[4]); } // "X" piscando
+  glow(f, W / 2, bt + bh / 2, W * 0.45, bh * 0.8, [190, 40, 60], 0.1);
+}
+
 // ======================= REGISTRO =======================
 export const EFFECTS = {
   fire: { fn: fire, duration: 1.2, label: "Fogo" },
@@ -702,6 +1371,26 @@ export const EFFECTS = {
   drain: { fn: drain, duration: 1.6, label: "Perda de vida" },
   crit: { fn: crit, duration: 4.8, label: "Acerto crítico" },
   fumble: { fn: fumble, duration: 4.0, label: "Erro crítico" },
+};
+// desenhos alternativos de cada efeito (variant 1 e 2)
+const ALTS = {
+  fire: [{ fn: fireB, duration: 1.2, label: "Tochas laterais" }, { fn: fireC, duration: 2.0, label: "Bola de fogo" }],
+  acid: [{ fn: acidB, duration: 2.4, label: "Corrosão" }, { fn: acidC, duration: 2.4, label: "Gosma escorrendo" }],
+  lightning: [{ fn: lightningB, duration: 1.2, label: "Orbe de plasma" }, { fn: lightningC, duration: 1.2, label: "Corrente na borda" }],
+  force: [{ fn: forceB, duration: 4.8, label: "Círculo rúnico" }, { fn: forceC, duration: 4.8, label: "Constelação arcana" }],
+  cold: [{ fn: coldB, duration: 2.4, label: "Nevasca" }, { fn: coldC, duration: 4.8, label: "Flocos de neve gigantes" }],
+  radiant: [{ fn: radiantB, duration: 4.8, label: "Luz divina (raios do alto)" }, { fn: radiantC, duration: 4.8, label: "Penas de luz" }],
+  psychic: [{ fn: psychicB, duration: 2.4, label: "Espiral hipnótica" }, { fn: psychicC, duration: 2.4, label: "Ondas mentais" }],
+  necrotic: [{ fn: necroticB, duration: 3.2, label: "Tentáculos de sombra" }, { fn: necroticC, duration: 4.8, label: "Almas errantes" }],
+  slashing: [{ fn: slashingB, duration: 1.6, label: "Garras" }, { fn: slashingC, duration: 2.4, label: "Redemoinho de lâminas" }],
+  piercing: [{ fn: piercingB, duration: 1.6, label: "Flechas" }, { fn: piercingC, duration: 1.6, label: "Estacas do alto" }],
+  bludgeoning: [{ fn: bludgeoningB, duration: 1.2, label: "Explosão de impacto" }, { fn: bludgeoningC, duration: 2.0, label: "Martelo pendular" }],
+  manaheal: [{ fn: manaB, duration: 2.4, label: "Absorção de mana" }, { fn: manaC, duration: 2.4, label: "Fonte de mana" }],
+  heal: [{ fn: healB, duration: 4.8, label: "Brotos e flores" }, { fn: healC, duration: 2.4, label: "Batimento cardíaco" }],
+  drain: [{ fn: drainB, duration: 2.4, label: "Respingos de sangue" }, { fn: drainC, duration: 2.4, label: "Coração partido" }],
+  crit: [{ fn: critB, duration: 4.8, label: "Estrela radiante" }, { fn: critC, duration: 4.8, label: "Coroa de louros" }],
+  fumble: [{ fn: fumbleB, duration: 4.0, label: "Dados trincados" }, { fn: fumbleC, duration: 4.0, label: "Falha de sinal" }],
+
 };
 const ALIAS = {
   fogo: "fire", acido: "acid", eletricidade: "lightning", eletrico: "lightning", raio: "lightning",
@@ -722,12 +1411,20 @@ export function resolveName(name) {
 }
 
 // o: { boxTop (linha onde a caixa começa), seed, intensity }
-export function draw(f, name, t, o = {}) {
-  const e = EFFECTS[resolveName(name)];
+// o.variant: 0 = desenho original; 1 e 2 = desenhos alternativos
+function pick(name, variant) {
+  const key = resolveName(name), e = EFFECTS[key];
   if (!e) throw new Error("efeito desconhecido: " + name);
+  const alt = variant ? ALTS[key]?.[variant - 1] : null;
+  return alt || e;
+}
+export function draw(f, name, t, o = {}) {
+  const e = pick(name, o.variant | 0);
   e.fn(f, mod(t, e.duration), o);
 }
-export function durationOf(name) { return EFFECTS[resolveName(name)].duration; }
+export function durationOf(name, variant = 0) { return pick(name, variant).duration; }
+// lista de versões do efeito: [{label:"Original"}, {label:"..."}, {label:"..."}]
+export function variantsOf(name) { return [{ label: "Original" }, ...(ALTS[resolveName(name)] || []).map((a) => ({ label: a.label }))]; }
 
 export function composite(f, out, bg = null) {
   const n = f.w * f.h;
@@ -743,12 +1440,12 @@ export function composite(f, out, bg = null) {
 
 // ---------- helper para a web ----------
 // Encaixa o efeito atrás do conteúdo de um elemento (ex.: a caixa do dano). O texto fica POR CIMA.
-// opts: { pixel = 2, rise = 14 (px acima do elemento), intensity = 1, speed = 1, seed = 0 }
+// opts: { pixel = 2, rise = 14 (px acima do elemento), intensity = 1, speed = 1, seed = 0, variant = 0 (0 = original, 1 e 2 = desenhos alternativos) }
 export function mountFx(el, name, opts = {}) {
   const key = resolveName(name);
   if (!key) throw new Error("efeito desconhecido: " + name);
-  const o = { pixel: 2, rise: 14, intensity: 1, speed: 1, seed: 0, ...opts };
-  const dur = EFFECTS[key].duration;
+  const o = { pixel: 2, rise: 14, intensity: 1, speed: 1, seed: 0, variant: 0, ...opts };
+  const dur = durationOf(key, o.variant);
   if (getComputedStyle(el).position === "static") el.style.position = "relative";
   el.style.isolation = "isolate";
   const cv = document.createElement("canvas");
@@ -767,7 +1464,7 @@ export function mountFx(el, name, opts = {}) {
   };
   const render = (sec) => {
     clearFrame(f);
-    draw(f, key, sec, { boxTop, intensity: o.intensity, seed: o.seed });
+    draw(f, key, sec, { boxTop, intensity: o.intensity, seed: o.seed, variant: o.variant });
     composite(f, img.data, null);
     ctx.putImageData(img, 0, 0);
   };

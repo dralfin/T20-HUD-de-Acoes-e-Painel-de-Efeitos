@@ -1005,37 +1005,6 @@ body.t20ah-chat-estilo .chat-message .context-menu,
 body.t20ah-chat-estilo #context-menu { z-index: 1000; }
 
 
-/* ---------- mensagem privada: bandeirinha com o símbolo de oculto ---------- */
-body:not(.t20ah-chat-estilo) .t20ah-privada { display: none; }
-body.t20ah-chat-estilo .chat-message:has(> .t20ah-privada) { position: relative; }
-body.t20ah-chat-estilo .t20ah-privada {
-  --pv: #a77bd6;
-  position: absolute;
-  top: 0;
-  right: 0.7em;
-  z-index: 2;
-  display: grid;
-  place-items: start center;
-  width: 1.7em;
-  padding-top: 0.35em;
-  height: 2.2em;
-  font-size: 0.9rem;
-  color: #fff;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--pv) 85%, #fff), color-mix(in srgb, var(--pv) 70%, #000));
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);
-  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
-  cursor: help;
-}
-body.t20ah-chat-estilo .t20ah-privada.cega { --pv: #d64545; }
-body.t20ah-chat-estilo .t20ah-privada i { font-size: 0.8em; }
-/* abre espaço para a bandeirinha no canto do cabeçalho */
-body.t20ah-chat-estilo .chat-message:has(> .t20ah-privada) .message-header { padding-right: 2.9em; }
-
-/* a bandeirinha não pode cobrir a hora nem o botão de excluir: o bloco de metadados sai da frente dela */
-body.t20ah-chat-estilo .chat-message:has(> .t20ah-privada) .message-header { padding-right: 2.9em !important; }
-body.t20ah-chat-estilo .chat-message:has(> .t20ah-privada) .message-header .message-metadata { margin-right: 2.2em !important; }
-
-
 /* ---------- várias rolagens de uma vez: os grupos de dados fluem lado a lado e quebram de linha ---------- */
 /* cada grupo: fichas em cima, legenda pequena (fórmula, tipo e subtotal) embaixo */
 body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .wrapper { display: flex; flex-wrap: wrap; gap: 0.35em 0.9em; align-items: flex-start; }
@@ -1758,3 +1727,212 @@ body.t20ah-chat-estilo .chat-message .chat-card :is(button, a.button, .pm-btn, [
   border-color: var(--ci, #e0b85c) !important;
   filter: brightness(1.15);
 }
+
+/* "Encantos e melhorias" (módulo t20a-chat): ficha discreta no bloco de melhorias, nunca em coluna estreita */
+body.t20ah-chat-estilo .chat-card.t20ah-item > .t20a-efeitos-resumo { grid-column: 1 / -1; grid-row: 3; margin: 0.3em 0.8em 0; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .t20a-efeitos-resumo {
+  display: inline-flex; align-items: center; gap: 0.3em; flex: none; width: auto;
+  margin: 0 0.3em 0.3em 0; padding: 0.1em 0.6em;
+  font-size: 0.8em; line-height: 1.3; white-space: nowrap;
+  color: var(--t20c-texto, #f2e8d5); background: rgba(255, 255, 255, 0.06);
+  border-left: 2px solid var(--ci, #e0b85c); border-radius: 0.3em;
+}
+body.t20ah-chat-estilo .chat-card.t20ah-item .t20a-efeitos-resumo a { display: inline-flex; gap: 0.3em; cursor: pointer; text-decoration: none !important; color: inherit !important; border: 0 !important; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .t20a-efeitos-resumo strong { font-weight: 700; text-decoration: none !important; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .t20a-efeitos-resumo a:hover { filter: brightness(1.25); }
+body.t20ah-chat-estilo .chat-card.t20ah-item .t20a-efeitos-qtd { opacity: 0.7; }
+body.t20ah-chat-estilo .chat-card.t20ah-item .card-upgrades { display: flex; flex-wrap: wrap; align-items: center; }
+
+/* sem a faixa lateral nas caixas de total */
+body.t20ah-chat-estilo .chat-message .dice-total,
+body.t20ah-chat-estilo .chat-message .dice-total.critical,
+body.t20ah-chat-estilo .chat-message .dice-total.fumble { border-left: 0 !important; }
+
+/* sem a faixa grossa na lateral esquerda das mensagens (sussurro, cega, emote…): borda fina uniforme */
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message),
+body.t20ah-chat-estilo .chat-message.whisper:not(.t20ah-card-message),
+body.t20ah-chat-estilo .chat-message.blind:not(.t20ah-card-message),
+body.t20ah-chat-estilo .chat-message.emote:not(.t20ah-card-message),
+body.t20ah-chat-estilo .chat-message.ooc:not(.t20ah-card-message) {
+  border-left-width: 1px;
+  border-left-color: color-mix(in srgb, var(--cor-user, var(--t20c-ouro)) 70%, transparent);
+}
+body.t20ah-chat-estilo .chat-message.blind:not(.t20ah-card-message) { border-color: rgba(214, 69, 69, 0.55); }
+
+/* sem borda nenhuma na lateral esquerda das mensagens */
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message),
+body.t20ah-chat-estilo .chat-message.whisper:not(.t20ah-card-message),
+body.t20ah-chat-estilo .chat-message.blind:not(.t20ah-card-message),
+body.t20ah-chat-estilo .chat-message.emote:not(.t20ah-card-message),
+body.t20ah-chat-estilo .chat-message.ooc:not(.t20ah-card-message) { border-left: 0 !important; }
+
+/* =====================================================================================================
+   Compatibilidade com o t20-hayd-ui no chat: os recursos dele (descrição recolhível, resumo de encantos
+   com popover, aprimoramentos, "mostrar mais", selo de privacidade) com o visual deste módulo.
+   ===================================================================================================== */
+/* o avatar dele repete o retrato deste módulo */
+body.t20ah-chat-estilo .chat-message .message-header:has(> .t20ah-retrato-msg) > .t20a-chat-avatar { display: none !important; }
+
+/* itens que ele esconde (linhas resumidas, excedentes, "0 PM") continuam escondidos */
+body.t20ah-chat-estilo .chat-card .card-upgrades :is(.t20a-oculto, .t20a-excedente) { display: none !important; }
+body.t20ah-chat-estilo .chat-card .card-upgrades .t20a-sem-custo .row > b:first-child { display: none; }
+
+/* descrição: oculta / início (recolhida) / toda, controlada pelo clique no nome */
+body.t20ah-chat-estilo .chat-card .t20a-descricao { display: block !important; margin-bottom: 0.4em; }
+body.t20ah-chat-estilo .chat-card .t20a-descricao.t20a-descricao--oculta { display: none !important; }
+body.t20ah-chat-estilo .chat-card .t20a-descricao.t20a-recolhida {
+  max-height: 5.4em; overflow: hidden; cursor: pointer;
+  -webkit-mask-image: linear-gradient(#000 50%, transparent); mask-image: linear-gradient(#000 50%, transparent);
+}
+body.t20ah-chat-estilo .chat-card.t20a-cartao--com-descricao > header .item-name,
+body.t20ah-chat-estilo .chat-card [role="button"].item-name { cursor: pointer; }
+body.t20ah-chat-estilo .chat-card.t20a-cartao--com-descricao > header .item-name:focus-visible { outline: none; }
+
+/* listas de efeitos de uso (magias): Aprimoramentos / Outros bônus */
+body.t20ah-chat-estilo .chat-card .t20a-efeitos-grupo { margin: 0.2em 0; }
+body.t20ah-chat-estilo .chat-card .t20a-efeitos-grupo + .t20a-efeitos-grupo { margin-top: 0.4em; }
+body.t20ah-chat-estilo .chat-card .t20a-efeitos-grupo-titulo {
+  margin: 0 0 0.2em; font-size: 0.68em; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ci, #e0b85c) !important; opacity: 1;
+}
+body.t20ah-chat-estilo .chat-card .t20a-efeitos-grupo > ul { margin-top: 0 !important; }
+body.t20ah-chat-estilo .chat-card .t20a-efeitos-mais {
+  display: inline-flex; align-items: center; gap: 0.35em; margin: 0.2em 0 0.3em; padding: 0.1em 0.6em;
+  font-size: 0.78em; font-weight: 700; cursor: pointer;
+  color: var(--t20c-texto, #f2e8d5) !important; text-decoration: none !important;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 0.4em;
+}
+body.t20ah-chat-estilo .chat-card .t20a-efeitos-mais:hover,
+body.t20ah-chat-estilo .chat-card .t20a-efeitos-mais:focus-visible { border-color: var(--ci, #e0b85c); background: color-mix(in srgb, var(--ci, #e0b85c) 22%, #131315); }
+
+/* popover do resumo de encantos (fica no <body>, fora do chat) */
+body.t20ah-chat-estilo .t20a-efeitos-popover,
+body.t20ah-chat-estilo .t20a-efeitos-popover--claro,
+body.t20ah-chat-estilo .t20a-efeitos-popover--escuro {
+  background: linear-gradient(165deg, #1f1f22, #101012) !important;
+  color: #f2e8d5 !important;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-left: 4px solid #e0b85c;
+  border-radius: 0.6em;
+  font-family: "Signika", sans-serif;
+}
+body.t20ah-chat-estilo .t20a-efeitos-popover-titulo { color: #e0b85c; border-bottom-color: rgba(255, 255, 255, 0.18); }
+body.t20ah-chat-estilo .t20a-efeitos-popover li .row > b:first-child { color: #e0b85c; }
+
+/* selo de privacidade (privada, cega, particular, sussurro) */
+body.t20ah-chat-estilo .chat-message .message-header > .t20a-privacidade {
+  color: var(--t20c-texto, #f2e8d5) !important;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 0.4em;
+}
+body.t20ah-chat-estilo .chat-message .message-header > .t20a-privacidade--cega { border-style: dashed; border-color: rgba(214, 69, 69, 0.7); }
+
+/* =====================================================================================================
+   Integração com o t20-hayd-gmtools no chat: as barras de ação (resistência, manobra, engenhocas, venenos,
+   contadores), auras, mensagens de dano/cura/mana, prévia de dano e pedidos de rolagem usam o visual do módulo.
+   ===================================================================================================== */
+body.t20ah-chat-estilo .chat-message :is(button.t20g-auto-btn, .t20g-aura-btn, .t20g-aura-desfazer, button.t20g-dano-acao, .t20g-tesouro-rolar-btn, .t20g-ajuste-pm button) {
+  color: var(--t20c-texto, #f2e8d5) !important;
+  background: rgba(0, 0, 0, 0.4) !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
+  border-radius: 0.45em !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+  text-shadow: none !important;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s, filter 0.12s;
+}
+body.t20ah-chat-estilo .chat-message :is(button.t20g-auto-btn, .t20g-aura-btn, .t20g-aura-desfazer, button.t20g-dano-acao, .t20g-tesouro-rolar-btn):hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ci, #e0b85c) 30%, #131315) !important;
+  border-color: var(--ci, #e0b85c) !important;
+  color: #fff !important;
+  filter: brightness(1.1);
+}
+body.t20ah-chat-estilo .chat-message :is(button.t20g-auto-btn, .t20g-aura-btn, button.t20g-dano-acao):disabled { opacity: 0.45; cursor: default; }
+
+/* barras de automação no rodapé do card */
+body.t20ah-chat-estilo .chat-card .t20g-auto-barra { border-top: 1px solid rgba(255, 255, 255, 0.12); }
+body.t20ah-chat-estilo .chat-card .t20g-auto-rotulo { color: var(--t20c-texto, #f2e8d5); }
+body.t20ah-chat-estilo .chat-card .t20g-auto-rotulo i,
+body.t20ah-chat-estilo .t20g-auto-chat i { color: var(--ci, #e0b85c); }
+
+/* auras */
+body.t20ah-chat-estilo .chat-message .t20g-aura-card { color: var(--t20c-texto, #f2e8d5); }
+body.t20ah-chat-estilo .chat-message .t20g-aura-lista li { border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+body.t20ah-chat-estilo .chat-message .t20g-aura-cheio { color: var(--t20c-mudo, #b8ad9a); }
+
+/* mensagens de dano, cura e mana: linhas sobre o cinza do módulo, sem faixa lateral */
+body.t20ah-chat-estilo .chat-message .message-content.damage-card { background: none !important; color: var(--t20c-texto, #f2e8d5); }
+body.t20ah-chat-estilo .chat-message .t20g-dano-log {
+  border-left: 0;
+  border-radius: 0.5em;
+  background: color-mix(in srgb, var(--t20g-dano-cor) 14%, #17171a);
+  border: 1px solid color-mix(in srgb, var(--t20g-dano-cor) 45%, transparent);
+}
+body.t20ah-chat-estilo .chat-message .t20g-dano-aviso { color: var(--t20c-mudo, #b8ad9a); }
+
+/* prévia de dano (quadro recolhível) */
+body.t20ah-chat-estilo .chat-message .t20g-preview {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0.5em;
+  color: var(--t20c-texto, #f2e8d5);
+}
+body.t20ah-chat-estilo .chat-message .t20g-preview-linha { border-top-color: rgba(255, 255, 255, 0.1); }
+body.t20ah-chat-estilo .chat-message .t20g-preview-rotulo { color: var(--ci, #e0b85c); opacity: 1; }
+
+/* pedido de rolagem e resumo de tesouro */
+body.t20ah-chat-estilo .chat-message .t20g-tesouro-rolado { color: var(--t20c-mudo, #b8ad9a); }
+body.t20ah-chat-estilo .chat-message .t20g-tesouro-chat h3 { color: var(--ci, #e0b85c) !important; }
+
+/* =====================================================================================================
+   Integração com o t20-hayd-loja no chat: os cards de compra, venda, saldo, estoque, construção e aprimoramento
+   são cards únicos (sem a moldura da mensagem), no mesmo estilo dos cards de tipo de ação.
+   ===================================================================================================== */
+body.t20ah-chat-estilo .t20-loja-message.t20l-card {
+  --cor: #e0b85c;
+  overflow: hidden;
+  padding: 0.55em 0.8em 0.65em;
+  border-radius: 0.7em;
+  font-family: "Signika", sans-serif;
+  font-size: 1em;
+  color: #f2e8d5;
+  background: linear-gradient(165deg, color-mix(in srgb, var(--cor) 10%, #1f1f22), #101012);
+  border: 1px solid color-mix(in srgb, var(--cor) 70%, transparent);
+  border-left: 4px solid var(--cor);
+  box-shadow: 0 0.3em 0.9em rgba(0, 0, 0, 0.45);
+}
+body.t20ah-chat-estilo .t20l-card .t20l-head {
+  gap: 0.6em;
+  padding-bottom: 0.45em;
+  margin-bottom: 0.45em;
+  border-bottom: 1px solid color-mix(in srgb, var(--cor) 40%, transparent);
+}
+body.t20ah-chat-estilo .t20l-card .t20l-head > i {
+  display: grid; place-items: center; flex: none;
+  width: 2em; height: 2em; font-size: 1.1em;
+  color: var(--cor);
+  background: color-mix(in srgb, var(--cor) 16%, #131315);
+  border: 1px solid color-mix(in srgb, var(--cor) 55%, transparent);
+  border-radius: 0.5em;
+}
+body.t20ah-chat-estilo .t20l-card .t20l-head strong { font-family: "Modesto Condensed", "Signika", sans-serif; font-size: 1.1em; letter-spacing: 0.04em; color: #fff; }
+body.t20ah-chat-estilo .t20l-card .t20l-head span { color: var(--t20c-mudo, #b8ad9a); opacity: 1; }
+body.t20ah-chat-estilo .t20l-card .t20l-row > span { color: var(--cor); opacity: 0.9; font-weight: 700; letter-spacing: 0.1em; font-size: 0.68em; }
+body.t20ah-chat-estilo .t20l-card .t20l-item { color: #f2e8d5; }
+body.t20ah-chat-estilo .t20l-card .t20l-item img { border-radius: 0.35em; border: 1px solid rgba(255, 255, 255, 0.25); }
+body.t20ah-chat-estilo .t20l-card .t20l-saldo { border-top-color: color-mix(in srgb, var(--cor) 35%, transparent); }
+body.t20ah-chat-estilo .t20l-card .t20l-saldo > span { color: var(--cor); opacity: 0.9; font-weight: 700; letter-spacing: 0.1em; font-size: 0.68em; }
+/* moedas: pílulas escuras com a cor de cada moeda */
+body.t20ah-chat-estilo .t20l-card .t20l-coin { background-color: rgba(0, 0, 0, 0.35); }
+body.t20ah-chat-estilo .t20l-card .t20l-aprim li { background: rgba(255, 255, 255, 0.04); border-radius: 0.3em; }
+body.t20ah-chat-estilo .t20l-card .t20l-aprim-titulo { color: var(--cor); opacity: 0.9; font-weight: 700; letter-spacing: 0.1em; font-size: 0.68em; }
+body.t20ah-chat-estilo .t20l-card .t20l-cons-res { background-color: rgba(0, 0, 0, 0.3); }
+/* "Trocar sucesso/falha" */
+body.t20ah-chat-estilo .t20l-card button.t20l-cons-trocar {
+  color: #f2e8d5 !important; background: rgba(0, 0, 0, 0.4) !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important; border-radius: 0.45em !important;
+  box-shadow: none !important; font-weight: 700; cursor: pointer;
+}
+body.t20ah-chat-estilo .t20l-card button.t20l-cons-trocar:hover { background: color-mix(in srgb, var(--cor) 30%, #131315) !important; border-color: var(--cor) !important; }
