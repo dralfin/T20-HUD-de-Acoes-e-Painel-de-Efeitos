@@ -1819,15 +1819,6 @@ body.t20ah-chat-estilo .t20a-efeitos-popover--escuro {
 body.t20ah-chat-estilo .t20a-efeitos-popover-titulo { color: #e0b85c; border-bottom-color: rgba(255, 255, 255, 0.18); }
 body.t20ah-chat-estilo .t20a-efeitos-popover li .row > b:first-child { color: #e0b85c; }
 
-/* selo de privacidade (privada, cega, particular, sussurro) */
-body.t20ah-chat-estilo .chat-message .message-header > .t20a-privacidade {
-  color: var(--t20c-texto, #f2e8d5) !important;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 0.4em;
-}
-body.t20ah-chat-estilo .chat-message .message-header > .t20a-privacidade--cega { border-style: dashed; border-color: rgba(214, 69, 69, 0.7); }
-
 /* =====================================================================================================
    Integração com o t20-hayd-gmtools no chat: as barras de ação (resistência, manobra, engenhocas, venenos,
    contadores), auras, mensagens de dano/cura/mana, prévia de dano e pedidos de rolagem usam o visual do módulo.
@@ -1936,3 +1927,253 @@ body.t20ah-chat-estilo .t20l-card button.t20l-cons-trocar {
   box-shadow: none !important; font-weight: 700; cursor: pointer;
 }
 body.t20ah-chat-estilo .t20l-card button.t20l-cons-trocar:hover { background: color-mix(in srgb, var(--cor) 30%, #131315) !important; border-color: var(--cor) !important; }
+
+/* =====================================================================================================
+   Integração com o t20-hayd-itens no chat: cards próprios (.hayd-itens-card), botões e rodapé dos cards de item
+   (.hayd-cartao-btn / .hayd-cartao-rodape), aviso de disparo sem munição e as dicas dos selos (.hbdg-tooltip).
+   ===================================================================================================== */
+body.t20ah-chat-estilo .hayd-itens-card {
+  --cor: #e0b85c;
+  overflow: hidden;
+  padding: 0.55em 0.8em 0.65em;
+  border-radius: 0.7em;
+  font-family: "Signika", sans-serif;
+  color: #f2e8d5;
+  background: linear-gradient(165deg, color-mix(in srgb, var(--cor) 10%, #1f1f22), #101012);
+  border: 1px solid color-mix(in srgb, var(--cor) 70%, transparent);
+  border-left: 4px solid var(--cor);
+  box-shadow: 0 0.3em 0.9em rgba(0, 0, 0, 0.45);
+}
+body.t20ah-chat-estilo .hayd-itens-card > p:first-child {
+  padding-bottom: 0.4em; margin-bottom: 0.4em;
+  border-bottom: 1px solid color-mix(in srgb, var(--cor) 40%, transparent);
+  font-family: "Modesto Condensed", "Signika", sans-serif; font-size: 1.1em; letter-spacing: 0.04em; color: #fff;
+}
+body.t20ah-chat-estilo .hayd-itens-card > p:first-child i { color: var(--cor); margin-right: 0.3em; }
+body.t20ah-chat-estilo .hayd-itens-card .notes { color: var(--t20c-mudo, #b8ad9a); font-size: 0.85em; }
+body.t20ah-chat-estilo .hayd-itens-lista img { border-radius: 0.35em; border: 1px solid rgba(255, 255, 255, 0.25); }
+/* botões (cards de item e cards próprios) no estilo dos botões de card do módulo */
+body.t20ah-chat-estilo .chat-message :is(button.hayd-cartao-btn, .hayd-itens-acoes button, button[data-hayd-acao]) {
+  color: #f2e8d5 !important; background: rgba(0, 0, 0, 0.4) !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important; border-radius: 0.45em !important;
+  box-shadow: none !important; font-weight: 700; cursor: pointer;
+}
+body.t20ah-chat-estilo .chat-message :is(button.hayd-cartao-btn, .hayd-itens-acoes button, button[data-hayd-acao]):hover {
+  background: color-mix(in srgb, var(--cor, #e0b85c) 30%, #131315) !important; border-color: var(--cor, #e0b85c) !important;
+}
+body.t20ah-chat-estilo .chat-card.t20ah-item .hayd-cartao-rodape { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 0.3em; margin: 0.4em 0 0; padding: 0; border: 0; background: none; }
+/* aviso de disparo sem munição */
+body.t20ah-chat-estilo .chat-message .hayd-municao-aviso {
+  grid-column: 1 / -1; display: flex; align-items: center; gap: 0.4em;
+  color: #ff7a6e !important; font-weight: 700; font-size: 0.85em;
+}
+/* dica dos selos */
+body .hbdg-tooltip { font-family: "Signika", sans-serif; }
+
+/* =====================================================================================================
+   Integração com o t20-hayd-bases-e-dominios no chat: os cards de bases, negócios e domínios (.t20b-chat / .t20d-chat)
+   são cards únicos no estilo dos cards de tipo de ação, na cor do domínio quando ela existe.
+   ===================================================================================================== */
+body.t20ah-chat-estilo :is(.t20b-chat, .t20d-chat, .t20b-chat.tema-hayd, .t20d-chat.tema-hayd) {
+  --cor: var(--t20d-destaque, #e0b85c);
+  overflow: hidden;
+  padding: 0.55em 0.8em 0.65em;
+  border-radius: 0.7em;
+  font-family: "Signika", sans-serif;
+  color: #f2e8d5;
+  background: linear-gradient(165deg, color-mix(in srgb, var(--cor) 10%, #1f1f22), #101012);
+  border: 1px solid color-mix(in srgb, var(--cor) 70%, transparent);
+  border-left: 4px solid var(--cor);
+  box-shadow: 0 0.3em 0.9em rgba(0, 0, 0, 0.45);
+}
+body.t20ah-chat-estilo :is(.t20b-chat, .t20d-chat) :is(.t20b-chat-header, .t20d-chat-header) {
+  padding: 0 0 0.45em; margin-bottom: 0.45em; gap: 0.6em; background: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--cor) 40%, transparent);
+}
+body.t20ah-chat-estilo :is(.t20b-chat, .t20d-chat) :is(.t20b-chat-header, .t20d-chat-header) img {
+  width: 2.4em; height: 2.4em; border-radius: 0.5em; border: 1px solid color-mix(in srgb, var(--cor) 55%, transparent);
+}
+body.t20ah-chat-estilo :is(.t20b-chat, .t20d-chat) :is(.t20b-chat-header, .t20d-chat-header) h3 {
+  font-family: "Modesto Condensed", "Signika", sans-serif; font-size: 1.1em; letter-spacing: 0.04em; color: #fff;
+}
+body.t20ah-chat-estilo :is(.t20b-chat, .t20d-chat) :is(.t20b-chat-header, .t20d-chat-header) span { color: var(--t20c-mudo, #b8ad9a); opacity: 1; }
+body.t20ah-chat-estilo :is(.t20b-chat-body, .t20d-chat-body) { padding: 0; color: #f2e8d5; font-size: 0.92em; }
+body.t20ah-chat-estilo .t20d-chat-body h4 { color: var(--cor); font-size: 0.75em; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+body.t20ah-chat-estilo :is(.t20b-chat, .t20d-chat) .t20b-bom, body.t20ah-chat-estilo .t20d-chat .t20d-bom { color: #6fd08c; }
+body.t20ah-chat-estilo :is(.t20b-chat, .t20d-chat) .t20b-ruim, body.t20ah-chat-estilo .t20d-chat .t20d-ruim { color: #ff7a6e; }
+body.t20ah-chat-estilo .t20d-chat-body .t20d-tabela { border-color: rgba(255, 255, 255, 0.15); }
+body.t20ah-chat-estilo .t20d-chat-body .t20d-tabela td { border-bottom-color: rgba(255, 255, 255, 0.08); }
+/* "Alterar para sucesso/falha" e demais botões do desfecho */
+body.t20ah-chat-estilo .t20bd-controle-obra { border-top-color: color-mix(in srgb, var(--cor, #e0b85c) 35%, transparent); }
+body.t20ah-chat-estilo .t20ah-basesdominios-message :is(.t20bd-controle-obra button, .t20b-chat button, .t20d-chat button) {
+  color: #f2e8d5 !important; background: rgba(0, 0, 0, 0.4) !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important; border-radius: 0.45em !important;
+  box-shadow: none !important; font-weight: 700; cursor: pointer;
+}
+body.t20ah-chat-estilo .t20ah-basesdominios-message :is(.t20bd-controle-obra button, .t20b-chat button, .t20d-chat button):hover {
+  background: color-mix(in srgb, var(--cor, #e0b85c) 30%, #131315) !important; border-color: var(--cor, #e0b85c) !important;
+}
+
+/* =====================================================================================================
+   Bandeirinha de privacidade (privada, cega, particular, sussurro) do t20-hayd-ui: pendurada no topo do card, dentro do
+   cabeçalho da mensagem (entre o nome e a hora/lixeira, então nunca os cobre). Só o símbolo; o texto vai na dica.
+   ===================================================================================================== */
+body.t20ah-chat-estilo .chat-message .message-header > .t20a-privacidade {
+  --fc: #e0b85c;
+  flex: none; order: 8;
+  align-self: flex-start;
+  margin: -0.5em 0.2em 0 auto !important;
+  position: relative;
+  display: grid !important; place-items: center;
+  width: 1.5em; height: 2em; min-width: 0; padding: 0 0 0.35em !important;
+  font-size: 0.85em; line-height: 1;
+  color: #fff !important;
+  background: color-mix(in srgb, var(--fc) 55%, #101012) !important;
+  border: 0 !important; border-radius: 0 !important; box-shadow: none !important;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);
+  cursor: help;
+  transition: filter 0.15s, transform 0.15s;
+}
+body.t20ah-chat-estilo .chat-message .message-header > .t20a-privacidade > span { display: none !important; }
+body.t20ah-chat-estilo .chat-message .message-header > .t20a-privacidade > i { margin: 0 !important; font-size: 0.95em; color: inherit; }
+body.t20ah-chat-estilo .chat-message .message-header > .t20a-privacidade:hover { filter: brightness(1.3); transform: translateY(0.1em); }
+body.t20ah-chat-estilo .chat-message .message-header > .t20a-privacidade--cega { --fc: #d64545; }
+body.t20ah-chat-estilo .chat-message .message-header > .t20a-privacidade--sussurro { --fc: #a77bd6; }
+body.t20ah-chat-estilo .chat-message .message-header > .message-metadata { order: 9; }
+
+/* uma caixinha por tipo de dano: dados em cima e, embaixo, uma linha única e centralizada "fórmula  [TIPO]  = total" */
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .tooltip-part .dice {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.3em;
+}
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .dice-rolls { order: 1; justify-content: center; }
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .part-header {
+  order: 2; display: flex !important; flex-flow: row nowrap; align-items: center; justify-content: center;
+  gap: 0.4em; width: 100%; padding: 0 !important; border: 0 !important; line-height: 1.2;
+}
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .part-header > * { grid-column: auto; grid-row: auto; margin: 0 !important; white-space: nowrap; }
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .part-flavor { text-align: center; }
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .part-total {
+  padding: 0 !important; background: none !important; border-radius: 0; font-weight: 700;
+}
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .part-total::before { content: "= "; opacity: 0.6; font-weight: 400; }
+
+/* nomes da ficha do card (execução, alcance, alvo, duração, resistência): na cor do card, em qualquer formato do HTML */
+body.t20ah-chat-estilo .chat-message .chat-card.t20ah-item .card-item-header :is(b, dt, .t20a-cartao-ficha dt, .it-stat .k) {
+  color: var(--ci, var(--cor, #e0b85c)) !important;
+  font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+}
+body.t20ah-chat-estilo .chat-message .chat-card.t20ah-item .card-item-header :is(b, dt) { font-size: 0.78em; }
+body.t20ah-chat-estilo .chat-message .chat-card.t20ah-item .card-item-header dd { color: var(--t20c-texto, #f2e8d5); }
+
+/* verificador de acerto: sem recuo extra; o valor fica centralizado na caixa e o símbolo encostado à direita */
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-total[data-res] { padding-left: 0.4em !important; padding-right: 0.4em !important; text-align: center; }
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-total[data-res]::after { right: 0.55em; }
+
+/* bandeirinha de privacidade: fora do fluxo (não desloca nome nem conteúdo), colada na extrema direita do card, abaixo da hora */
+body.t20ah-chat-estilo .chat-message { position: relative; }
+body.t20ah-chat-estilo .chat-message .message-header > .t20a-privacidade {
+  position: absolute !important;
+  top: 2.1em; right: 0; left: auto;
+  margin: 0 !important; order: 0;
+  width: 1.9em; height: 1.7em; padding: 0 !important;
+  clip-path: none;
+  border-radius: 0.45em 0 0 0.45em !important;
+  z-index: 2;
+}
+body.t20ah-chat-estilo .chat-message .message-header > .t20a-privacidade:hover { transform: translateX(-0.15em); }
+
+/* rolagens básicas (testes e dados avulsos): mesmo tamanho dos totais e fórmulas das rolagens dos cards */
+body.t20ah-chat-estilo .chat-message .message-content > .dice-roll .dice-total { font-size: 2.6em !important; line-height: 1.15; padding: 0.05em 0.4em; text-align: center; }
+body.t20ah-chat-estilo .chat-message .message-content > .dice-roll .dice-formula { font-size: 0.95em !important; text-align: center; }
+body.t20ah-chat-estilo .chat-message .message-content > .dice-roll .dice-result { display: flex; flex-direction: column; gap: 0.2em; }
+
+/* cabeçalho: retrato e nome sempre com o mesmo espaço, pública ou não */
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-header { gap: 0.7em !important; justify-content: flex-start !important; }
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-header > .message-sender { margin: 0 !important; padding: 0 !important; flex: 0 1 auto; min-width: 0; }
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-header > .t20ah-retrato-msg { margin: 0 !important; }
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-header > .message-metadata { margin-left: auto; }
+
+/* rolagem básica: caixa do total sempre na largura toda (igual às rolagens dos cards), inclusive crítico e falha */
+body.t20ah-chat-estilo .chat-message .message-content > .dice-roll .dice-result { width: 100%; align-items: stretch; }
+body.t20ah-chat-estilo .chat-message .message-content > .dice-roll .dice-result > .dice-total { width: 100% !important; max-width: none !important; box-sizing: border-box; margin-left: 0 !important; margin-right: 0 !important; justify-self: stretch; align-self: stretch; }
+body.t20ah-chat-estilo .chat-message .message-content > .dice-roll { width: 100%; margin: 0; }
+
+/* cabeçalho com a mesma altura, pública ou não (o retrato define a altura) */
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) > .message-header {
+  box-sizing: border-box; min-height: 4.3em; border-bottom-width: 1px !important;
+}
+
+/* cabeçalho: altura idêntica em qualquer mensagem (pública, privada, cega…), com o conteúdo centralizado na vertical */
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-header {
+  box-sizing: border-box !important;
+  height: 4.4em !important; min-height: 4.4em !important; max-height: 4.4em !important;
+  padding-top: 0 !important; padding-bottom: 0 !important;
+  align-items: center !important;
+  overflow: visible;
+}
+
+/* o t20-hayd-ui vira o cabeçalho em grade quando há selo de privacidade (e empurra retrato e hora para cima): mantém o
+   mesmo cabeçalho de flex das mensagens públicas, já que o selo agora é uma aba lateral fora do fluxo */
+body.t20ah-chat-estilo .chat-message.t20a-chat-msg:not(.t20ah-card-message) .message-header:has(> .t20a-privacidade) {
+  display: flex !important; align-items: center !important; column-gap: 0.7em !important; row-gap: 0 !important;
+}
+body.t20ah-chat-estilo .chat-message.t20a-chat-msg .message-header:has(> .t20a-privacidade) > :is(.t20a-chat-avatar, .message-sender, .message-metadata) {
+  grid-column: auto !important; grid-row: auto !important; align-self: auto !important; justify-self: auto !important; margin-right: 0;
+}
+body.t20ah-chat-estilo .chat-message.t20a-chat-msg .message-header:has(> .t20a-privacidade) > .message-metadata { margin-left: auto !important; }
+
+/* selo de privacidade: metade dentro, metade fora, sobre a divisória entre o cabeçalho e o conteúdo */
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) > .message-header:has(> .t20a-privacidade) { position: relative; }
+body.t20ah-chat-estilo .chat-message .message-header > .t20a-privacidade {
+  top: 100% !important; transform: translateY(-50%);
+}
+body.t20ah-chat-estilo .chat-message .message-header > .t20a-privacidade:hover { transform: translate(-0.15em, -50%); }
+
+/* mensagens do Tiny Monitor: só o conteúdo, sem a parte de cima (retrato, nome, hora, selo) */
+body.t20ah-chat-estilo .chat-message.tiny-monitor-msg:not(.t20ah-card-message) > .message-header { display: none !important; }
+body.t20ah-chat-estilo .chat-message.tiny-monitor-msg > .message-content { border-radius: 0.6em !important; }
+
+/* Tiny Monitor: o cabeçalho some mesmo com o selo/grade de outros módulos (especificidade maior que as regras do selo) */
+html body.t20ah-chat-estilo .chat-message.tiny-monitor-msg.tiny-monitor-msg:not(.t20ah-card-message) > .message-header,
+html body.t20ah-chat-estilo .chat-message.tiny-monitor-msg.tiny-monitor-msg.t20a-chat-msg:not(.t20ah-card-message) > .message-header:has(> .t20a-privacidade),
+html body.t20ah-chat-estilo .chat-message.tiny-monitor-msg.tiny-monitor-msg.t20a-chat-msg:not(.t20ah-card-message) .message-header:has(> .t20a-privacidade) {
+  display: none !important; height: 0 !important; min-height: 0 !important; max-height: 0 !important; padding: 0 !important; border: 0 !important; overflow: hidden !important;
+}
+
+/* a altura do cabeçalho cresce com o que houver dentro (texto de sabor, "Para: …"); 4,4em é só o mínimo */
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-header {
+  height: auto !important; max-height: none !important; min-height: 4.4em !important;
+  padding-top: 0.4em !important; padding-bottom: 0.4em !important;
+  flex-wrap: wrap;
+}
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-header > :is(.flavor-text, .whisper-to) { flex: 1 0 100%; order: 20; margin: 0; }
+
+/* selo de privacidade como gaveta: fechado é só o símbolo colado na direita; ao passar o mouse ela abre para a esquerda
+   mostrando o tipo (Cega, Privada, Particular, Sussurro…) */
+body.t20ah-chat-estilo .chat-message .message-header > .t20a-privacidade {
+  display: flex !important; flex-direction: row-reverse; align-items: center; justify-content: flex-start;
+  width: auto !important; max-width: 1.9em; height: 1.7em; padding: 0 !important; overflow: hidden;
+  transition: max-width 0.25s ease, filter 0.15s;
+}
+body.t20ah-chat-estilo .chat-message .message-header > .t20a-privacidade > i { flex: 0 0 1.9em; text-align: center; }
+body.t20ah-chat-estilo .chat-message .message-header > .t20a-privacidade > span {
+  display: block !important; flex: none; white-space: nowrap; padding-left: 0.7em;
+  font-size: 0.8em; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: inherit;
+}
+body.t20ah-chat-estilo .chat-message .message-header > .t20a-privacidade:hover,
+body.t20ah-chat-estilo .chat-message .message-header > .t20a-privacidade:focus-visible { max-width: 14em; transform: translateY(-50%); filter: brightness(1.2); }
+
+/* cada tipo de dano em sua própria linha, tudo centralizado */
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .wrapper {
+  display: flex !important; flex-direction: column !important; flex-wrap: nowrap !important; align-items: center !important; gap: 0.6em !important;
+}
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .tooltip-part { flex: 0 0 auto; width: 100%; }
+
+/* legenda de cada tipo: fórmula, tipo e total agrupados no centro (sobrepõe o espalhamento do .flexrow e margens automáticas) */
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .tooltip-part .part-header {
+  justify-content: center !important; flex-direction: row !important; width: 100% !important; gap: 0.45em !important;
+}
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .tooltip-part .part-header > :is(.part-formula, .part-flavor, .part-total) {
+  flex: 0 0 auto !important; width: auto !important; margin: 0 !important; text-align: center !important;
+}
+body.t20ah-chat-estilo :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-tooltip .tooltip-part .dice-rolls { justify-content: center !important; width: 100%; }

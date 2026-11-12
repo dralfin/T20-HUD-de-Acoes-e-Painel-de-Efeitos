@@ -179,6 +179,7 @@ Opção do **mundo** (**Estilo do módulo no chat**, ligada por padrão) que apl
 
 Quando todo o dano de uma rolagem é de um único tipo, uma animação em pixel art roda atrás do valor (o número continua legível). Há efeitos para fogo, ácido, eletricidade, essência, frio, luz, psíquico, trevas, corte, perfuração, impacto, cura de PV, recuperação de mana e perda de vida.
 
+- **Desativadas por padrão:** nenhum efeito roda até o usuário ativá-lo.
 - **Escolher efeitos:** Configurações > Animações do dano e da cura > **Escolher animações**. A janela mostra uma grade com a prévia de cada efeito; ative um por um ou use **Ativar todos** / **Desativar todos**. Cada usuário escolhe os seus.
 - **Versões alternativas:** cada efeito tem uma versão **Original** e versões alternativas; escolha pela lista de cada carta, com prévia ao vivo.
 - **Todos os tipos do card:** a opção **Animar todos os tipos de dano do card** (desligada por padrão) mostra, em rolagens com tipos misturados, o efeito de cada tipo lado a lado.
@@ -193,11 +194,15 @@ O módulo foi preparado para conviver com módulos que também alteram o chat, m
 | **t20-hayd-ui** | Descrição recolhível pelo clique no nome, resumo "Encantos e melhorias" com popover, listas de Aprimoramentos e Outros bônus, "Mostrar mais" e o selo de privacidade continuam funcionando, com o visual do módulo. O avatar duplicado é escondido; no estilo "novo" dele, os blocos de rolagem são desfeitos para o layout do módulo. |
 | **t20-hayd-gmtools** | Barras de ação nos cards (resistência, manobra, engenhocas, venenos, contadores), auras, mensagens de dano/cura/mana, prévia de dano e pedidos de rolagem, com o visual do módulo. |
 | **t20-hayd-loja** | Cards de compra, venda, saldo, estoque, construção e aprimoramento viram cards únicos no estilo dos cards de ação (moedas, melhorias e o botão de trocar sucesso/falha incluídos). |
+| **t20-hayd-itens** | Nota de munição, selos de encantos/materiais, botões do rodapé dos cards de arma (injeção, Conjuradora, Sanguinária etc.), aviso de disparo sem munição e os cards próprios do módulo (Dançarina, injeção alquímica) continuam funcionando; os cards próprios viram cards únicos no estilo do módulo. |
+| **t20-hayd-bases-e-dominios** | Cards de bases, negócios e domínios viram cards únicos no estilo dos cards de ação (na cor do domínio), com o botão de alterar sucesso/falha da obra e os demais botões no estilo do módulo. |
+| **t20a-chat** | As variáveis e classes dele são redefinidas pelo visual do módulo. |
 | **Item Piles** | Cards de compra e venda no estilo do módulo; as mensagens do Item Piles que montam o próprio cabeçalho ficam como estão. É também o que cria o token da ação **Largar um Item**. |
+| **Munição e melhorias** (`hayd-municao`, `hbdg`), resultado contra a Defesa, aviso de camuflagem e dano maximizado | Reestilizados e agrupados logo abaixo do título do card de item. Nenhum elemento é removido. |
 
 Os ajustes do módulo no chat são registrados depois dos de todos os outros módulos, para sempre enxergarem o HTML já alterado por eles.
 
-**Ignorar alterações de outros módulos no chat** (opção pessoal, desligada por padrão): desfaz no chat tudo o que módulos de terceiros acrescentam (elementos, classes e variáveis de estilo com os **prefixos** listados em *Prefixos de classes a ignorar*, padrão `t20a-`), para o card ficar só com o visual do módulo. Útil se uma atualização de outro módulo bagunçar os cards.
+**Bandeirinha de privacidade:** o selo do t20-hayd-ui para rolagens privadas, cegas, particulares e sussurros vira uma bandeirinha no topo do card, entre o nome e a hora/lixeira: só o símbolo fica à vista e o texto aparece ao passar o mouse.
 
 ### ⏱️ Temporizador de turno
 
@@ -257,7 +262,7 @@ Depois ative o módulo no mundo.
 
 - **Foundry Virtual Tabletop:** versões 13 e 14.
 - **Sistema de jogo:** Tormenta20.
-- **Opcionais:** Item Piles (ação Largar um Item); t20-hayd-ui, t20-hayd-gmtools e t20-hayd-loja (integração no chat).
+- **Opcionais:** Item Piles (ação Largar um Item); t20-hayd-ui, t20-hayd-gmtools, t20-hayd-loja, t20-hayd-itens e t20-hayd-bases-e-dominios (integração no chat).
 
 ---
 
@@ -293,7 +298,7 @@ Disponíveis individualmente:
 - Personalizar o **visual da HUD** (tema, cores, opacidade, desfoque, cantos).
 - Escolher as **animações do dano e da cura** (efeitos e versões) e se animam todos os tipos do card.
 - **Gastar movimento também do Mestre** (só Mestre).
-- **Ver o estilo do módulo no meu chat** e **Ignorar alterações de outros módulos no chat** (com os prefixos a ignorar).
+- **Ver o estilo do módulo no meu chat**.
 - Ajustar o tamanho da HUD.
 - Configurar o volume dos sons.
 - Ativar o modo de teste que aplica ao Mestre as mesmas restrições de um jogador.
@@ -336,7 +341,7 @@ Os métodos do Painel de Efeitos são destinados ao Mestre.
 
 - A edição direta de PV e PM modifica os valores da ficha sem executar o cálculo de dano do sistema. Já o menu de dano da HUD aplica a redução de dano da ficha e as imunidades a tipos de dano, mas não considera vulnerabilidades.
 - **Largar um Item** depende do módulo Item Piles e da configuração de quantidade dele para o sistema Tormenta20.
-- Os recursos de integração com outros módulos foram feitos a partir do HTML que eles geram hoje; uma atualização que mude esse HTML pode exigir ajustes (use *Ignorar alterações de outros módulos no chat* nesse caso).
+- Os recursos de integração com outros módulos foram feitos a partir do HTML que eles geram hoje; uma atualização que mude esse HTML pode exigir ajustes.
 - O controle de deslocamento não considera condições que alteram a velocidade nem outros tipos de deslocamento, como voo e natação.
 - O temporizador não pausa quando o jogo está pausado.
 - A integração depende de campos específicos da ficha do Tormenta20, incluindo recursos, Defesa, atributo de conjuração e execução dos itens.

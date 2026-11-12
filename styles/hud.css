@@ -1471,7 +1471,14 @@ body.t20ah-chat-estilo .chat-message.t20ah-externo .t20ah-retrato-msg { display:
 #t20ah-visual-pop .vp-tema.sel { border-color: #e0b85c; }
 #t20ah-visual-pop .vp-lin { display: grid; grid-template-columns: 5.2em 1fr 3em; align-items: center; gap: 0.4em; margin: 0.3em 0; font-size: 0.9em; }
 #t20ah-visual-pop .vp-lin input[type="range"] { width: 100%; margin: 0; accent-color: #e0b85c; }
-#t20ah-visual-pop .vp-lin input[type="color"] { grid-column: 2 / 4; width: 100%; height: 1.7em; padding: 0; border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 0.35em; background: none; cursor: pointer; }
+#t20ah-visual-pop .vp-lin input[type="color"] {
+  grid-column: 2 / 4; width: 100%; height: 1.7em; padding: 2px; box-sizing: border-box; cursor: pointer;
+  -webkit-appearance: none; appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 0.35em; background: #1a1a1d !important; box-shadow: none; filter: none; opacity: 1;
+}
+#t20ah-visual-pop .vp-lin input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+#t20ah-visual-pop .vp-lin input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 0.25em; }
+#t20ah-visual-pop .vp-lin input[type="color"]::-moz-color-swatch { border: 0; border-radius: 0.25em; }
 #t20ah-visual-pop .vp-lin output { text-align: right; color: #9a8a7a; font-variant-numeric: tabular-nums; }
 #t20ah-visual-pop footer { margin-top: 0.6em; }
 #t20ah-visual-pop footer button { all: unset; box-sizing: border-box; width: 100%; text-align: center; cursor: pointer; padding: 0.35em; border-radius: 0.45em; font-size: 0.85em; color: #9a8a7a; border: 1px solid rgba(255, 255, 255, 0.15); }

@@ -3096,25 +3096,7 @@ Hooks.once("init", () => {
     config: true,
     type: Boolean,
     default: true,
-    onChange: () => aplicarEstiloChat()
-  });
-  game.settings.register(ID, "ignorarTerceiros", {
-    name: "Ignorar alterações de outros módulos no chat",
-    hint: "Desfaz no chat tudo o que outros módulos acrescentam aos cards e mensagens (inclusive o resumo de encantos, a descrição recolhível e o selo de privacidade do t20-hayd-ui). Deixe desligado para usar os dois módulos juntos (padrão); o visual é sempre o deste módulo. Vale só para você. O chat é redesenhado ao mudar",
-    scope: "client",
-    config: true,
-    type: Boolean,
-    default: false,
-    onChange: () => ui.chat?.render?.(true)
-  });
-  game.settings.register(ID, "prefixosTerceiros", {
-    name: "Prefixos de classes a ignorar",
-    hint: "Prefixos (separados por vírgula) das classes dos módulos de terceiros. Elementos cujas classes são todas desse prefixo são removidos; nos demais, só as classes e variáveis com o prefixo saem. Padrão: t20a- (módulo t20a-chat).",
-    scope: "client",
-    config: true,
-    type: String,
-    default: "t20a-",
-    onChange: () => ui.chat?.render?.(true)
+    onChange: () => { aplicarEstiloChat(); ui.chat?.render?.(true); }
   });
   game.settings.register(ID, "estiloChatLocal", {
     name: "Ver o estilo do módulo no meu chat",
@@ -3123,7 +3105,7 @@ Hooks.once("init", () => {
     config: true,
     type: Boolean,
     default: true,
-    onChange: () => aplicarEstiloChat()
+    onChange: () => { aplicarEstiloChat(); ui.chat?.render?.(true); }
   });
   game.settings.register(ID, "animacoesDano", {
     scope: "client",
@@ -3322,7 +3304,7 @@ Hooks.once("init", () => {
 /* ---------- Organização da janela de configurações ---------- */
 
 const GRUPOS_CONFIG = [
-  ["Chat e cards", "fa-comments", ["estiloChat", "estiloChatLocal", "ignorarTerceiros", "prefixosTerceiros", "animarDanoTodos", "cardAcoes", "anunciarChat"]],
+  ["Chat e cards", "fa-comments", ["estiloChat", "estiloChatLocal", "animarDanoTodos", "cardAcoes", "anunciarChat"]],
   ["HUD", "fa-id-card", ["mostrarGM", "imagem", "layoutCombate", "menuAcoes", "escala"]],
   ["Combate e regras", "fa-swords", ["limitarMovimento", "gastoMovimentoMestre", "bloquearForaDoTurno", "gastarPorItem", "deslocamentoPadrao", "metrosPorQuadrado", "regrasParaMestre"]],
   ["Tempo do turno e som", "fa-hourglass-half", ["tempoMaximo", "passarAoFim", "somArquivo", "somVolume", "somQuemOuve"]],
@@ -4145,50 +4127,20 @@ window.addEventListener("resize", () => AcoesHUD.el?.isConnected && AcoesHUD.apl
 // Os ajustes deste módulo no chat são registrados no "setup", depois de todos os outros módulos terem registrado os seus:
 // assim rodam por último e enxergam o HTML já alterado por eles (ex.: t20-hayd-ui, que reagrupa ataque e dano em blocos).
 const filaChat = [];
-const hookChat = { on(hook, fn) { filaChat.push([hook, fn]); }, primeiro(hook, fn) { filaChat.unshift([hook, fn]); } };
+// Com o estilo do módulo desligado (pelo Mestre ou só para o usuário), nenhum ajuste altera as mensagens: só os cards do próprio
+// módulo (flag "card") e o que é opção independente (sempre = true, ex.: animações do dano) continuam.
+function estiloChatLigado() {
+  try { return !!game.settings.get(ID, "estiloChat") && !!game.settings.get(ID, "estiloChatLocal"); } catch (err) { return false; }
+}
+const comPorteiro = (fn, sempre) => (message, ...resto) => (sempre || message?.flags?.[ID]?.card || estiloChatLigado() ? fn(message, ...resto) : undefined);
+const hookChat = {
+  on(hook, fn, sempre = false) { filaChat.push([hook, comPorteiro(fn, sempre)]); },
+  primeiro(hook, fn) { filaChat.unshift([hook, comPorteiro(fn, false)]); }
+};
 Hooks.once("setup", () => {
   for (const [hook, fn] of filaChat) Hooks.on(hook, fn);
   filaChat.length = 0;
 });
-
-// Ignorar alterações de módulos de terceiros no chat (opção do usuário). Para cada elemento marcado com um dos prefixos:
-//  - invólucros (ex.: blocos que agrupam o título e a rolagem) são desfeitos: o conteúdo original volta ao lugar;
-//  - elementos acrescentados pelo outro módulo (selos, etiquetas, fichas duplicadas, avatar) são removidos;
-//  - elementos do sistema que só ganharam uma classe (ex.: o parágrafo escondido) apenas perdem a classe.
-const ESTRUTURA_SISTEMA = new Set(["H2", "H3", "H4", "P", "LI", "UL", "OL", "B", "TIME", "A"]);
-const MANTER_CLASSE = /^t20a-(descricao|recolhida)/; // o outro módulo controla a descrição por estas classes
-function limparTerceiros(raiz) {
-  let prefixos = [];
-  try {
-    if (!game.settings.get(ID, "ignorarTerceiros")) return;
-    prefixos = String(game.settings.get(ID, "prefixosTerceiros") || "").split(",").map((x) => x.trim()).filter(Boolean);
-  } catch (err) { return; }
-  if (!prefixos.length) return;
-  const eh = (c) => prefixos.some((p) => c.startsWith(p)) && !MANTER_CLASSE.test(c);
-  const proprios = (el) => el.matches?.("[class*='t20ah']");
-  const elementos = [raiz, ...raiz.querySelectorAll("*")].reverse(); // de dentro para fora
-  for (const el of elementos) {
-    if (!el.isConnected && el !== raiz) continue;
-    const classes = [...el.classList];
-    const deles = classes.filter(eh);
-    if (deles.length && el !== raiz && deles.length === classes.length && !proprios(el)) {
-      const temConteudoDoSistema = !!el.querySelector(".roll, .row, .dice-roll, .card-content, .card-upgrades, li, p, h4, h3, img:not([class]), button:not([class*='t20a'])");
-      if (temConteudoDoSistema) { el.replaceWith(...el.childNodes); continue; } // desfaz o invólucro
-      if (!ESTRUTURA_SISTEMA.has(el.tagName)) { el.remove(); continue; }       // acréscimo do outro módulo
-    }
-    if (deles.length) el.classList.remove(...deles);
-    if (el.style?.length) {
-      for (const prop of [...el.style]) if (prop.startsWith("--") && prefixos.some((p) => prop.slice(2).startsWith(p.replace(/-$/, "")))) el.style.removeProperty(prop);
-    }
-    for (const a of [...el.attributes]) if (a.name.startsWith("data-") && prefixos.some((p) => a.name.slice(5).startsWith(p))) el.removeAttribute(a.name);
-  }
-}
-for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
-  hookChat.primeiro(hook, (message, html) => {
-    const element = html?.[0] ?? html;
-    if (element?.querySelectorAll) limparTerceiros(element);
-  });
-}
 
 // Compatibilidade com o t20-hayd-ui (estilo "novo" do chat dele): ele reagrupa título e rolagem em blocos de grade e cria
 // etiqueta do tipo e ficha própria, escondendo os originais. Aqui o card volta à estrutura que o visual deste módulo
@@ -4398,11 +4350,13 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
   });
 }
 
-// Ataque e Dano lado a lado: só posiciona os elementos numa grade de 4 colunas (nenhum elemento é movido, assim outros
+// Ataque e Dano lado a lado (desativado: as rolagens ficam uma embaixo da outra; mude para true para voltar): só posiciona os elementos numa grade de 4 colunas (nenhum elemento é movido, assim outros
 // módulos que acrescentam coisas ao card continuam achando a estrutura de sempre). Os botões de aplicar dano/cura
 // formam uma linha horizontal única, embaixo, com a largura toda.
+const ROLAGENS_LADO_A_LADO = false;
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
   hookChat.on(hook, (message, html) => {
+    if (!ROLAGENS_LADO_A_LADO) return;
     const element = html?.[0] ?? html;
     const card = element?.querySelector?.(".message-content .chat-card.t20ah-item");
     if (!card || card.dataset.t20ahPares) return;
@@ -4479,6 +4433,37 @@ function agruparExtras(card) {
   const peso = (el) => (el.matches(".hayd-municao-nota") ? 0 : el.matches(".t20g-minmax-aviso") ? 1 : 2);
   box.append(...[...box.children, ...soltos].sort((a, b) => peso(a) - peso(b)));
 }
+// Selo de privacidade do t20-hayd-ui (privada, cega, particular, sussurro) vira uma bandeirinha no topo do card: só o símbolo
+// à vista e o texto na dica ao passar o mouse (o CSS a pendura no cabeçalho, entre o nome e a hora/lixeira).
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  hookChat.on(hook, (message, html) => {
+    const element = html?.[0] ?? html;
+    for (const selo of element?.querySelectorAll?.(".message-header > .t20a-privacidade") ?? []) {
+      const rotulo = selo.querySelector("span")?.textContent.trim() ?? "";
+      const dica = selo.dataset.tooltipText || selo.getAttribute("aria-label") || rotulo;
+      // o rótulo (Cega, Privada…) já aparece na gaveta que abre ao passar o mouse; a dica só traz a explicação
+      selo.dataset.tooltip = [dica].filter((x) => x && x !== rotulo).join(" — ")
+        .replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+      selo.dataset.tooltipDirection = "DOWN";
+      if (!selo.dataset.tooltip) delete selo.dataset.tooltip;
+    }
+  });
+}
+
+// Aviso "Dano maximizado/minimizado" do gmtools: se a rolagem do card é de cura, vira "Cura maximizada/minimizada".
+function ajustarAvisoCura(card) {
+  const aviso = card.querySelector(".t20g-minmax-aviso");
+  if (!aviso || aviso.dataset.t20ahCura) return;
+  const ehCura = [...card.querySelectorAll(".roll")].some((r) => tiposDaRolagem(r).some((t) => /cura|recupera/i.test(t)));
+  if (!ehCura) return;
+  const m = aviso.textContent.match(/(dano)\s+(maximizad|minimizad)(o|a)?/i);
+  if (!m) return;
+  aviso.dataset.t20ahCura = "1";
+  for (const no of aviso.childNodes) {
+    if (no.nodeType !== Node.TEXT_NODE) continue;
+    no.textContent = no.textContent.replace(/dano\s+(maximizad|minimizad)o/i, (_, x) => `Cura ${x}a`);
+  }
+}
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
   hookChat.on(hook, (message, html) => {
     const element = html?.[0] ?? html;
@@ -4486,6 +4471,7 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
     if (!card) return;
     const aplicar = () => {
       agruparExtras(card);
+      ajustarAvisoCura(card);
     };
     aplicar();
     // outros módulos podem acrescentar seus avisos depois: observa por alguns segundos
@@ -4621,6 +4607,24 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
     const element = html?.[0] ?? html;
     if (!element?.querySelector?.(".message-content .t20-loja-message")) return;
     element.classList.add("t20ah-card-message", "t20ah-loja-message");
+  });
+}
+
+// Cards próprios do t20-hayd-itens (Dançarina, injeção alquímica, munição etc.): cards únicos, como os de tipo de ação.
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  hookChat.on(hook, (message, html) => {
+    const element = html?.[0] ?? html;
+    if (!element?.querySelector?.(".message-content .hayd-itens-card")) return;
+    element.classList.add("t20ah-card-message", "t20ah-hayditens-message");
+  });
+}
+
+// Cards do t20-hayd-bases-e-dominios (bases, negócios e domínios): cards únicos, como os de tipo de ação.
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  hookChat.on(hook, (message, html) => {
+    const element = html?.[0] ?? html;
+    if (!element?.querySelector?.(".message-content :is(.t20b-chat, .t20d-chat)")) return;
+    element.classList.add("t20ah-card-message", "t20ah-basesdominios-message");
   });
 }
 
@@ -4781,10 +4785,10 @@ const ANIM_TIPOS = [
   ["radiant", "Luz"], ["psychic", "Psíquico"], ["necrotic", "Trevas"], ["slashing", "Corte"], ["piercing", "Perfuração"],
   ["bludgeoning", "Impacto"], ["heal", "Cura de PV"], ["manaheal", "Recuperação de mana"], ["drain", "Perda de vida"]
 ];
-/** Efeitos ligados para este usuário (por padrão, todos). */
+/** Efeitos ligados para este usuário (por padrão, nenhum: cada usuário ativa os que quiser). */
 function animacoesAtivas() {
   const cfgAtual = game.settings.get(ID, "animacoesDano") ?? {};
-  return new Set(ANIM_TIPOS.map(([k]) => k).filter((k) => cfgAtual[k] !== false));
+  return new Set(ANIM_TIPOS.map(([k]) => k).filter((k) => cfgAtual[k] === true));
 }
 /** Versão escolhida (0 = original, 1 e 2 = alternativas) de cada efeito, para este usuário. */
 function variantesAnim() {
@@ -5010,7 +5014,7 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
         console.warn(`${ID} | animação do dano indisponível`, err);
       }
     }
-  });
+  }, true);
 }
 
 /* ---------- rolagens em linha com tipo de dano ----------
