@@ -193,9 +193,7 @@ O módulo foi preparado para conviver com módulos que também alteram o chat, m
 | **t20-hayd-ui** | Descrição recolhível pelo clique no nome, resumo "Encantos e melhorias" com popover, listas de Aprimoramentos e Outros bônus, "Mostrar mais" e o selo de privacidade continuam funcionando, com o visual do módulo. O avatar duplicado é escondido; no estilo "novo" dele, os blocos de rolagem são desfeitos para o layout do módulo. |
 | **t20-hayd-gmtools** | Barras de ação nos cards (resistência, manobra, engenhocas, venenos, contadores), auras, mensagens de dano/cura/mana, prévia de dano e pedidos de rolagem, com o visual do módulo. |
 | **t20-hayd-loja** | Cards de compra, venda, saldo, estoque, construção e aprimoramento viram cards únicos no estilo dos cards de ação (moedas, melhorias e o botão de trocar sucesso/falha incluídos). |
-| **t20a-chat** | As variáveis e classes dele são redefinidas pelo visual do módulo. |
 | **Item Piles** | Cards de compra e venda no estilo do módulo; as mensagens do Item Piles que montam o próprio cabeçalho ficam como estão. É também o que cria o token da ação **Largar um Item**. |
-| **Munição e melhorias** (`hayd-municao`, `hbdg`), resultado contra a Defesa, aviso de camuflagem e dano maximizado | Reestilizados e agrupados logo abaixo do título do card de item. Nenhum elemento é removido. |
 
 Os ajustes do módulo no chat são registrados depois dos de todos os outros módulos, para sempre enxergarem o HTML já alterado por eles.
 
