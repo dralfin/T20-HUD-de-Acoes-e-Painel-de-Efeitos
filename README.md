@@ -204,6 +204,8 @@ Os ajustes do módulo no chat são registrados depois dos de todos os outros mó
 
 **Bandeirinha de privacidade:** o selo do t20-hayd-ui para rolagens privadas, cegas, particulares e sussurros vira uma bandeirinha no topo do card, entre o nome e a hora/lixeira: só o símbolo fica à vista e o texto aparece ao passar o mouse.
 
+**Condições com pop-up** (opção pessoal, ligada por padrão): nas descrições de poderes, magias e itens no chat, o nome de cada condição (ofuscado, atordoado, lento, em chamas…) ganha um destaque pontilhado; ao passar o mouse abre um pop-up temporário com a descrição, sem abrir o diário de condições. O texto vem dos efeitos de status do sistema e, se não houver, dos diários e compêndios de "Condições".
+
 ### ⏱️ Temporizador de turno
 
 Mantenha o combate fluido com um contador configurável para cada turno.

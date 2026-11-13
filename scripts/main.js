@@ -9,6 +9,7 @@
  * Ações livres e reações: sem limite.
  */
 
+import { CONDICOES_T20 } from "./condicoes-t20.js";
 import { CATEGORIAS_ACOES } from "./acoes-t20.js";
 
 const ID = "t20-acoes-hud";
@@ -3081,6 +3082,15 @@ Hooks.once("init", () => {
     default: "largo",
     onChange: () => AcoesHUD.render()
   });
+  game.settings.register(ID, "condicoesPopup", {
+    name: "Condições com pop-up na descrição",
+    hint: "Nas descrições de poderes, magias e itens no chat, o nome de cada condição (ofuscado, atordoado, lento…) vira um destaque: ao passar o mouse abre um pop-up temporário com a descrição da condição, sem precisar abrir o diário de condições. Opção pessoal.",
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: true,
+    onChange: () => ui.chat?.render?.(true)
+  });
   game.settings.register(ID, "cardAcoes", {
     name: "Enviar o card da ação ao chat",
     hint: "Ao usar uma ação pelos botões de Ações, envia ao chat um card com o nome, a descrição e o custo da ação.",
@@ -3304,7 +3314,7 @@ Hooks.once("init", () => {
 /* ---------- Organização da janela de configurações ---------- */
 
 const GRUPOS_CONFIG = [
-  ["Chat e cards", "fa-comments", ["estiloChat", "estiloChatLocal", "animarDanoTodos", "cardAcoes", "anunciarChat"]],
+  ["Chat e cards", "fa-comments", ["estiloChat", "estiloChatLocal", "animarDanoTodos", "cardAcoes", "anunciarChat", "condicoesPopup"]],
   ["HUD", "fa-id-card", ["mostrarGM", "imagem", "layoutCombate", "menuAcoes", "escala"]],
   ["Combate e regras", "fa-swords", ["limitarMovimento", "gastoMovimentoMestre", "bloquearForaDoTurno", "gastarPorItem", "deslocamentoPadrao", "metrosPorQuadrado", "regrasParaMestre"]],
   ["Tempo do turno e som", "fa-hourglass-half", ["tempoMaximo", "passarAoFim", "somArquivo", "somVolume", "somQuemOuve"]],
@@ -4185,6 +4195,8 @@ const CORES_TIPO = [
   [/medo|pavor|terror/, "#5c6bc0"], // medo: azul-índigo
   [/fadiga|cansa|exaust/, "#c98a2b"], // fadiga: âmbar
   [/veneno|doenca|enferm/, "#7cb342"], // veneno/doença: verde-limão
+  [/metabol/, "#ec6f8f"],     // metabolismo: rosa
+  [/metamorf/, "#a1887f"],     // metamorfose: pedra
   [/magi|arcan|mistic/, "#d05bc2"], // magia: magenta
   [/dano|sangr|fogo|queim/, "#e2672b"], // dano contínuo: laranja
   [/espirit|divin|sagrad/, "#e0c15c"], // espiritual: dourado claro
@@ -4222,7 +4234,17 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
     pTitulo.classList.add("cd-titulo-p");
     const canto = filhos.find((x) => x.tagName === "DIV" && x.querySelector("img")) ?? null;
     canto?.classList.add("cd-canto");
-    const pTipo = filhos.find((x) => x.tagName === "P" && x !== pTitulo);
+    let pTipo = filhos.find((x) => x.tagName === "P" && x !== pTitulo);
+    // texto do livro (scripts/condicoes-t20.js): garante o tipo (Medo, Mental, Metamorfose…) e a descrição oficial no card
+    const livro = CONDICOES_T20.find((c) => semAcento(c.nome).trim() === semAcento((titulo ?? pTitulo).textContent).trim());
+    if (livro?.tipo) {
+      if (!pTipo) {
+        pTipo = document.createElement("p");
+        pTitulo.after(pTipo);
+        filhos.splice(filhos.indexOf(pTitulo) + 1, 0, pTipo);
+      }
+      pTipo.textContent = livro.tipo;
+    }
     pTipo?.classList.add("cd-tipo");
     const barra = filhos.find((x) => x.tagName === "DIV" && x !== canto);
     barra?.classList.add("cd-barra");
@@ -4233,11 +4255,21 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
     corpo.className = "cd-corpo";
     const doTopo = new Set([pTitulo, canto, pTipo, barra].filter(Boolean));
     for (const f of filhos) (doTopo.has(f) ? topo : corpo).append(f);
-    corpo.querySelector("p")?.classList.add("cd-desc");
+    let desc = corpo.querySelector("p");
+    if (livro) {
+      // o texto do livro substitui todo o corpo do card (parágrafos e listas do sistema), para nada ficar duplicado
+      corpo.replaceChildren();
+      desc = document.createElement("p");
+      corpo.append(desc);
+      desc.replaceChildren(...livro.desc.split("\n").flatMap((linha, k) => (k ? [document.createElement("br"), linha] : [linha])));
+    }
+    desc?.classList.add("cd-desc");
     bloco.replaceChildren(topo, corpo);
+    // condições citadas na descrição viram destaque com pop-up (nome, tipo e descrição) ao passar o mouse
+    ligarCondicoes(bloco).catch((err) => console.warn(`${ID} | condições`, err));
     // cor: pelo tipo; se o tipo for desconhecido, pela cor da barra do sistema
     const corBarra = /#[0-9a-f]{6}/i.exec(barra?.getAttribute?.("style") ?? "")?.[0];
-    bloco.style.setProperty("--cor-cond", corDoTipo(pTipo?.textContent, corBarra));
+    bloco.style.setProperty("--cor-cond", corDoTipo(livro?.tipo || pTipo?.textContent, corBarra));
   });
 }
 
@@ -4433,6 +4465,288 @@ function agruparExtras(card) {
   const peso = (el) => (el.matches(".hayd-municao-nota") ? 0 : el.matches(".t20g-minmax-aviso") ? 1 : 2);
   box.append(...[...box.children, ...soltos].sort((a, b) => peso(a) - peso(b)));
 }
+// Condições nas descrições (poderes, magias, itens): o nome da condição vira um destaque; ao passar o mouse, pop-up temporário
+// com a descrição (fonte: efeitos de status do sistema e, se faltar texto, os diários/compêndios de "Condições").
+let CONDICOES_CACHE = null;
+const semAcento = (t) => String(t ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const htmlSeguro = (h) => String(h ?? "").replace(/<script[\s\S]*?<\/script>/gi, "").replace(/\son\w+="[^"]*"/gi, "");
+
+async function carregarCondicoes() {
+  if (CONDICOES_CACHE) return CONDICOES_CACHE;
+  const lista = new Map();
+  const adicionar = (nome, img, desc, tipo = "") => {
+    const chave = semAcento(nome).trim();
+    if (chave.length < 4) return;
+    const atual = lista.get(chave);
+    if (atual && (atual.desc || !desc)) { if (!atual.img && img) atual.img = img; return; }
+    lista.set(chave, { nome: String(nome).trim(), img: img || atual?.img || "", desc: desc || "", tipo: tipo || atual?.tipo || "" });
+  };
+  // textos do livro (scripts/condicoes-t20.js) têm prioridade; diários e efeitos de status só completam o que faltar
+  const esc = (t) => String(t).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  for (const c of CONDICOES_T20) adicionar(c.nome, "", `<p>${esc(c.desc).replace(/\n/g, "<br>")}</p>`, c.tipo);
+  const traduz = (t) => { try { return typeof t === "string" && /^[\w.-]+\.[\w.-]+$/.test(t) ? game.i18n.localize(t) : t; } catch (e) { return t; } };
+  for (const e of CONFIG.statusEffects ?? []) {
+    let nome = e.name ?? e.label ?? "";
+    try { nome = game.i18n.localize(nome); } catch (err) { /* ignora */ }
+    const d = e.description ?? e.system?.description ?? CONFIG.T20?.conditions?.[e.id]?.description ?? e.flags?.tormenta20?.description ?? "";
+    adicionar(nome, e.img ?? e.icon, traduz(d));
+  }
+  // Diário "Condições" (do mundo ou de qualquer compêndio): cada página é uma condição; se a página reúne várias condições
+  // com títulos (h1–h4), cada título vira uma condição.
+  const paginas = async (diario) => {
+    for (const pg of diario.pages ?? []) {
+      const html = pg.text?.content ?? "";
+      const cabecalhos = [...html.matchAll(/<h([1-4])[^>]*>([\s\S]*?)<\/h\1>/gi)];
+      if (cabecalhos.length >= 3) {
+        cabecalhos.forEach((h, k) => {
+          const fim = cabecalhos[k + 1]?.index ?? html.length;
+          adicionar(h[2].replace(/<[^>]*>/g, "").trim(), "", html.slice(h.index + h[0].length, fim));
+        });
+      } else {
+        // a página repete título, ícone e barra colorida do card de condição: fica só o tipo e a descrição
+        const doc = new DOMParser().parseFromString(`<div>${html}</div>`, "text/html");
+        const raiz = doc.body.firstElementChild;
+        const icone = raiz.querySelector("img")?.getAttribute("src") ?? pg.src ?? "";
+        const nomePg = semAcento(pg.name).trim();
+        for (const el of [...raiz.querySelectorAll("h1, h2, h3, h4, label.titulo, p:has(label.titulo), div:has(img), div:empty")]) {
+          if (el.matches("div:empty, div:has(img), p:has(label.titulo), label.titulo") || semAcento(el.textContent).trim() === nomePg) el.remove();
+        }
+        for (const el of raiz.querySelectorAll("div[style]")) if (!el.textContent.trim()) el.remove();
+        adicionar(pg.name, icone, raiz.innerHTML);
+      }
+    }
+  };
+  try {
+    for (const j of game.journal ?? []) if (/condi/i.test(j.name)) await paginas(j);
+    for (const pack of game.packs ?? []) {
+      if (pack.documentName !== "JournalEntry") continue;
+      const indice = await pack.getIndex();
+      const nomePack = `${pack.metadata?.label} ${pack.metadata?.name}`;
+      for (const entrada of indice) {
+        if (!/condi/i.test(entrada.name) && !/condi/i.test(nomePack)) continue;
+        const diario = await pack.getDocument(entrada._id);
+        if (diario) await paginas(diario);
+      }
+    }
+  } catch (err) { console.warn(`${ID} | condições (diários)`, err); }
+  const itens = [...lista.values()].filter((c) => c.desc && String(c.desc).replace(/<[^>]*>/g, "").trim().length > 3);
+  const regs = itens.map((c) => {
+    const n = semAcento(c.nome).trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+    const base = /[oa]$/.test(n) && !/\s/.test(n) ? `${n.slice(0, -1)}[oa]s?` : n;
+    return { c, re: new RegExp(`^${base}$`) };
+  });
+  const todas = regs.length ? new RegExp(`(?<![a-z])(?:${regs.map((r) => r.re.source.slice(1, -1)).sort((a, b) => b.length - a.length).join("|")})(?![a-z])`, "g") : null;
+  CONDICOES_CACHE = { regs, todas, porChave: new Map() };
+  return CONDICOES_CACHE;
+}
+
+async function ligarCondicoes(container) {
+  if (!game.settings.get(ID, "condicoesPopup")) return;
+  const dados = await carregarCondicoes();
+  if (!dados.todas) return;
+  const alvos = container.querySelectorAll(".card-content, .card-description, .card-upgrades, .t20a-descricao, .card-item-header ~ p, .cd-desc, .t20ah-card .tc-desc");
+  for (const raiz of alvos) {
+    if (raiz.dataset.t20ahCondLink) continue;
+    raiz.dataset.t20ahCondLink = "1";
+    // dentro do card de uma condição, o nome dela mesma não vira destaque (o card já fala dela)
+    const proprio = semAcento(raiz.closest(".t20ah-cond")?.querySelector(".cd-titulo")?.textContent ?? "").trim();
+    // links de diário que o sistema já coloca na descrição (ex.: "Esmorecido", "Lento"): ganham o pop-up no lugar da dica "Text Page"
+    for (const link of raiz.querySelectorAll("a.content-link")) {
+      const nome = semAcento(link.textContent).trim();
+      const reg = dados.regs.find((r) => r.re.test(nome));
+      if (!reg || (proprio && semAcento(reg.c.nome).trim() === proprio)) continue;
+      link.classList.add("t20ah-cond-link");
+      link.removeAttribute("data-tooltip");
+      link.style.setProperty("--ci", corDoTipo(reg.c.tipo, "#e0b85c"));
+      link.dataset.condChave = semAcento(reg.c.nome).trim();
+      CONDICOES_CACHE.porChave.set(link.dataset.condChave, reg.c);
+    }
+    const walker = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => n.parentElement?.closest("a, button, .t20ah-cond-link, .hbdg, [data-tooltip]") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
+    });
+    const nos = [];
+    while (walker.nextNode()) nos.push(walker.currentNode);
+    for (const no of nos) {
+      const texto = no.textContent;
+      const norm = [...texto].map((c) => c.normalize("NFD")[0].toLowerCase()).join("");
+      if (norm.length !== texto.length) continue;
+      dados.todas.lastIndex = 0;
+      const frag = document.createDocumentFragment();
+      let ultimo = 0, achou = false, m;
+      while ((m = dados.todas.exec(norm))) {
+        const reg = dados.regs.find((r) => r.re.test(m[0]));
+        if (!reg || (proprio && semAcento(reg.c.nome).trim() === proprio)) continue;
+        achou = true;
+        frag.append(texto.slice(ultimo, m.index));
+        const a = document.createElement("span");
+        a.className = "t20ah-cond-link";
+        a.tabIndex = 0;
+        a.textContent = texto.slice(m.index, m.index + m[0].length);
+        a.style.setProperty("--ci", corDoTipo(reg.c.tipo, "#e0b85c"));
+        a.dataset.condChave = semAcento(reg.c.nome).trim();
+        CONDICOES_CACHE.porChave.set(a.dataset.condChave, reg.c);
+        frag.append(a);
+        ultimo = m.index + m[0].length;
+      }
+      if (!achou) continue;
+      frag.append(texto.slice(ultimo));
+      no.replaceWith(frag);
+    }
+  }
+}
+// Condições do livro citadas em um texto (na ordem de aparição, sem repetir e sem a própria condição).
+let REGS_LIVRO = null;
+function condicoesCitadas(texto, excluir = "") {
+  if (!REGS_LIVRO) {
+    REGS_LIVRO = CONDICOES_T20.map((c) => {
+      const n = semAcento(c.nome).trim().replace(/\s+/g, "\\s+");
+      const base = /[oa]$/.test(n) && !/\s/.test(n) ? `${n.slice(0, -1)}[oa]s?` : n;
+      return { c, re: new RegExp(`(?<![a-z])${base}(?![a-z])`) };
+    });
+  }
+  const alvo = semAcento(texto);
+  const ex = semAcento(excluir).trim();
+  const achadas = [];
+  for (const { c, re } of REGS_LIVRO) {
+    if (semAcento(c.nome).trim() === ex) continue;
+    const m = re.exec(alvo);
+    if (m) achadas.push({ c, pos: m.index });
+  }
+  return achadas.sort((x, y) => x.pos - y.pos).map((x) => x.c);
+}
+/** Todas as condições que aparecem a partir de uma (as citadas, depois as citadas por elas…), sem repetir. */
+function condicoesEncadeadas(nome) {
+  const inicio = CONDICOES_T20.find((c) => semAcento(c.nome).trim() === semAcento(nome).trim());
+  if (!inicio) return [];
+  const vistas = new Set([semAcento(inicio.nome).trim()]);
+  const saida = [];
+  for (const fila = [inicio]; fila.length;) {
+    const atual = fila.shift();
+    for (const c of condicoesCitadas(atual.desc, atual.nome)) {
+      const chave = semAcento(c.nome).trim();
+      if (vistas.has(chave)) continue;
+      vistas.add(chave);
+      saida.push(c);
+      fila.push(c);
+    }
+  }
+  return saida;
+}
+
+/** Palavras de condição dentro do pop-up: mesmo chip, só visual (o pop-up não recebe o mouse). */
+function destacarNoPopup(raiz, proprio) {
+  const dados = CONDICOES_CACHE;
+  if (!dados?.todas) return;
+  const walker = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT);
+  const nos = [];
+  while (walker.nextNode()) nos.push(walker.currentNode);
+  for (const no of nos) {
+    const texto = no.textContent;
+    const norm = [...texto].map((ch) => ch.normalize("NFD")[0].toLowerCase()).join("");
+    if (norm.length !== texto.length) continue;
+    dados.todas.lastIndex = 0;
+    const frag = document.createDocumentFragment();
+    let ultimo = 0, achou = false, m;
+    while ((m = dados.todas.exec(norm))) {
+      const reg = dados.regs.find((r) => r.re.test(m[0]));
+      if (!reg || semAcento(reg.c.nome).trim() === proprio) continue;
+      achou = true;
+      frag.append(texto.slice(ultimo, m.index));
+      const chip = document.createElement("span");
+      chip.className = "t20ah-cond-chip";
+      chip.style.setProperty("--ci", corDoTipo(reg.c.tipo, "#e0b85c"));
+      chip.textContent = texto.slice(m.index, m.index + m[0].length);
+      frag.append(chip);
+      ultimo = m.index + m[0].length;
+    }
+    if (!achou) continue;
+    frag.append(texto.slice(ultimo));
+    no.replaceWith(frag);
+  }
+}
+
+// Pop-up próprio (não depende do sistema de dicas do Foundry): abre ao passar o mouse (ou foco) no destaque e fecha ao sair.
+let POPUP_COND = null;
+function fecharPopupCondicao() { POPUP_COND?.remove(); POPUP_COND = null; }
+function abrirPopupCondicao(alvo) {
+  const c = CONDICOES_CACHE?.porChave.get(alvo.dataset.condChave);
+  if (!c) return;
+  fecharPopupCondicao();
+  const pop = document.createElement("div");
+  pop.id = "t20ah-cond-pop";
+  pop.style.setProperty("--cp-cor", corDoTipo(c.tipo || "", "#e0b85c"));
+  const cab = document.createElement("header");
+  if (c.img) { const im = document.createElement("img"); im.src = c.img; im.alt = ""; cab.append(im); }
+  const nome = document.createElement("strong");
+  nome.textContent = c.nome;
+  cab.append(nome);
+  if (c.tipo) { const tp = document.createElement("small"); tp.textContent = c.tipo; cab.append(tp); }
+  const corpo = document.createElement("div");
+  corpo.className = "cp-corpo";
+  corpo.innerHTML = htmlSeguro(c.desc);
+  pop.append(cab, corpo);
+  destacarNoPopup(corpo, semAcento(c.nome).trim());
+  // palavras-chave (outras condições) citadas no texto: aparecem logo abaixo, no mesmo pop-up
+  const citadas = condicoesEncadeadas(c.nome);
+  if (citadas.length) {
+    const caixa = document.createElement("div");
+    caixa.className = "cp-relacionadas";
+    for (const r of citadas) {
+      const item = document.createElement("div");
+      item.className = "cp-rel";
+      item.style.setProperty("--cr", corDoTipo(r.tipo, "#e0b85c"));
+      const nome2 = document.createElement("strong");
+      nome2.textContent = r.nome;
+      const tipo2 = document.createElement("small");
+      tipo2.textContent = r.tipo || "";
+      const texto2 = document.createElement("p");
+      texto2.replaceChildren(...r.desc.split("\n").flatMap((linha, k) => (k ? [document.createElement("br"), linha] : [linha])));
+      item.append(nome2, tipo2, texto2);
+      destacarNoPopup(texto2, semAcento(r.nome).trim());
+      caixa.append(item);
+    }
+    pop.append(caixa);
+  }
+  document.body.append(pop);
+  const r = alvo.getBoundingClientRect();
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  let x = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8);
+  let y = r.top - h - 8;
+  if (y < 8) y = Math.min(r.bottom + 8, window.innerHeight - h - 8);
+  pop.style.left = `${x}px`;
+  pop.style.top = `${y}px`;
+  POPUP_COND = pop;
+}
+// Detecção pela posição do mouse: funciona mesmo se algum elemento (camada de outro módulo, efeito do card) ficar por cima do texto.
+let ULTIMO_LINK_COND = null;
+let AGUARDA_COND = false;
+document.addEventListener("pointermove", (ev) => {
+  if (AGUARDA_COND) return;
+  AGUARDA_COND = true;
+  const { clientX: x, clientY: y, target } = ev;
+  requestAnimationFrame(() => {
+    AGUARDA_COND = false;
+    let a = target?.closest?.(".t20ah-cond-link") ?? null;
+    if (!a) a = document.elementsFromPoint(x, y).find((el) => el.classList?.contains("t20ah-cond-link")) ?? null;
+    if (a === ULTIMO_LINK_COND) return;
+    ULTIMO_LINK_COND = a;
+    if (a) abrirPopupCondicao(a);
+    else fecharPopupCondicao();
+  });
+}, true);
+document.addEventListener("pointerleave", () => { ULTIMO_LINK_COND = null; fecharPopupCondicao(); });
+document.addEventListener("focusin", (ev) => { const a = ev.target.closest?.(".t20ah-cond-link"); if (a) abrirPopupCondicao(a); });
+document.addEventListener("focusout", () => { ULTIMO_LINK_COND = null; fecharPopupCondicao(); });
+document.addEventListener("scroll", () => { ULTIMO_LINK_COND = null; fecharPopupCondicao(); }, true);
+
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  hookChat.on(hook, (message, html) => {
+    const element = html?.[0] ?? html;
+    if (!element?.querySelector?.(".message-content .chat-card, .message-content .t20ah-card")) return;
+    ligarCondicoes(element).catch((err) => console.warn(`${ID} | condições`, err));
+  });
+}
+
 // Selo de privacidade do t20-hayd-ui (privada, cega, particular, sussurro) vira uma bandeirinha no topo do card: só o símbolo
 // à vista e o texto na dica ao passar o mouse (o CSS a pendura no cabeçalho, entre o nome e a hora/lixeira).
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {

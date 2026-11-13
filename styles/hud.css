@@ -1534,3 +1534,49 @@ html body .chat-message.t20ah-card-message.t20ah-card-message :is(.message-heade
   border: 1px solid rgba(128, 128, 128, 0.45); border-radius: 0.4em; background: #151517; overflow: visible;
 }
 .t20ah-anim-item-dlg .ai-previa .pv b { font: 700 22px/1 "Signika", system-ui, sans-serif; color: #fff; text-shadow: 0 0 4px #000, 0 1px 0 #000, 0 -1px 0 #000, 1px 0 0 #000, -1px 0 0 #000; }
+
+/* ---------- condições nas descrições: destaque + pop-up de leitura ---------- */
+.t20ah-cond-link { position: relative; z-index: 3; cursor: help; }
+/* palavra de condição solta no texto: mesmo chip dos atalhos (losango + faixa lateral + fundo em degradê), na cor do tipo */
+span.t20ah-cond-link, span.t20ah-cond-chip {
+  --ci: #e0b85c;
+  display: inline-flex; align-items: center; gap: 0.4em;
+  padding: 0.05em 0.65em 0.05em 0.5em;
+  font-weight: 700; line-height: 1.35; white-space: nowrap;
+  color: color-mix(in srgb, var(--ci) 35%, #fff);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ci) 38%, #131315), color-mix(in srgb, var(--ci) 12%, #131315));
+  border-left: 3px solid var(--ci);
+  border-radius: 0.2em 0.45em 0.45em 0.2em;
+  text-decoration: none;
+  transition: filter 0.12s, transform 0.12s;
+}
+span.t20ah-cond-link::before, span.t20ah-cond-chip::before { content: ""; flex: none; width: 0.42em; height: 0.42em; background: var(--ci); transform: rotate(45deg); }
+.t20ah-cond-link:hover, .t20ah-cond-link:focus-visible { outline: 0; filter: brightness(1.25); }
+#t20ah-cond-pop {
+  position: fixed; z-index: 100000; max-width: 24em; pointer-events: none;
+  padding: 0.55em 0.75em 0.65em; line-height: 1.4; font-size: 14px; text-align: left;
+  font-family: "Signika", sans-serif; color: #f2e8d5;
+  background: linear-gradient(165deg, #1f1f22, #101012);
+  border: 1px solid var(--cp-cor, #e0b85c); border-left-width: 4px; border-radius: 0.6em; box-shadow: 0 0.4em 1.2em rgba(0, 0, 0, 0.6);
+  background: linear-gradient(165deg, color-mix(in srgb, var(--cp-cor, #e0b85c) 12%, #1f1f22), #101012);
+}
+#t20ah-cond-pop header { display: flex; align-items: center; gap: 0.5em; margin-bottom: 0.4em; padding-bottom: 0.35em; border-bottom: 1px solid color-mix(in srgb, var(--cp-cor, #e0b85c) 55%, transparent); }
+#t20ah-cond-pop header img { width: 1.8em; height: 1.8em; border: 0; flex: none; }
+#t20ah-cond-pop header strong { font-family: "Modesto Condensed", "Signika", sans-serif; font-size: 1.2em; letter-spacing: 0.04em; color: #fff; }
+#t20ah-cond-pop header small { margin-left: auto; padding: 0.05em 0.6em; font-weight: 700; font-size: 0.75em; letter-spacing: 0.08em; text-transform: uppercase; color: #fff; background: color-mix(in srgb, var(--cp-cor, #e0b85c) 55%, #101012); border-radius: 1em; }
+#t20ah-cond-pop p { margin: 0 0 0.4em; }
+#t20ah-cond-pop p:last-child { margin-bottom: 0; }
+
+
+/* condições citadas dentro do pop-up: abaixo do texto, uma faixa por condição, na cor do tipo */
+#t20ah-cond-pop { max-height: 90vh; overflow: hidden; }
+#t20ah-cond-pop .cp-relacionadas { display: flex; flex-direction: column; gap: 0.35em; margin-top: 0.55em; padding-top: 0.5em; border-top: 1px solid rgba(255, 255, 255, 0.12); }
+#t20ah-cond-pop .cp-rel {
+  --cr: #e0b85c;
+  display: grid; grid-template-columns: 1fr auto; column-gap: 0.5em; align-items: baseline;
+  padding: 0.25em 0.5em 0.35em; border-left: 3px solid var(--cr); border-radius: 0.2em 0.4em 0.4em 0.2em;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--cr) 18%, #131315), color-mix(in srgb, var(--cr) 5%, #131315));
+}
+#t20ah-cond-pop .cp-rel strong { color: color-mix(in srgb, var(--cr) 40%, #fff); letter-spacing: 0.04em; }
+#t20ah-cond-pop .cp-rel small { font-weight: 700; font-size: 0.7em; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--cr) 55%, #fff); }
+#t20ah-cond-pop .cp-rel p { grid-column: 1 / -1; margin: 0.1em 0 0; font-size: 0.9em; opacity: 0.92; }
