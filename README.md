@@ -37,7 +37,7 @@ Consulte rapidamente PV, PM, Defesa e CD das magias por meio de uma interface co
 ### 🧰 Mais telas do HUD
 
 <p align="center">
-  <img src="assets/images/hud-compacto-vida.gif" alt="HUD compacta com PV, PM, Defesa e tipos de ação" width="100%">
+  <img src="assets/images/hud-compacto-vida.gif" alt="HUD compacta com PV, PM, Defesa e tipos de ação">
 </p>
 
 <p align="center">
@@ -49,7 +49,7 @@ Consulte rapidamente PV, PM, Defesa e CD das magias por meio de uma interface co
 </p>
 
 <p align="center">
-  <img src="assets/images/tipo-acao.gif" alt="Dica com a regra da ação Lançar uma Magia" width="100%">
+  <img src="assets/images/tipo-acao.gif" alt="Dica com a regra da ação Lançar uma Magia">
 </p>
 
 ### 💬 Chat estilizado
@@ -65,7 +65,7 @@ Cards de ação, iniciativa, ataque, magia e condições no mesmo visual do HUD,
 <p align="center">
   <img src="assets/images/chat-ataque.png" alt="Card de ataque com rolagem de acerto, dano e botões de aplicar" width="32%">
   <img src="assets/images/chat-magia.png" alt="Card de magia com execução, alcance, alvo, duração e resistência" width="32%">
-  <img src="assets/images/Condicao.gif" alt="Pop-up de condição ao passar o mouse numa palavra" width="100%%">
+  <img src="assets/images/Condicao.gif" alt="Pop-up de condição ao passar o mouse numa palavra">
 </p>
 
 <p align="center">
