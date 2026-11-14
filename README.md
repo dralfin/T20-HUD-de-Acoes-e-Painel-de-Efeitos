@@ -66,7 +66,7 @@ Cards de ação, iniciativa, ataque, magia e condições no mesmo visual do HUD,
 <p align="center">
   <img src="assets/images/chat-ataque.png" alt="Card de ataque com rolagem de acerto, dano e botões de aplicar" width="32%">
   <img src="assets/images/chat-magia.png" alt="Card de magia com execução, alcance, alvo, duração e resistência" width="32%">
-  <img src="assets/images/condicao.gif" alt="Pop-up de condição ao passar o mouse numa palavra" width="100%%">
+  <img src="assets/images/Condicao.gif" alt="Pop-up de condição ao passar o mouse numa palavra" width="100%%">
 </p>
 
 <p align="center">
