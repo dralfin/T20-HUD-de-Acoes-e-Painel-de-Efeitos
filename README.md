@@ -37,8 +37,7 @@ Consulte rapidamente PV, PM, Defesa e CD das magias por meio de uma interface co
 ### 🧰 Mais telas do HUD
 
 <p align="center">
-  <img src="assets/images/hud-compacto.png" alt="HUD compacta com PV, PM, Defesa e tipos de ação" width="48%">
-  <img src="assets/images/hud-dano-cura-mana.png" alt="Gaveta de dano, cura e mana ao lado da HUD" width="48%">
+  <img src="assets/images/hud-compacto-vida.gif" alt="HUD compacta com PV, PM, Defesa e tipos de ação" width="100%">
 </p>
 
 <p align="center">
