@@ -50,7 +50,7 @@ Consulte rapidamente PV, PM, Defesa e CD das magias por meio de uma interface co
 </p>
 
 <p align="center">
-  <img src="assets/images/tipo-acao.gif" alt="Dica com a regra da ação Lançar uma Magia" width="50%">
+  <img src="assets/images/tipo-acao.gif" alt="Dica com a regra da ação Lançar uma Magia" width="100%">
 </p>
 
 ### 💬 Chat estilizado
