@@ -34,6 +34,45 @@ Consulte rapidamente PV, PM, Defesa e CD das magias por meio de uma interface co
   <img src="assets/images/fora-combate.png" alt="HUD compacta do personagem fora de combate" width="100%">
 </p>
 
+### 🧰 Mais telas do HUD
+
+<p align="center">
+  <img src="assets/images/hud-compacto.png" alt="HUD compacta com PV, PM, Defesa e tipos de ação" width="48%">
+  <img src="assets/images/hud-dano-cura-mana.png" alt="Gaveta de dano, cura e mana ao lado da HUD" width="48%">
+</p>
+
+<p align="center">
+  <img src="assets/images/hud-turno.png" alt="HUD no turno, com todas as ações por tipo, deslocamento e botão Encerrar turno" width="80%">
+</p>
+
+<p align="center">
+  <em>HUD compacta, gaveta de dano/cura/mana e a HUD completa no turno. Ao passar o mouse numa ação, a regra aparece numa dica:</em>
+</p>
+
+<p align="center">
+  <img src="assets/images/hud-dica-acao.png" alt="Dica com a regra da ação Lançar uma Magia" width="50%">
+</p>
+
+### 💬 Chat estilizado
+
+Cards de ação, iniciativa, ataque, magia e condições no mesmo visual do HUD, com cores por tipo e as rolagens organizadas.
+
+<p align="center">
+  <img src="assets/images/chat-acao.png" alt="Card de ação livre no chat" width="32%">
+  <img src="assets/images/chat-iniciativa.png" alt="Rolagem de iniciativa" width="32%">
+  <img src="assets/images/chat-condicao.png" alt="Card de condição com palavras linkadas" width="32%">
+</p>
+
+<p align="center">
+  <img src="assets/images/chat-ataque.png" alt="Card de ataque com rolagem de acerto, dano e botões de aplicar" width="32%">
+  <img src="assets/images/chat-magia.png" alt="Card de magia com execução, alcance, alvo, duração e resistência" width="32%">
+  <img src="assets/images/chat-condicao-popup.png" alt="Pop-up de condição ao passar o mouse numa palavra" width="32%">
+</p>
+
+<p align="center">
+  <em>Passe o mouse numa condição citada na descrição para ler a regra num pop-up, sem abrir diário.</em>
+</p>
+
 ### 🎭 Painel de Efeitos — Interface do Mestre
 
 O Painel de Efeitos centraliza as condições e os efeitos ativos dos tokens da cena, permitindo ao Mestre consultar informações detalhadas sem precisar abrir individualmente cada ficha ou efeito.
@@ -408,5 +447,5 @@ Contribuições e feedbacks são bem-vindos!
   <strong>Desenvolvido por Olho da Tormenta</strong>
 </p>
 
-### 📜 Nik's Tiny Changelogs
-- O Tiny Changelogs não reconhece o Tormenta20. Ao entrar como Mestre, o módulo configura sozinho o rastreio de **PV**, **PV temporário** e **PM** (só se o campo de PV ainda estiver vazio), para as mudanças feitas na ficha aparecerem no chat.
+### 🎯 Acerto e erro dos ataques
+- As marcas de acerto, erro, crítico e desastre (contra a Defesa do alvo) aparecem **só para o Mestre**. Em Configurações > **Mostrar acerto e erro dos ataques aos jogadores** (Mestre) dá para liberar para todos.
