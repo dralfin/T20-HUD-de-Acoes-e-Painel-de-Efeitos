@@ -2215,3 +2215,87 @@ body.t20ah-chat-estilo .chat-card.t20ah-item .card-upgrades li:has(.row > b:not(
   border-top: 1px solid rgba(255, 255, 255, 0.09) !important; margin-top: 0.15em; padding-top: 0.35em;
 }
 
+
+/* nada no chat fica sublinhado ao passar o mouse (links, títulos, botões, nomes, "mostrar mais"…); riscado (s, del) é mantido */
+body.t20ah-chat-estilo .chat-message:hover :is(*, *::before, *::after):not(s):not(del):not(strike),
+body.t20ah-chat-estilo .chat-message :is(*:hover, *:focus-visible):not(s):not(del):not(strike) {
+  text-decoration: none !important;
+  text-decoration-color: transparent !important;
+}
+
+/* =====================================================================================================
+   Integração com o t20-zaperas-automations no chat: prompts (sustentar, em chamas, sangrando, confuso, cura acelerada),
+   mensagens de status, banners de resultado, botão Sortudo, tabelas de teste oposto/condições e links de token.
+   ===================================================================================================== */
+/* cards próprios: um card único, na cor do tipo (--cor definida pela mensagem) */
+body.t20ah-chat-estilo .t20ah-zaperas-message .message-content > :is(div, .t20-status-msg) {
+  --cor: inherit;
+  overflow: hidden; padding: 0.55em 0.8em 0.65em; border-radius: 0.7em; color: #f2e8d5; font-family: "Signika", sans-serif;
+  background: linear-gradient(165deg, color-mix(in srgb, var(--cor) 10%, #1f1f22), #101012);
+  border: 1px solid color-mix(in srgb, var(--cor) 70%, transparent); border-left: 4px solid var(--cor);
+  box-shadow: 0 0.3em 0.9em rgba(0, 0, 0, 0.45);
+}
+body.t20ah-chat-estilo .t20ah-zaperas-message .t20-status-msg { display: block; padding: 0.45em 0.8em; }
+body.t20ah-chat-estilo .t20ah-zaperas-message .t20-status-msg i { color: var(--cor); margin-right: 0.35em; }
+body.t20ah-chat-estilo .t20-sustain-prompt { background: none !important; border: 0 !important; padding: 0 !important; margin: 0 !important; }
+body.t20ah-chat-estilo .t20-sustain-title {
+  margin: 0 0 0.45em; padding-bottom: 0.4em; border-bottom: 1px solid color-mix(in srgb, var(--cor, #e0b85c) 40%, transparent);
+  font-family: "Modesto Condensed", "Signika", sans-serif; font-size: 1.15em; letter-spacing: 0.04em; color: #fff;
+}
+body.t20ah-chat-estilo .t20-sustain-title i { color: var(--cor, #e0b85c) !important; margin-right: 0.3em; }
+body.t20ah-chat-estilo .t20-sustain-body { color: #f2e8d5; font-size: 0.92em; margin-bottom: 0.55em; }
+body.t20ah-chat-estilo .t20-sustain-body b { color: #fff; }
+body.t20ah-chat-estilo .t20-sustain-removed { list-style: none; padding-left: 0; }
+body.t20ah-chat-estilo .t20-sustain-removed li::before { content: ""; display: inline-block; width: 0.42em; height: 0.42em; margin-right: 0.5em; background: var(--cor, #e0b85c); transform: rotate(45deg); }
+body.t20ah-chat-estilo .t20-sustain-actions { display: flex; gap: 0.4em; }
+body.t20ah-chat-estilo .t20-sustain-prompt :is(.sustain-yes, .sustain-no), body.t20ah-chat-estilo .t20-sustain-actions button {
+  flex: 1; padding: 0.35em 0.6em; font-weight: 700; cursor: pointer; border-radius: 0.45em !important; box-shadow: none !important;
+  color: #f2e8d5 !important; border: 1px solid rgba(255, 255, 255, 0.28) !important; background: rgba(0, 0, 0, 0.4) !important;
+}
+body.t20ah-chat-estilo .t20-sustain-actions .sustain-yes { border-color: #4caf6a !important; background: color-mix(in srgb, #4caf6a 22%, #131315) !important; }
+body.t20ah-chat-estilo .t20-sustain-actions .sustain-no { border-color: #d64545 !important; background: color-mix(in srgb, #d64545 22%, #131315) !important; }
+body.t20ah-chat-estilo .t20-sustain-actions button:hover:not(:disabled) { filter: brightness(1.3); }
+body.t20ah-chat-estilo .t20-sustain-actions button:disabled { opacity: 0.45; cursor: default; }
+body.t20ah-chat-estilo .confuso-result { color: #ff9a8c !important; }
+
+/* banners de sucesso/falha (auto-save, defesa) */
+body.t20ah-chat-estilo .t20-result-banner {
+  margin: 0.3em 0; padding: 0.3em 0.6em; border-radius: 0.45em; text-align: center; font-weight: 700; color: #f2e8d5;
+  border: 1px solid; border-left-width: 4px;
+}
+body.t20ah-chat-estilo .t20-result-banner.success { border-color: #4caf6a; background: linear-gradient(90deg, color-mix(in srgb, #4caf6a 30%, #131315), color-mix(in srgb, #4caf6a 8%, #131315)); color: #bff0c9; }
+body.t20ah-chat-estilo .t20-result-banner.failure { border-color: #d64545; background: linear-gradient(90deg, color-mix(in srgb, #d64545 30%, #131315), color-mix(in srgb, #d64545 8%, #131315)); color: #ffc4bd; }
+body.t20ah-chat-estilo .t20-result-banner .t20-result-label { font-weight: 400; color: var(--t20c-mudo, #b8ad9a); }
+
+/* botão Sortudo e Dreno de Vida */
+body.t20ah-chat-estilo .t20-sortudo-btn {
+  width: 100%; padding: 0.35em 0.6em; font-weight: 700; cursor: pointer; text-shadow: none;
+  color: #f2e8d5 !important; background: rgba(0, 0, 0, 0.4) !important; border: 1px solid rgba(255, 255, 255, 0.28) !important; border-radius: 0.45em !important; box-shadow: none !important;
+}
+body.t20ah-chat-estilo .t20-sortudo-btn:hover { color: #fff !important; border-color: #e0b85c !important; background: color-mix(in srgb, #e0b85c 25%, #131315) !important; text-shadow: none; }
+body.t20ah-chat-estilo .apply-dmg-drain { color: #ff9a8c !important; text-shadow: none; }
+
+/* tabelas de teste oposto e de condições */
+body.t20ah-chat-estilo :is(.t20-opposed-table, .t20-condition-table) { width: 100%; border-collapse: collapse; color: #f2e8d5; font-size: 0.85em; }
+body.t20ah-chat-estilo :is(.t20-opposed-table, .t20-condition-table) th { padding: 0.25em 0.4em; text-align: left; font-size: 0.8em; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ci, #e0b85c); border-bottom: 1px solid rgba(255, 255, 255, 0.18); }
+body.t20ah-chat-estilo :is(.t20-opposed-table, .t20-condition-table) td { padding: 0.25em 0.4em; border-bottom: 1px solid rgba(255, 255, 255, 0.07); }
+body.t20ah-chat-estilo .t20-opposed-row.passed { color: #8fe3a3; }
+body.t20ah-chat-estilo .t20-opposed-row.failed { color: var(--t20c-mudo, #b8ad9a); }
+body.t20ah-chat-estilo .t20-nat20 { color: #ff7a6e; }
+body.t20ah-chat-estilo :is(.t20-contest-token, .t20-perc-token) { cursor: pointer; text-decoration: none; color: inherit; font-weight: 700; border-bottom: 1px dotted currentColor; }
+
+/* marcador de rodada: sobrepõe a altura fixa e a linha do cabeçalho genérico (texto centralizado na vertical, sem linha embaixo) */
+html body.t20ah-chat-estilo .chat-message.round-marker:not(.t20ah-card-message) > .message-header {
+  height: auto !important; min-height: 0 !important; max-height: none !important;
+  padding: 0.35em 0.3em !important; margin: 0 !important;
+  border: 0 !important; border-bottom: 0 !important; background: none !important; box-shadow: none !important;
+  align-items: center !important; justify-content: center !important; border-radius: 0 !important;
+}
+html body.t20ah-chat-estilo .chat-message.round-marker .flavor-text { line-height: 1 !important; padding: 0 !important; align-self: center; }
+html body.t20ah-chat-estilo .chat-message.round-marker::before, html body.t20ah-chat-estilo .chat-message.round-marker::after { display: none !important; }
+
+/* o t20-hayd-ui calcula a cor do texto do "flavor" (nome do atributo/perícia) para o cabeçalho colorido dele; aqui o fundo é escuro,
+   então o texto fica legível em qualquer cor de ficha */
+html body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-header :is(.flavor-text, .whisper-to) {
+  color: var(--t20c-texto, #f2e8d5) !important; text-shadow: none !important; opacity: 1 !important; visibility: visible !important;
+}

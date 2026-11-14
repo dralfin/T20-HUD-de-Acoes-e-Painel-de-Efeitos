@@ -175,6 +175,10 @@ Opção do **mundo** (**Estilo do módulo no chat**, ligada por padrão) que apl
 - **Mensagens digitadas e privadas:** texto com o visual do módulo; sussurros e rolagens cegas mantêm as indicações do Foundry e do `t20-hayd-ui`.
 - **Mensagens de outros módulos:** o botão direito em mensagens compactas (como as do Tiny Monitor) abre um menu para **copiar** ou **excluir**.
 
+### 🎨 Cor da ficha no chat
+- Configurações > **Usar a cor da ficha no chat** (Mestre, ligado por padrão). Com ela ligada, as mensagens usam a cor configurada na ficha do **t20-hayd-ui** (botão **Cor da Ficha**: vale a **cor no chat** da ficha; sem ela, a cor da ficha), em vez da cor do jogador. Assim um jogador com várias fichas é diferenciado pela cor.
+- Sem cor no Hayd UI, usa a cor do anel do token; sem anel, a cor do jogador.
+
 ### 🔥 Animações do dano e da cura
 
 Quando todo o dano de uma rolagem é de um único tipo, uma animação em pixel art roda atrás do valor (o número continua legível). Há efeitos para fogo, ácido, eletricidade, essência, frio, luz, psíquico, trevas, corte, perfuração, impacto, cura de PV, recuperação de mana e perda de vida.
@@ -403,3 +407,6 @@ Contribuições e feedbacks são bem-vindos!
 <p align="center">
   <strong>Desenvolvido por Olho da Tormenta</strong>
 </p>
+
+### 📜 Nik's Tiny Changelogs
+- O Tiny Changelogs não reconhece o Tormenta20. Ao entrar como Mestre, o módulo configura sozinho o rastreio de **PV**, **PV temporário** e **PM** (só se o campo de PV ainda estiver vazio), para as mudanças feitas na ficha aparecerem no chat.

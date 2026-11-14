@@ -3117,6 +3117,15 @@ Hooks.once("init", () => {
     default: true,
     onChange: () => { aplicarEstiloChat(); ui.chat?.render?.(true); }
   });
+  game.settings.register(ID, "corFichaChat", {
+    name: "Usar a cor da ficha no chat",
+    hint: "O chat usa a cor configurada na ficha do Hayd UI (botão Cor da Ficha; vale a cor do chat, se houver). Sem ela, usa a cor do anel do token e, por fim, a do jogador. Útil quando um jogador tem várias fichas.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
+    onChange: () => ui.chat?.render?.(true)
+  });
   game.settings.register(ID, "animacoesDano", {
     scope: "client",
     config: false,
@@ -3314,7 +3323,7 @@ Hooks.once("init", () => {
 /* ---------- Organização da janela de configurações ---------- */
 
 const GRUPOS_CONFIG = [
-  ["Chat e cards", "fa-comments", ["estiloChat", "estiloChatLocal", "animarDanoTodos", "cardAcoes", "anunciarChat", "condicoesPopup"]],
+  ["Chat e cards", "fa-comments", ["estiloChat", "estiloChatLocal", "corFichaChat", "animarDanoTodos", "cardAcoes", "anunciarChat", "condicoesPopup"]],
   ["HUD", "fa-id-card", ["mostrarGM", "imagem", "layoutCombate", "menuAcoes", "escala"]],
   ["Combate e regras", "fa-swords", ["limitarMovimento", "gastoMovimentoMestre", "bloquearForaDoTurno", "gastarPorItem", "deslocamentoPadrao", "metrosPorQuadrado", "regrasParaMestre"]],
   ["Tempo do turno e som", "fa-hourglass-half", ["tempoMaximo", "passarAoFim", "somArquivo", "somVolume", "somQuemOuve"]],
@@ -4540,6 +4549,11 @@ async function carregarCondicoes() {
   return CONDICOES_CACHE;
 }
 
+// Rótulos dos efeitos de uso (custo, nome do efeito, "Aprimoramentos", "Outros bônus"...) não viram palavras de condição
+function ehRotuloDeEfeito(el) {
+  return !!el?.closest?.(".card-upgrades :is(b, strong, label, h3, h4, h5, .row, .t20a-efeitos-resumo, .t20a-efeitos-gatilho, .t20a-efeitos-custo), .t20a-efeitos-resumo, .t20a-efeitos-gatilho");
+}
+
 async function ligarCondicoes(container) {
   if (!game.settings.get(ID, "condicoesPopup")) return;
   const dados = await carregarCondicoes();
@@ -4552,6 +4566,7 @@ async function ligarCondicoes(container) {
     const proprio = semAcento(raiz.closest(".t20ah-cond")?.querySelector(".cd-titulo")?.textContent ?? "").trim();
     // links de diário que o sistema já coloca na descrição (ex.: "Esmorecido", "Lento"): ganham o pop-up no lugar da dica "Text Page"
     for (const link of raiz.querySelectorAll("a.content-link")) {
+      if (ehRotuloDeEfeito(link)) continue;
       const nome = semAcento(link.textContent).trim();
       const reg = dados.regs.find((r) => r.re.test(nome));
       if (!reg || (proprio && semAcento(reg.c.nome).trim() === proprio)) continue;
@@ -4562,7 +4577,7 @@ async function ligarCondicoes(container) {
       CONDICOES_CACHE.porChave.set(link.dataset.condChave, reg.c);
     }
     const walker = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT, {
-      acceptNode: (n) => n.parentElement?.closest("a, button, .t20ah-cond-link, .hbdg, [data-tooltip]") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
+      acceptNode: (n) => n.parentElement?.closest("a, button, .t20ah-cond-link, .hbdg, [data-tooltip]") || ehRotuloDeEfeito(n.parentElement) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
     });
     const nos = [];
     while (walker.nextNode()) nos.push(walker.currentNode);
@@ -4942,6 +4957,27 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
   });
 }
 
+// Cards do t20-zaperas-automations (sustentar, condições por turno, cura acelerada, status): cards únicos, cada um na sua cor.
+const COR_ZAPERAS = [
+  [/fa-fire\b/, "#f08a3c"], [/fa-droplet|fa-skull/, "#d64545"], [/fa-heart/, "#4caf6a"],
+  [/fa-head-side-virus/, "#a77bd6"], [/fa-magic|fa-link-slash|fa-wand/, "#7c8cf0"]
+];
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  hookChat.on(hook, (message, html) => {
+    const element = html?.[0] ?? html;
+    const alvo = element?.querySelector?.(".message-content .t20-sustain-title, .message-content > .t20-status-msg");
+    if (!alvo) return;
+    element.classList.add("t20ah-card-message", "t20ah-zaperas-message");
+    const status = alvo.matches(".t20-status-msg") ? alvo : null;
+    const icone = (alvo.querySelector("i")?.className ?? "") + " " + (status?.className ?? "");
+    let cor = COR_ZAPERAS.find(([re]) => re.test(icone))?.[1] ?? "#e0b85c";
+    if (status?.classList.contains("ended")) cor = "#d64545";
+    else if (status?.classList.contains("healing")) cor = "#4caf6a";
+    else if (status?.classList.contains("sustaining")) cor = "#7c8cf0";
+    element.style.setProperty("--cor", cor);
+  });
+}
+
 // Mensagem digitada (só texto, sem card nem rolagem): marcada para receber o visual de texto do módulo.
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
   hookChat.on(hook, (message, html) => {
@@ -4968,12 +5004,17 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
     const autor = message.author ?? message.user;
     const sp = message.speaker ?? {};
     const tokenDoc = sp.scene && sp.token ? game.scenes?.get(sp.scene)?.tokens?.get(sp.token) : null;
-    const ator = (sp.actor && game.actors?.get(sp.actor)) || tokenDoc?.actor || null;
+    // o ator do token na cena (cada criatura com a sua cor) vem antes do ator "mãe" do mundo
+    const ator = tokenDoc?.actor || (sp.actor && game.actors?.get(sp.actor)) || null;
     // a cor é a do jogador dono da ficha (não de quem rolou, que pode ser o Mestre); sem dono jogador, a de quem rolou
     const dono = ator ? game.users?.find((u) => !u.isGM && ator.testUserPermission?.(u, "OWNER")) : null;
     const corUsuario = dono ?? autor;
     const cor = String(corUsuario?.color?.css ?? corUsuario?.color ?? "");
     if (cor) element.style.setProperty("--cor-user", cor);
+    if (game.settings.get(ID, "corFichaChat")) {
+      const cf = corDaFicha(ator);
+      if (cf) element.style.setProperty("--cor-user", cf);
+    }
     const cab = element.querySelector(".message-header");
     if (!cab || cab.querySelector(".t20ah-retrato-msg")) return;
     const img = ator?.img || tokenDoc?.texture?.src || autor?.avatar || "";
@@ -5264,6 +5305,28 @@ async function abrirAnimacaoDoItem(item) {
     montado?.destroy();
   }
 }
+// Cor da ficha no chat: a do t20-hayd-ui (cor do chat da ficha → cor de destaque personalizada → cor padrão do Hayd);
+// sem ela, o anel do token; sem anel, nada (cai na cor do jogador)
+function corDaFicha(ator) {
+  if (!ator) return "";
+  const hex = (v) => {
+    const t = typeof v === "string" ? v.trim() : "";
+    if (/^#[0-9a-f]{6}$/i.test(t)) return t;
+    const m = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(t);
+    return m ? `#${m[1]}${m[1]}${m[2]}${m[2]}${m[3]}${m[3]}` : "";
+  };
+  const H = "t20-hayd-ui";
+  const doChat = ator.getFlag?.(H, "corChat");
+  if (doChat && typeof doChat === "object" && hex(doChat.cor)) return hex(doChat.cor);
+  const cfg = ator.getFlag?.(H, "configCor");
+  if (cfg && typeof cfg === "object" && cfg.mode === "custom" && hex(cfg.cor)) return hex(cfg.cor);
+  if (cfg === "padrao") {
+    try { const p = game.settings.get(H, "corPadrao"); if (hex(p)) return hex(p); } catch (err) { /* sem Hayd UI */ }
+  }
+  const ring = ator.prototypeToken?.ring;
+  const r = ring?.enabled ? (ring.colors?.ring?.css ?? ring.colors?.ring) : "";
+  return r ? String(r) : "";
+}
 // Botão "Animação" no cabeçalho da ficha do item (ficha antiga e ApplicationV2)
 Hooks.on("getItemSheetHeaderButtons", (sheet, buttons) => {
   if (!sheet.item) return;
@@ -5415,6 +5478,62 @@ function aplicarVisualHud() {
     #t20ah .t20ah-cabeca { background: linear-gradient(90deg, color-mix(in srgb, ${faixa} 35%, transparent), transparent 75%) !important; border-bottom-color: color-mix(in srgb, ${v.destaque} 25%, transparent) !important; }
   `;
 }
+// Nik's Tiny Changelogs não conhece o Tormenta20: configura PV (e PV temporário) e PM sozinho, se o Mestre ainda não configurou
+Hooks.once("ready", async () => {
+  try {
+    const TID = "niks-tiny-changelogs";
+    if (!game.user.isGM || game.system.id !== "tormenta20" || !game.modules.get(TID)?.active) return;
+    const lerCfg = (k) => game.settings.get(TID, k);
+    if (!String(lerCfg("hpPath") ?? "").trim()) {
+      await game.settings.set(TID, "autoDetectPaths", false);
+      await game.settings.set(TID, "hpPath", "system.attributes.pv.value");
+      await game.settings.set(TID, "tempHpPath", "system.attributes.pv.temp");
+    }
+    const lista = [...(lerCfg("customTrackers") ?? [])];
+    if (!lista.some((r) => r?.path === "system.attributes.pm.value")) {
+      lista.push({ name: "PM", path: "system.attributes.pm.value", msgGain: "recuperou {name}", msgLoss: "gastou {name}", icon: "fa-solid fa-droplet", color: "#4a90e2" });
+      await game.settings.set(TID, "customTrackers", lista);
+    }
+  } catch (err) { console.warn(`${ID} | não consegui configurar o Tiny Changelogs`, err); }
+});
+// Rolagem de atributo pela ficha: o sistema cria a mensagem sem nome (sem flavor nem título no card).
+// O clique no atributo é guardado e o nome entra na mensagem criada logo em seguida.
+let ULTIMO_ATRIBUTO = null;
+Hooks.once("ready", () => {
+  document.addEventListener("click", (ev) => {
+    const el = ev.target?.closest?.(".atributo-rollable, [data-action='rollAtributo'], [data-action='rollAbility']");
+    if (!el) return;
+    const chave = el.dataset.itemId || el.dataset.atributo || el.dataset.ability || "";
+    const janela = el.closest("[data-appid], .app, .application");
+    const idApp = janela?.dataset?.appid ?? janela?.id ?? "";
+    const app = foundry.applications?.instances?.get?.(janela?.id) ?? ui.windows?.[Number(idApp)];
+    const ator = app?.document ?? app?.actor ?? app?.object ?? null;
+    const T = CONFIG.T20 ?? CONFIG.tormenta20 ?? {};
+    const nome = (T.atributos?.[chave] ? game.i18n.localize(T.atributos[chave]) : "") || el.dataset.tooltip?.trim() || el.getAttribute("aria-label")?.trim() || "";
+    if (!nome) return;
+    ULTIMO_ATRIBUTO = { nome, ator: ator?.id ?? null, t: Date.now() };
+  }, true);
+});
+Hooks.on("preCreateChatMessage", (message, data) => {
+  const u = ULTIMO_ATRIBUTO;
+  if (!u || Date.now() - u.t > 4000 || game.user.id !== (message.author?.id ?? message.user?.id ?? game.user.id)) return;
+  if (!(data.rolls?.length || message.rolls?.length)) return;
+  if (u.ator && message.speaker?.actor && u.ator !== message.speaker.actor) return;
+  if (String(message.flavor ?? data.flavor ?? "").trim()) return;
+  ULTIMO_ATRIBUTO = null;
+  message.updateSource({ [`flags.${ID}.rotulo`]: u.nome }); // só o título do card (o flavor duplicaria o nome no cabeçalho)
+});
+// card sem nome (rolagem de atributo): o nome guardado entra no título
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  hookChat.on(hook, (message, html) => {
+    const rotulo = message.flags?.[ID]?.rotulo;
+    if (!rotulo) return;
+    const element = html?.[0] ?? html;
+    const nome = element?.querySelector?.(".chat-card > header .item-name > div, .chat-card > header .item-name");
+    if (nome && !nome.textContent.trim()) nome.textContent = rotulo;
+  }, true);
+}
+
 Hooks.once("ready", aplicarVisualHud);
 
 let PAINEL_VISUAL_FECHAR = null;
