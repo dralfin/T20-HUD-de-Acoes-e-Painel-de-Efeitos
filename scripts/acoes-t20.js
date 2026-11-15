@@ -10,6 +10,7 @@
  *  - efeito: { condicao: "caido", aplicar: true|false } aplica ou remove uma condição do personagem ao usar a ação.
  *  - especial: "misericordia" liga o fluxo do Golpe de Misericórdia (escolha de arma, 20 natural, chance de morte);
  *              "fintar" liga o fluxo de Fintar (alvo, testes opostos Enganação x Reflexos e condição Desprevenido);
+ *              "manobra" liga o fluxo das Manobras de Combate (escolha da manobra e do alvo; o card traz só a regra da manobra escolhida);
  *              "atrasar" liga o fluxo de Atrasar (escolha da nova Iniciativa e passagem do turno);
  *              "investida" liga o fluxo da Investida (movimento em linha reta, +2 no ataque, –2 na Defesa até o próximo turno);
  *              "corrida" liga o fluxo da Corrida (teste de Atletismo, deslocamento em linha reta, fôlego e fadiga).
@@ -53,6 +54,33 @@ export const CATEGORIAS_ACOES = [
         nome: "Fintar",
         especial: "fintar",
         desc: "Faça um teste de Enganação oposto ao teste de Reflexos de uma criatura em alcance curto. Se você passar, ela fica desprevenida contra seu próximo ataque, mas apenas até o fim de seu próximo turno."
+      },
+      {
+        nome: "Manobras de Combate",
+        especial: "manobra",
+        desc: "Uma manobra é um ataque corpo a corpo para fazer algo diferente de causar dano — como arrancar a arma do oponente ou empurrá-lo para um abismo. Não é possível fazer manobras de combate com ataques à distância.\nFaça um teste de manobra (um teste de ataque corpo a corpo) oposto com a criatura. Mesmo que ela esteja usando uma arma de ataque à distância, deve fazer o teste usando seu valor de Luta. Em caso de empate, o personagem com o maior bônus vence. Se os bônus forem iguais, outro teste deve ser feito. Em geral, você pode usar qualquer arma corpo a corpo para fazer manobras de combate. Estas são as manobras que você pode fazer.",
+        topicos: [
+          {
+            t: "Agarrar",
+            d: "Você segura uma criatura (por seu braço, sua roupa etc.). Uma criatura agarrada fica desprevenida e imóvel, sofre –2 nos testes de ataque e só pode atacar com armas leves. Ela pode se soltar com uma ação padrão, vencendo um teste de manobra oposto. Você só pode agarrar com um ataque desarmado ou arma natural e, enquanto agarra, fica com essa mão ou arma natural ocupada. Além disso, move-se metade do deslocamento normal, mas arrasta a criatura que estiver agarrando. Você pode soltá-la com uma ação livre. Você pode atacar uma criatura agarrada com sua mão livre. Se preferir, pode substituir um ataque por um teste de agarrar contra a criatura. Se vencer, causa dano de impacto igual a um ataque desarmado ou arma natural. Isso significa que você está esmagando ou sufocando o inimigo. Um personagem fazendo um ataque à distância contra um alvo envolvido na manobra agarrar tem 50% de chance de mirar no alvo errado!"
+          },
+          {
+            t: "Derrubar",
+            d: "Você deixa o alvo caído. Esta queda normalmente não causa dano. Se você vencer o teste oposto por 5 pontos ou mais, derruba o oponente com tanta força que também o empurra um quadrado em uma direção a sua escolha. Se isso o jogar além de um parapeito ou precipício, ele pode fazer um teste de Reflexos (CD 20) para se agarrar numa beirada."
+          },
+          {
+            t: "Desarmar",
+            d: "Você derruba um item que a criatura esteja segurando. Normalmente o item cai no mesmo lugar em que o alvo está (a menos que o alvo esteja voando, sobre uma ponte etc.). Se você vencer o teste oposto por 5 pontos ou mais, derruba o item com tanta força que também o empurra um quadrado em uma direção a sua escolha."
+          },
+          {
+            t: "Empurrar",
+            d: "Você empurra a criatura 1,5m. Para cada 5 pontos de diferença entre os testes, você empurra o alvo mais 1,5m. Você pode gastar uma ação de movimento para avançar junto com a criatura (até o limite do seu deslocamento)."
+          },
+          {
+            t: "Quebrar",
+            d: "Você atinge um item que a criatura esteja segurando. Veja as estatísticas de objetos na página 239."
+          }
+        ]
       },
       {
         nome: "Preparar",

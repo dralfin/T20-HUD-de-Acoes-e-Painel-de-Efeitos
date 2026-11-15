@@ -198,7 +198,7 @@ body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-content b
 body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-content button:active { transform: scale(0.97); }
 
 /* ---------- linhas de anúncio do módulo ficam discretas ---------- */
-body.t20ah-chat-estilo .chat-message:has(.t20ah-chat) { border-left-width: 2px; }
+body.t20ah-chat-estilo .chat-message.t20ah-m-chat { border-left-width: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
   body.t20ah-chat-estilo .chat-message button { transition: none; }
@@ -317,11 +317,11 @@ body.t20ah-chat-estilo .t20ah-cond .cd-corpo > :last-child { margin-bottom: 0 !i
 
 /* ---------- cards de ataque / item / magia como um card único (igual aos cards de ação) ---------- */
 /* cabeçalho da mensagem = faixa de identificação (retrato + nome) */
-body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message):has(.chat-card, .dice-roll) .message-header {
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message).t20ah-m-cardroll .message-header {
   background: rgba(0, 0, 0, 0.28);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
-body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message):has(.chat-card) .message-header .message-sender {
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message).t20ah-m-card .message-header .message-sender {
   font-family: var(--t20c-fonte);
   font-size: 0.98em;
   font-weight: 700;
@@ -330,7 +330,7 @@ body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message):has(.chat-card) .m
   text-shadow: none;
 }
 /* o conteúdo encosta nas bordas; cada parte do card cuida do próprio espaçamento */
-body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message):has(.chat-card) .message-content { padding: 0; }
+body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message).t20ah-m-card .message-content { padding: 0; }
 /* tira o "card dentro do card": nenhuma moldura, fundo ou sombra própria do sistema */
 body.t20ah-chat-estilo .chat-message .chat-card {
   margin: 0 !important;
@@ -669,7 +669,7 @@ body.t20ah-chat-estilo .chat-card.t20ah-item li.roll.die {
 
 
 /* peça única: nada de moldura, fundo ou espaçamento do tema entre a mensagem e o card */
-body.t20ah-chat-estilo .chat-message:has(.t20ah-item) .message-content {
+body.t20ah-chat-estilo .chat-message.t20ah-m-item .message-content {
   padding: 0 !important;
   margin: 0 !important;
   border: 0 !important;
@@ -689,7 +689,7 @@ body.t20ah-chat-estilo .chat-message .chat-card.t20ah-item .card-header {
 
 
 /* ---------- fundo neutro (cinza bem escuro / preto, sem saturação) ---------- */
-body.t20ah-chat-estilo .chat-message:has(.t20ah-item) { --t20c-bg1: #101012; --t20c-bg2: #1f1f22; }
+body.t20ah-chat-estilo .chat-message.t20ah-m-item { --t20c-bg1: #101012; --t20c-bg2: #1f1f22; }
 
 /* ---------- Ataque e Dano lado a lado (grade no próprio card; nenhum elemento é movido) ---------- */
 body.t20ah-chat-estilo .chat-card.t20ah-item.it-dois { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 0.35em; padding: 0 0.8em 0.4em !important; }
@@ -718,12 +718,12 @@ body.t20ah-chat-estilo .chat-message .chat-card.t20ah-item {
     --ci-clara: hsl(from var(--cor-user, #e0b85c) h calc(min(s, 62)) 78);
   }
 }
-body.t20ah-chat-estilo .chat-message:has(.t20ah-item) .message-header { background: transparent !important; border-bottom: 0 !important; padding-bottom: 0.1em; }
+body.t20ah-chat-estilo .chat-message.t20ah-m-item .message-header { background: transparent !important; border-bottom: 0 !important; padding-bottom: 0.1em; }
 body.t20ah-chat-estilo .chat-card.t20ah-item .card-header {
   border-bottom: 1px solid color-mix(in srgb, var(--ci) 55%, transparent) !important;
   background: linear-gradient(90deg, color-mix(in srgb, var(--ci) 34%, transparent), transparent 90%) !important;
 }
-body.t20ah-chat-estilo .chat-message:has(.t20ah-item) {
+body.t20ah-chat-estilo .chat-message.t20ah-m-item {
   background: linear-gradient(180deg, color-mix(in srgb, var(--cor-user, #e0b85c) 16%, #1f1f22), #101012 45%) !important;
 }
 body.t20ah-chat-estilo .chat-card.t20ah-item .dice-formula { background: none !important; border: 0 !important; padding: 0 !important; font-size: 0.74em; color: var(--t20c-mudo); }
@@ -1622,7 +1622,7 @@ body.t20ah-chat-estilo .chat-message .t20-sustain-actions button.sustain-no {
 body.t20ah-chat-estilo .chat-message .t20-sustain-actions button.sustain-no i { color: #c9bfae; }
 
 /* os avisos (Teste de Morte, Em Chamas...) são um card único, sem moldura nem cabeçalho de mensagem em volta */
-body.t20ah-chat-estilo .chat-message:has(.t20-sustain-prompt) {
+body.t20ah-chat-estilo .chat-message.t20ah-m-sustain {
   background: transparent !important;
   border: 0 !important;
   outline: 0 !important;
@@ -1630,8 +1630,8 @@ body.t20ah-chat-estilo .chat-message:has(.t20-sustain-prompt) {
   padding: 0 !important;
   margin: 0.35rem 0 !important;
 }
-body.t20ah-chat-estilo .chat-message:has(.t20-sustain-prompt) > .message-header { display: none !important; }
-body.t20ah-chat-estilo .chat-message:has(.t20-sustain-prompt) .message-content {
+body.t20ah-chat-estilo .chat-message.t20ah-m-sustain > .message-header { display: none !important; }
+body.t20ah-chat-estilo .chat-message.t20ah-m-sustain .message-content {
   padding: 0 !important;
   margin: 0 !important;
   background: none !important;
@@ -2298,4 +2298,21 @@ html body.t20ah-chat-estilo .chat-message.round-marker::before, html body.t20ah-
    então o texto fica legível em qualquer cor de ficha */
 html body.t20ah-chat-estilo .chat-message:not(.t20ah-card-message) .message-header :is(.flavor-text, .whisper-to) {
   color: var(--t20c-texto, #f2e8d5) !important; text-shadow: none !important; opacity: 1 !important; visibility: visible !important;
+}
+
+/* ---------- acerto crítico no d20: só o número pulsa e brilha (a caixa do card fica normal) ---------- */
+@keyframes t20ahCritGlow {
+  0%, 100% { text-shadow: 0 0 0.25em rgba(255, 215, 106, 0.55), 0 0 0.6em rgba(255, 190, 60, 0.35), 0 2px 0 #000; }
+  50% { text-shadow: 0 0 0.35em rgba(255, 240, 170, 0.95), 0 0 0.9em rgba(255, 200, 70, 0.75), 0 0 1.6em rgba(255, 170, 40, 0.45), 0 2px 0 #000; }
+}
+/* o valor do crítico também pulsa (só ele; a caixa mantém o tamanho) */
+@keyframes t20ahCritNum { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.14); } }
+html body.t20ah-chat-estilo .chat-message :is(.chat-card.t20ah-item, .t20ah-rolagem) .dice-total.critical > .t20ah-crit-num {
+  display: inline-block; color: #ffe08a; font-weight: 900; animation: t20ahCritNum 1.8s ease-in-out 8, t20ahCritGlow 1.8s ease-in-out 8; transform-origin: center; will-change: transform;
+}
+
+/* desempenho: mensagens antigas fora da tela não são desenhadas nem recalculadas até aparecerem (as 15 mais novas ficam normais) */
+body.t20ah-chat-estilo #chat .chat-message:not(:nth-last-child(-n + 15)) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 160px;
 }

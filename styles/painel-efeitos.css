@@ -24,7 +24,6 @@
   border: 1px solid rgba(224, 184, 92, 0.45);
   border-radius: 0.9em;
   box-shadow: 0 0.6em 1.6em rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(6px);
 }
 #t20pe.oculto { display: none; }
 #t20pe.arrastando { opacity: 0.92; }

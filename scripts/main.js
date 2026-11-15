@@ -111,19 +111,34 @@ function buscarExecucao(obj, nivel = 0) {
 /** Descobre o tipo de ação que um item consome: "padrao" | "movimento" | "completa" | null (livre, reação, passivo...). */
 function tipoDeAcao(item) {
   const tipoItem = normalizar(item.type);
-  if (["arma", "weapon"].includes(tipoItem)) return "padrao"; // armas: ação padrão
+  if (["arma", "weapon", "ataque", "attack"].includes(tipoItem)) return "padrao"; // armas: ação padrão
   const s = item.system ?? {};
   const candidatos = [
     s.ativacao?.execucao, s.ativacao?.execution, s.ativacao?.tipo,
     s.activation?.execution, s.activation?.type,
     s.execucao, s.execution
   ];
+  // item com rolagem de ataque (poder, habilidade de ameaça, magia de ataque...): ação padrão quando a ficha não diz outra coisa
+  const temAtaque = () => {
+    const rolls = s.rolls ?? s.rolagens;
+    const lista = Array.isArray(rolls) ? rolls : rolls && typeof rolls === "object" ? Object.values(rolls) : [];
+    return lista.some((r) => /ataque|attack/.test(normalizar(r?.type ?? r?.tipo ?? r?.key ?? "")));
+  };
+  const explicito = /livre|free|reac|passiv|nenhum|none|sem /;
   for (const bruto of candidatos) {
     const t = normalizar(typeof bruto === "object" && bruto ? bruto.value ?? bruto.type : bruto);
-    if (t) return classificarExecucao(t);
+    if (!t) continue;
+    const r = classificarExecucao(t);
+    if (r || explicito.test(t)) return r;
+    return temAtaque() ? "padrao" : r; // texto que não reconhecemos: se o item ataca, vale como padrão
   }
   const achado = normalizar(buscarExecucao(s));
-  if (achado) return classificarExecucao(achado);
+  if (achado) {
+    const r = classificarExecucao(achado);
+    if (r || explicito.test(achado)) return r;
+    return temAtaque() ? "padrao" : r;
+  }
+  if (["ataque", "attack"].includes(tipoItem) || temAtaque()) return "padrao";
   // Magia sem execução legível na ficha: a maioria é ação padrão
   if (["magia", "spell"].includes(tipoItem)) return "padrao";
   return null;
@@ -826,10 +841,13 @@ class AcoesHUD {
     }
     // vigia enquanto a gaveta estiver visível: qualquer mudança de posição/tamanho da HUD (animações, imagens, fontes)
     // é acompanhada no quadro seguinte. Só escreve no DOM quando algo mudou.
+    // (só por um instante após abrir/atualizar: depois disso o ResizeObserver acima basta; um laço por quadro forçava
+    // o navegador a recalcular o layout o tempo todo enquanto a gaveta ficava aberta)
+    this._vigiaAte = Date.now() + 900;
     if (this._vigiaGaveta) return;
     this._vigiaGaveta = true;
     const passo = () => {
-      if (!this.gaveta || this.gaveta.classList.contains("oculto") || !this.gaveta.isConnected) {
+      if (!this.gaveta || this.gaveta.classList.contains("oculto") || !this.gaveta.isConnected || Date.now() > this._vigiaAte) {
         this._vigiaGaveta = false;
         return;
       }
@@ -1368,7 +1386,7 @@ class AcoesHUD {
     const { dec, max } = t;
     const restante = max - dec;
     const txt = max > 0 ? this.formatarTempo(Math.ceil(restante)) : this.formatarTempo(dec);
-    el.querySelectorAll(".js-tempo-txt").forEach((n) => (n.textContent = txt));
+    el.querySelectorAll(".js-tempo-txt").forEach((n) => { if (n.textContent !== txt) n.textContent = txt; });
     const linha = el.querySelector(".t20ah-tempo");
     if (!linha) {
       el.classList.remove("tempo-aviso", "tempo-fim");
@@ -1376,7 +1394,7 @@ class AcoesHUD {
     }
     linha.classList.toggle("sem-limite", max <= 0);
     const fill = el.querySelector(".t20ah-tempo .fill");
-    if (fill) fill.style.width = max > 0 ? `${clamp((restante / max) * 100, 0, 100)}%` : "0%";
+    if (fill) { const w = max > 0 ? `${clamp((restante / max) * 100, 0, 100).toFixed(1)}%` : "0%"; if (fill.style.width !== w) fill.style.width = w; }
     el.classList.toggle("tempo-aviso", max > 0 && restante > 0 && restante <= 10);
     el.classList.toggle("tempo-fim", max > 0 && restante <= 0);
   }
@@ -1579,7 +1597,7 @@ const htmlRegra = (a) =>
 
 /* ---------- Condições (Caído) e armas (Golpe de Misericórdia) ---------- */
 
-const CONDICOES = { caido: /caid|prone/, fatigado: /fatigad|fatigue/, exausto: /exaust/, desprevenido: /desprevenid|flat-?footed|unaware/ };
+const CONDICOES = { caido: /caid|prone/, fatigado: /fatigad|fatigue/, exausto: /exaust/, desprevenido: /desprevenid|flat-?footed|unaware/, agarrado: /agarrad|grappl|grabbed/ };
 
 /** Id da condição nos efeitos de status do Foundry (procura pelo id e pelo nome). */
 function acharCondicao(chave) {
@@ -1606,6 +1624,10 @@ async function definirCondicao(actor, id, ativo) {
 }
 
 /** A arma está equipada? Aceita os formatos mais comuns de campo "equipado". */
+function ehEscudo(item) {
+  return normalizar(item?.type) === "equipamento" && normalizar(item.system?.tipo) === "escudo";
+}
+
 function estaEquipada(item) {
   const s = item.system ?? {};
   return [s.equipado, s.equipado2?.equipado, s.equipado?.value, s.equipped].some(
@@ -1758,7 +1780,7 @@ const ALCANCE_CURTO_M = 9;
 const PEDIDOS = new Map(); // reqId -> resolve (pedidos de teste feitos ao Mestre pelo socket)
 
 /** Tokens da cena em alcance curto (9 m) do token indicado. `todos` ignora o alcance. */
-function tokensParaFinta(feinterDoc, { todos = false } = {}) {
+function tokensParaFinta(feinterDoc, { todos = false, alcance = ALCANCE_CURTO_M } = {}) {
   const origem = feinterDoc?.object;
   const mQuad = cfg("metrosPorQuadrado");
   const lista = [];
@@ -1774,7 +1796,7 @@ function tokensParaFinta(feinterDoc, { todos = false } = {}) {
         metros = borda * mQuad;
       }
     } catch (err) { /* ignora */ }
-    if (!todos && (metros === null || metros > ALCANCE_CURTO_M + 0.01)) continue;
+    if (!todos && (metros === null || metros > alcance + 0.01)) continue;
     lista.push({ token: t, metros });
   }
   return lista.sort((a, b) => (a.metros ?? 999) - (b.metros ?? 999) || a.token.name.localeCompare(b.token.name, "pt-BR"));
@@ -1878,6 +1900,185 @@ async function expirarFintas(combat, ant) {
   await c.unsetFlag(ID, "finta").catch(() => {});
 }
 const ULTIMO_TURNO = new Map(); // combatId -> { round, combatantId } (turno visto por último)
+
+/* ---------- Manobras de combate: teste de manobra oposto (ataque corpo a corpo × ataque corpo a corpo) ---------- */
+
+/** Até onde um token pode ser empurrado: `n` quadrados na direção (dx, dy), parando em paredes e em outros tokens. */
+function planejarEmpurrao(tokenDoc, dx, dy, n, diagonalNormal = false) {
+  const tam = Number(tokenDoc.parent?.grid?.size ?? canvas.grid?.size ?? 100);
+  const w = (tokenDoc.width ?? 1) * tam;
+  const h = (tokenDoc.height ?? 1) * tam;
+  let x = tokenDoc.x;
+  let y = tokenDoc.y;
+  let passos = 0;
+  let custo = 0;
+  const porPasso = dx && dy && !diagonalNormal ? 2 : 1; // na diagonal cada quadrado custa o dobro
+  while (custo + porPasso <= n) {
+    const nx = x + dx * tam;
+    const ny = y + dy * tam;
+    let bloqueado = false;
+    try {
+      bloqueado = !!CONFIG.Canvas?.polygonBackends?.move?.testCollision({ x: x + w / 2, y: y + h / 2 }, { x: nx + w / 2, y: ny + h / 2 }, { type: "move", mode: "any" });
+    } catch (err) { /* sem teste de paredes: segue */ }
+    if (!bloqueado) {
+      bloqueado = (canvas.tokens?.placeables ?? []).some((t) => {
+        if (t.document.id === tokenDoc.id) return false;
+        const tw = (t.document.width ?? 1) * tam;
+        const th = (t.document.height ?? 1) * tam;
+        return nx < t.document.x + tw && nx + w > t.document.x && ny < t.document.y + th && ny + h > t.document.y;
+      });
+    }
+    if (bloqueado) break;
+    x = nx;
+    y = ny;
+    passos++;
+    custo += porPasso;
+  }
+  return { x, y, passos, custo };
+}
+
+/** Rola o teste de manobra: ataque com a arma escolhida (sem dano) ou, sem arma corpo a corpo, o teste de Luta da ficha. */
+async function rolarTesteManobra(actor, arma, rotulo) {
+  if (arma) {
+    try {
+      // rotina nativa de uso (ItemT20.roll) COM o diálogo de efeitos de uso: dá para ativar aprimoramentos antes de rolar.
+      // roll() ataca numa cópia interna; interceptamos clone() para ler o resultado dessa cópia.
+      const base = arma.clone({}, { keepId: true });
+      const ataqueCfg = base.system?.rolls?.find?.((x) => x?.type === "ataque");
+      if (typeof base.roll !== "function" || !ataqueCfg) throw new Error("a arma não tem rolagem de ataque");
+      let usada = null;
+      const clonarOriginal = base.clone.bind(base);
+      base.clone = (...args) => { usada = clonarOriginal(...args); return usada; };
+      // a ação da manobra já foi gasta: o card nativo não deve cobrar a ação padrão de novo
+      if (game.combat?.started) {
+        const chaveTurno = AcoesHUD.chaveTurno(game.combat);
+        if (USO_ITEM.chave !== chaveTurno) { USO_ITEM.chave = chaveTurno; USO_ITEM.itens = new Set(); }
+        USO_ITEM.itens.add(arma.uuid);
+      }
+      await base.roll({ configureDialog: true });
+      if (!usada) return null; // fechou o diálogo: cancelou
+      const lista = Object.values(usada.system.rolled ?? {});
+      const r = usada.system.rolled?.[ataqueCfg.name] ?? lista.find((x) => x?.options?.type === "attack") ?? lista.find((x) => Number.isFinite(Number(x?.total)));
+      if (r && Number.isFinite(Number(r.total))) return { roll: r, nome: arma.name };
+      console.warn(`${ID} | o ataque de ${arma.name} não devolveu rolagem`);
+    } catch (err) {
+      console.warn(`${ID} | ataque da arma falhou, usando Luta`, err);
+    }
+    ui.notifications.warn(`Não consegui rolar o ataque de ${arma.name}: usando o teste de Luta.`);
+  }
+  // sem arma corpo a corpo: Luta por padrão, mas dá para trocar (um poder pode permitir usar outra perícia na manobra)
+  const chave = (await MenuAcoes.escolherPericia(actor, {
+    cor: "#ff6b6b",
+    padrao: "luta",
+    titulo: rotulo,
+    subtitulo: "Teste de manobra · escolha a perícia",
+    texto: "Sem arma corpo a corpo, o teste de manobra é de <b>Luta</b>. Se algum poder permite usar outra perícia, escolha-a aqui.",
+    icone: "fa-hand-fist",
+    obrigatorio: true
+  })) ?? "luta";
+  const t = await rolarPericiaNativa(actor, chave);
+  if (!t) return null;
+  const nomePericia = listarPericias(actor).find((x) => x.chave === chave)?.nome ?? NOMES_PERICIAS[chave] ?? chave;
+  return { roll: t.roll, nome: nomePericia };
+}
+const dadosDoTeste = (r) => {
+  const total = Number(r.roll.total);
+  const nat = r.roll.dice?.find?.((x) => x.faces === 20)?.total ?? r.roll.terms?.find?.((x) => x.faces === 20)?.total ?? null;
+  return { total, nat, bonus: nat !== null ? total - nat : null, nomeTeste: r.nome };
+};
+
+/** Quem responde pelo alvo: o jogador dono (se conectado) ou o Mestre ativo. */
+function usuarioDoAlvo(ator) {
+  const dono = game.users.find((u) => u.active && !u.isGM && ator?.testUserPermission?.(u, "OWNER"));
+  return dono ?? game.users.activeGM ?? null;
+}
+
+/** Roda no cliente de quem responde pelo alvo: escolhe a arma corpo a corpo (ou Luta) e rola o teste de manobra oposto. */
+async function resolverManobraAlvo(d) {
+  let alvoDoc = d.tokenUuid ? await fromUuid(d.tokenUuid) : null;
+  if (!alvoDoc && d.escolher) {
+    const origem = d.atacanteTokenUuid ? await fromUuid(d.atacanteTokenUuid) : null;
+    const sel = await MenuAcoes.escolherAlvoFinta(origem, { todos: true, gm: true, titulo: d.manobra, icone: "fa-hand-fist", texto: `Escolha <b>quem se opõe</b> à manobra <b>${esc(d.manobra)}</b> de ${esc(d.nomeAtacante)}.` });
+    alvoDoc = sel?.tokenDoc ?? sel?.actor ?? null;
+  }
+  const ator = alvoDoc?.documentName === "Actor" ? alvoDoc : alvoDoc?.actor;
+  if (!ator) return { cancelado: true };
+  const armas = armasCorpoACorpo(ator);
+  let arma = null;
+  if (armas.length) {
+    arma = await MenuAcoes.escolherArma(ator, armas, {
+      titulo: `Defesa · ${ator.name}`, cor: "#ff6b6b",
+      sub: `Manobra ${d.manobra} de ${d.nomeAtacante}`,
+      icone: "fa-shield-halved",
+      texto: `<b>${esc(ator.name)}</b> faz o teste de manobra oposto à manobra <b>${esc(d.manobra)}</b> de ${esc(d.nomeAtacante)}. Escolha a arma corpo a corpo (sem arma, o teste é de <b>Luta</b>).`
+    });
+    if (!arma) return { cancelado: true };
+  } else {
+    ui.notifications.info(`${ator.name} não tem arma corpo a corpo equipada: o teste é de Luta.`);
+  }
+  const r = await rolarTesteManobra(ator, arma, `${ator.name} · teste de manobra`);
+  if (!r) return { cancelado: true };
+  const meuAlvo = dadosDoTeste(r);
+  // Agarrar: se o atacante vence o teste oposto, o alvo recebe a condição Agarrado (aplicada aqui, onde há permissão sobre o alvo)
+  let condicao = null;
+  const condManobra = { Agarrar: "agarrado", Derrubar: "caido" }[d.manobra];
+  if (condManobra && Number.isFinite(Number(d.meuTotal))) {
+    let venceu = d.meuTotal > meuAlvo.total;
+    if (d.meuTotal === meuAlvo.total && d.meuBonus !== null && meuAlvo.bonus !== null && d.meuBonus !== meuAlvo.bonus) venceu = d.meuBonus > meuAlvo.bonus;
+    if (venceu) {
+      const est = estadoCondicao(ator, condManobra);
+      if (!est.id) condicao = "inexistente";
+      else if (est.tinha) condicao = "ja";
+      else {
+        try {
+          await definirCondicao(ator, est.id, true);
+          condicao = "aplicada";
+        } catch (err) {
+          console.error(`${ID} | não foi possível aplicar a condição ${condManobra}`, err);
+          condicao = "erro";
+        }
+      }
+    }
+  }
+  return { cancelado: false, ...meuAlvo, nomeAlvo: ator.name, tokenUuid: alvoDoc.uuid, condicao };
+}
+
+/** Pede ao Mestre que aprove o empurrão (e, se aprovar, ele mesmo move o token). Resolve true | false. */
+function pedirAprovacaoEmpurrao(dados) {
+  return new Promise((resolve) => {
+    const reqId = foundry.utils.randomID();
+    const t = setTimeout(() => {
+      PEDIDOS.delete(reqId);
+      resolve(false);
+    }, 300000);
+    PEDIDOS.set(reqId, (r) => {
+      clearTimeout(t);
+      PEDIDOS.delete(reqId);
+      resolve(!!r?.ok);
+    });
+    ui.notifications.info("Aguardando o Mestre aprovar o empurrão…");
+    game.socket.emit(`module.${ID}`, { tipo: "empurrar-pedir", reqId, dados });
+  });
+}
+
+/** Pede ao dono do alvo (ou ao Mestre) que faça o teste de manobra oposto. */
+function pedirManobraA(userId, dados) {
+  return new Promise((resolve) => {
+    const reqId = foundry.utils.randomID();
+    const t = setTimeout(() => {
+      PEDIDOS.delete(reqId);
+      ui.notifications.warn("O teste de manobra do alvo não foi respondido a tempo.");
+      resolve(null);
+    }, 300000);
+    PEDIDOS.set(reqId, (r) => {
+      clearTimeout(t);
+      PEDIDOS.delete(reqId);
+      resolve(r);
+    });
+    ui.notifications.info(`Aguardando ${game.users.get(userId)?.name ?? "o alvo"} fazer o teste de manobra…`);
+    game.socket.emit(`module.${ID}`, { tipo: "manobra-pedir", reqId, para: userId, dados });
+  });
+}
 
 class MenuAcoes {
   static el = null; // menu flutuante com as ações da categoria escolhida
@@ -2067,23 +2268,26 @@ class MenuAcoes {
   }
 
   /** Cria (ou completa) uma pilha do Item Piles sob o token e tira o item da ficha. Retorna o HTML do resultado. */
-  static async largarItem(alvo, { item, qtd }) {
+  static async largarItem(alvo, { item, qtd }, desloc = { dx: 0, dy: 0 }) {
     const API = game.itempiles?.API;
     const tokenDoc = alvo.doc;
     const cena = tokenDoc.parent ?? canvas.scene;
     const dados = item.toObject();
     delete dados._id;
     const total = Math.max(1, Math.floor(Number(item.system?.qtd ?? 1)) || 1);
+    const tam = Number(cena.grid?.size ?? canvas.grid?.size ?? 100);
+    const px = tokenDoc.x + (Number(desloc?.dx) || 0) * tam;
+    const py = tokenDoc.y + (Number(desloc?.dy) || 0) * tam;
     try {
       const existente = cena.tokens.find(
-        (t) => t.id !== tokenDoc.id && t.x === tokenDoc.x && t.y === tokenDoc.y && API.isValidItemPile?.(t)
+        (t) => t.id !== tokenDoc.id && t.x === px && t.y === py && API.isValidItemPile?.(t)
       );
       if (existente) {
         await API.addItems(existente, [{ item: dados, quantity: qtd }]);
       } else {
         await API.createItemPile({
           sceneId: cena.id,
-          position: { x: tokenDoc.x, y: tokenDoc.y },
+          position: { x: px, y: py },
           items: [{ item: dados, quantity: qtd }],
           tokenOverrides: { sort: (Number(tokenDoc.sort) || 0) - 1 }
         });
@@ -2095,10 +2299,58 @@ class MenuAcoes {
       ui.notifications.error("Não foi possível largar o item (Item Piles). Veja o console (F12).");
       return "";
     }
-    return `<div class="tc-bloco"><div class="tc-linha"><i class="fa-solid fa-hand-holding-hand"></i><span>Larga <b>${esc(item.name)}</b>${qtd > 1 ? ` (×${qtd})` : ""} no chão, sob o token.</span></div></div>`;
+    return `<div class="tc-bloco"><div class="tc-linha"><i class="fa-solid fa-hand-holding-hand"></i><span>Larga <b>${esc(item.name)}</b>${qtd > 1 ? ` (×${qtd})` : ""} no chão${desloc?.dx || desloc?.dy ? ", 1 quadrado ao lado do token" : ", sob o token"}.</span></div></div>`;
   }
 
-  static escolherArma(actor, armas) {
+  /** Janela para escolher qual manobra de combate será feita. Devolve o tópico { t, d } escolhido (ou null). */
+  static escolherManobra(manobras) {
+    const ICONES = { Agarrar: "fa-hand-back-fist", Derrubar: "fa-person-falling", Desarmar: "fa-hand-holding", Empurrar: "fa-arrows-left-right", Quebrar: "fa-hammer" };
+    return new Promise((resolve) => {
+      const ov = document.createElement("div");
+      ov.id = "t20ah-escolha";
+      ov.innerHTML = `
+        <div class="ec-fundo"></div>
+        <div class="ec-janela" style="--cor:#ff6b6b">
+          <header>
+            <i class="fa-solid fa-hand-fist"></i>
+            <div><small>Ação Padrão</small><strong>Manobras de Combate</strong></div>
+            <button type="button" class="ec-x" data-ec="cancelar" title="Cancelar"><i class="fa-solid fa-xmark"></i></button>
+          </header>
+          <p>Escolha a <b>manobra</b>. Em seguida você escolhe o alvo; o teste de manobra (ataque corpo a corpo oposto) é rolado pela ficha.</p>
+          <div class="ec-lista">${manobras
+            .map(
+              (m, i) => `
+            <button type="button" class="ec-arma" data-ec-i="${i}">
+              <i class="fa-solid ${ICONES[m.t] ?? "fa-hand-fist"}" style="font-size:1.6em;width:1.6em;text-align:center"></i>
+              <span class="ec-n">${esc(m.t)}</span>
+              <span class="ec-d">${esc(m.d.length > 90 ? `${m.d.slice(0, 88).trim()}…` : m.d)}</span>
+            </button>`
+            )
+            .join("")}</div>
+          <footer><button type="button" class="ec-cancelar" data-ec="cancelar">Cancelar</button></footer>
+        </div>`;
+      const fim = (v) => {
+        document.removeEventListener("keydown", tecla, true);
+        ov.remove();
+        resolve(v);
+      };
+      const tecla = (ev) => {
+        if (ev.key === "Escape") {
+          ev.stopPropagation();
+          fim(null);
+        }
+      };
+      ov.addEventListener("click", (ev) => {
+        const b = ev.target.closest("[data-ec-i]");
+        if (b) return fim(manobras[Number(b.dataset.ecI)]);
+        if (ev.target.closest("[data-ec]") || ev.target.classList.contains("ec-fundo")) fim(null);
+      });
+      document.addEventListener("keydown", tecla, true);
+      document.body.appendChild(ov);
+    });
+  }
+
+  static escolherArma(actor, armas, { titulo = "Golpe de Misericórdia", sub = "Ação Completa", texto = "", icone = "fa-burst", cor = "#e0b85c" } = {}) {
     return new Promise((resolve) => {
       const ov = document.createElement("div");
       ov.id = "t20ah-escolha";
@@ -2111,13 +2363,13 @@ class MenuAcoes {
       };
       ov.innerHTML = `
         <div class="ec-fundo"></div>
-        <div class="ec-janela" style="--cor:#e0b85c">
+        <div class="ec-janela" style="--cor:${cor}">
           <header>
-            <i class="fa-solid fa-burst"></i>
-            <div><small>Ação Completa</small><strong>Golpe de Misericórdia</strong></div>
+            <i class="fa-solid ${icone}"></i>
+            <div><small>${esc(sub)}</small><strong>${esc(titulo)}</strong></div>
             <button type="button" class="ec-x" data-ec="cancelar" title="Cancelar"><i class="fa-solid fa-xmark"></i></button>
           </header>
-          <p>Escolha a arma corpo a corpo do golpe. O ataque é um <b>20 natural automático</b> (acerto crítico).</p>
+          <p>${texto || "Escolha a arma corpo a corpo do golpe. O ataque é um <b>20 natural automático</b> (acerto crítico)."}</p>
           <div class="ec-lista">${armas
             .map(
               (a, i) => `
@@ -2261,7 +2513,7 @@ class MenuAcoes {
    * Janela para escolher o alvo da finta: criaturas em alcance curto (9 m). O Mestre pode listar todos os tokens da
    * cena; o jogador pode deixar o Mestre escolher. Retorna { tokenDoc } | { mestre: true } | null (cancelou).
    */
-  static escolherAlvoFinta(feinterDoc, { todos = false, gm = game.user.isGM, nomeFeinter = "" } = {}) {
+  static escolherAlvoFinta(feinterDoc, { todos = false, gm = game.user.isGM, nomeFeinter = "", titulo = "Fintar", icone = "fa-masks-theater", texto = "", alcance = ALCANCE_CURTO_M, vazio = "" } = {}) {
     return new Promise((resolve) => {
       let mostrarTodos = todos;
       const fmt = (n) => (Math.round(n * 10) / 10).toString().replace(".", ",");
@@ -2270,7 +2522,7 @@ class MenuAcoes {
       // Mestre: a janela deixa a barra lateral clicável para arrastar um ator da lista de Atores
       if (gm) ov.classList.add("ec-arrastavel");
       const corpo = () => {
-        const lista = tokensParaFinta(feinterDoc, { todos: mostrarTodos });
+        const lista = tokensParaFinta(feinterDoc, { todos: mostrarTodos, alcance });
         ov._lista = lista;
         const itens = lista.length
           ? lista
@@ -2283,18 +2535,18 @@ class MenuAcoes {
             </button>`
               )
               .join("")
-          : `<p class="ec-nota">${mostrarTodos ? "Não há outros tokens na cena." : "Ninguém em alcance curto (9 m)."}</p>`;
+          : `<p class="ec-nota">${mostrarTodos ? "Não há outros tokens na cena." : vazio || "Ninguém em alcance curto (9 m)."}</p>`;
         ov.querySelector(".ec-lista").innerHTML = itens;
       };
       ov.innerHTML = `
         <div class="ec-fundo"></div>
         <div class="ec-janela" style="--cor:#ff6b6b">
           <header>
-            <i class="fa-solid fa-masks-theater"></i>
-            <div><small>${gm && nomeFeinter ? `Finta de ${esc(nomeFeinter)}` : "Ação Padrão"}</small><strong>Fintar</strong></div>
+            <i class="fa-solid ${icone}"></i>
+            <div><small>${gm && nomeFeinter ? `Finta de ${esc(nomeFeinter)}` : "Ação Padrão"}</small><strong>${esc(titulo)}</strong></div>
             <button type="button" class="ec-x" data-ec="cancelar" title="Cancelar"><i class="fa-solid fa-xmark"></i></button>
           </header>
-          <p>${gm && nomeFeinter ? `Escolha <b>quem faz o teste de Reflexos</b> contra a finta de ${esc(nomeFeinter)}.` : "Escolha a criatura em <b>alcance curto</b> (9 m) que será alvo da finta."}</p>
+          <p>${texto || (gm && nomeFeinter ? `Escolha <b>quem faz o teste de Reflexos</b> contra a finta de ${esc(nomeFeinter)}.` : "Escolha a criatura em <b>alcance curto</b> (9 m) que será alvo da finta.")}</p>
           <div class="ec-lista"></div>
           ${gm ? '<div class="ec-drop"><i class="fa-solid fa-user-plus"></i><span>Ou <b>arraste aqui um ator</b> da lista de Atores (ou de um compêndio), mesmo que não esteja em cena.</span></div>' : ""}
           <div class="ec-valor">
@@ -2369,6 +2621,216 @@ class MenuAcoes {
   /**
    * Fintar: teste de Enganação (pela ficha) oposto ao de Reflexos do alvo. Retorna { html, rolls } ou null se foi cancelado.
    */
+  /** Escolha da direção (1 quadrado) para onde o item é empurrado. Devolve { dx, dy, nome } ou null (cancelou). */
+  static escolherDirecao({ titulo = "Empurrar o item", texto = "", cancelar = "Cancelar (o item cai sob o token)" } = {}) {
+    const DIR = [
+      [-1, -1, "fa-arrow-up-left", "noroeste"], [0, -1, "fa-arrow-up", "norte"], [1, -1, "fa-arrow-up-right", "nordeste"],
+      [-1, 0, "fa-arrow-left", "oeste"], [0, 0, "fa-bullseye", "no mesmo lugar"], [1, 0, "fa-arrow-right", "leste"],
+      [-1, 1, "fa-arrow-down-left", "sudoeste"], [0, 1, "fa-arrow-down", "sul"], [1, 1, "fa-arrow-down-right", "sudeste"]
+    ];
+    return new Promise((resolve) => {
+      const ov = document.createElement("div");
+      ov.id = "t20ah-escolha";
+      ov.innerHTML = `
+        <div class="ec-fundo"></div>
+        <div class="ec-janela" style="--cor:#ff6b6b">
+          <header>
+            <i class="fa-solid fa-hand-holding"></i>
+            <div><small>Margem de 5 ou mais</small><strong>${esc(titulo)}</strong></div>
+            <button type="button" class="ec-x" data-ec="cancelar" title="Cancelar"><i class="fa-solid fa-xmark"></i></button>
+          </header>
+          <p>${texto}</p>
+          <div style="display:grid;grid-template-columns:repeat(3,4.2em);gap:0.4em;justify-content:center;margin:0.4em 0">
+            ${DIR.map(([dx, dy, ic, nome], i) => `<button type="button" class="ec-arma" data-ec-i="${i}" title="${esc(nome)}" style="display:flex !important;align-items:center;justify-content:center;grid-template-columns:none;padding:0 !important;height:3.4em;min-width:0"><i class="fa-solid ${ic}" style="font-size:1.4em;width:auto;margin:0;text-align:center"></i></button>`).join("")}
+          </div>
+          <footer><button type="button" class="ec-cancelar" data-ec="cancelar">${esc(cancelar)}</button></footer>
+        </div>`;
+      const fim = (v) => {
+        document.removeEventListener("keydown", tecla, true);
+        ov.remove();
+        resolve(v);
+      };
+      const tecla = (ev) => {
+        if (ev.key === "Escape") {
+          ev.stopPropagation();
+          fim(null);
+        }
+      };
+      ov.addEventListener("click", (ev) => {
+        const b = ev.target.closest("[data-ec-i]");
+        if (b) {
+          const [dx, dy, , nome] = DIR[Number(b.dataset.ecI)];
+          return fim({ dx, dy, nome });
+        }
+        if (ev.target.closest("[data-ec]") || ev.target.classList.contains("ec-fundo")) fim(null);
+      });
+      document.addEventListener("keydown", tecla, true);
+      document.body.appendChild(ov);
+    });
+  }
+
+  /** Empurrar bem-sucedido: 1,5 m (1 quadrado) + 1,5 m a cada 5 pontos de diferença; o atacante escolhe a direção. */
+  static async empurrarAlvo(m, r, margem, { n: nFixo = null, titulo = "Empurrar", motivo = "é empurrado até", diagonalNormal = false } = {}) {
+    const n = nFixo ?? 1 + Math.floor(margem / 5);
+    const fmt = (v) => String(Math.round(v * 10) / 10).replace(".", ",");
+    const dist = `${fmt(n * 1.5)} m (${n} ${n === 1 ? "quadrado" : "quadrados"})`;
+    const tokenDoc = m.sel?.tokenDoc;
+    if (!tokenDoc) return `<b>${esc(r.nomeAlvo)}</b> é empurrado <b>${dist}</b> (o Mestre posiciona o token).`;
+    const dir = await this.escolherDirecao({
+      titulo,
+      cancelar: "Cancelar (não mover o token)",
+      texto: `Você venceu por <b>${margem}</b>: <b>${esc(tokenDoc.name)}</b> ${motivo} <b>${dist}</b>. Escolha a direção${diagonalNormal ? " (qualquer uma, inclusive diagonal)" : ". Na <b>diagonal</b> cada quadrado custa o dobro"}. O empurrão para em paredes e em outros tokens.`
+    });
+    if (!dir || (!dir.dx && !dir.dy)) return `<b>${esc(r.nomeAlvo)}</b> é empurrado <b>${dist}</b> (o token não foi movido).`;
+    const plano = planejarEmpurrao(tokenDoc, dir.dx, dir.dy, n, diagonalNormal);
+    if (!plano.passos) {
+      return dir.dx && dir.dy && n < 2 && !diagonalNormal
+        ? `<b>${esc(r.nomeAlvo)}</b> não é movido: na diagonal cada quadrado custa o dobro e o empurrão só alcança ${dist}.`
+        : `<b>${esc(r.nomeAlvo)}</b> seria empurrado <b>${dist}</b> a ${dir.nome}, mas o caminho está bloqueado.`;
+    }
+    try {
+      if (!game.user.isGM && game.settings.get(ID, "empurrarComAprovacao")) {
+        if (!game.users.activeGM) return `<b>${esc(r.nomeAlvo)}</b> seria empurrado <b>${fmt(plano.custo * 1.5)} m</b> a ${dir.nome}. Sem Mestre conectado para aprovar: mova o token manualmente.`;
+        const ok = await pedirAprovacaoEmpurrao({ tokenUuid: tokenDoc.uuid, x: plano.x, y: plano.y, quem: m.nomeAtacante ?? "Alguém", alvo: tokenDoc.name, dir: dir.nome, metros: fmt(plano.custo * 1.5) });
+        if (!ok) return `<b>${esc(r.nomeAlvo)}</b> seria empurrado <b>${fmt(plano.custo * 1.5)} m</b> a ${dir.nome}, mas o Mestre não permitiu o empurrão.`;
+      } else if (tokenDoc.canUserModify(game.user, "update")) await tokenDoc.update({ x: plano.x, y: plano.y }, { animate: true });
+      else if (game.users.activeGM) game.socket.emit(`module.${ID}`, { tipo: "empurrar-mover", tokenUuid: tokenDoc.uuid, x: plano.x, y: plano.y });
+      else return `<b>${esc(r.nomeAlvo)}</b> é empurrado <b>${fmt(plano.custo * 1.5)} m</b> a ${dir.nome}. Sem Mestre conectado: mova o token manualmente.`;
+    } catch (err) {
+      console.error(`${ID} | não foi possível mover o token empurrado`, err);
+      return `<b>${esc(r.nomeAlvo)}</b> é empurrado <b>${fmt(plano.custo * 1.5)} m</b> a ${dir.nome}. Não consegui mover o token: faça-o manualmente.`;
+    }
+    const parou = plano.custo < n ? ` (usou ${fmt(plano.custo * 1.5)} m dos ${fmt(n * 1.5)} m: ${dir.dx && dir.dy && !diagonalNormal ? "na diagonal cada quadrado custa o dobro, ou o caminho está bloqueado" : "caminho bloqueado"})` : "";
+    return `<b>${esc(r.nomeAlvo)}</b> é empurrado <b>${fmt(plano.custo * 1.5)} m</b> a ${dir.nome}${parou}. Você pode gastar uma ação de movimento para avançar junto (até o seu deslocamento).`;
+  }
+
+  /** Quebrar bem-sucedido: rola o dano da arma do atacante contra o item e mostra o resultado (com RD/PV do item, se a ficha tiver). */
+  static async quebrarItem(m, r) {
+    const item = m.itemAlvo;
+    const nomeItem = item ? `<b>${esc(item.name)}</b>` : "o item";
+    const base = `Você atinge ${nomeItem} de <b>${esc(r.nomeAlvo)}</b>`;
+    const arma = m.armaAtq;
+    if (!arma) return `${base}: sem arma, o Mestre define o dano ao item.`;
+    let total = null;
+    try {
+      const copia = arma.clone({}, { keepId: true });
+      if (Number(game.release?.generation) >= 14 && typeof copia.prepareFinalAttributes === "function") copia.prepareFinalAttributes();
+      copia.system.rolled = {};
+      await copia.rollDamage({ options: { critical: false } });
+      const lista = Object.values(copia.system.rolled ?? {}).filter((x) => Number.isFinite(Number(x?.total)));
+      const dano = lista.find((x) => x?.options?.type === "damage") ?? lista[lista.length - 1];
+      if (dano) {
+        total = Number(dano.total);
+        try { await dano.toMessage({ speaker: ChatMessage.getSpeaker({ actor: arma.actor }), flavor: `Quebrar · dano em ${item?.name ?? "item"}` }); } catch (err) { /* sem chat */ }
+      }
+    } catch (err) {
+      console.warn(`${ID} | não foi possível rolar o dano de Quebrar`, err);
+    }
+    if (total === null) return `${base}: role o dano da arma contra o item.`;
+    const s = item?.system ?? {};
+    const rd = Number(s.rd?.value ?? s.rd ?? s.reducaoDano);
+    const pvObj = s.pv && typeof s.pv === "object" ? s.pv : null;
+    const final = Number.isFinite(rd) && rd > 0 ? Math.max(0, total - rd) : total;
+    const rdTxt = Number.isFinite(rd) && rd > 0 ? ` (RD ${rd} do item: <b>${final}</b>)` : "";
+    const pvTxt = pvObj && Number.isFinite(Number(pvObj.value)) ? ` PV do item: ${pvObj.value}${Number.isFinite(Number(pvObj.max)) ? `/${pvObj.max}` : ""}.` : "";
+    return `${base} causando <b>${total}</b> de dano${rdTxt}.${pvTxt} Aplique ao item conforme o material (RD e PV).`;
+  }
+
+  /** Desarmar bem-sucedido: o item escolhido cai no chão sob o token (Item Piles, pelo Mestre) ou só é anunciado no chat. */
+  static async desarmarItem(m, r, margem) {
+    const item = m.itemAlvo;
+    const empurra = margem >= 5;
+    if (!item) return `<b>${esc(r.nomeAlvo)}</b> é desarmado${m.sel?.mestre ? " (o Mestre define o item)" : " (não tem item equipado)"}.${empurra ? " Venceu por 5 ou mais: o item também é empurrado 1 quadrado, à sua escolha." : ""}`;
+    const tokenDoc = m.sel.tokenDoc;
+    // margem de 5 ou mais: o item é empurrado 1 quadrado numa direção à escolha de quem desarmou
+    let dir = { dx: 0, dy: 0, nome: "" };
+    if (empurra) {
+      const e = await this.escolherDirecao({ texto: `Você venceu por <b>${margem}</b>: <b>${esc(item.name)}</b> é empurrado <b>1 quadrado</b> a partir de ${esc(tokenDoc.name)}. Escolha a direção.` });
+      if (e) dir = e;
+    }
+    const extras = (m.itensExtra ?? []).filter(Boolean);
+    const todos = [item, ...extras];
+    const nomes = todos.map((i) => i.name).join(" e ");
+    const onde = dir.dx || dir.dy ? `1 quadrado a ${dir.nome} de ${esc(tokenDoc.name)}` : "sob o token";
+    if (game.modules.get("item-piles")?.active && game.itempiles?.API) {
+      if (game.user.isGM) { for (const it of todos) await this.largarItem({ actor: tokenDoc.actor, doc: tokenDoc }, { item: it, qtd: 1 }, dir); }
+      else if (game.users.activeGM) game.socket.emit(`module.${ID}`, { tipo: "desarmar-largar", itemUuid: item.uuid, itemUuids: todos.map((i) => i.uuid), tokenUuid: tokenDoc.uuid, dx: dir.dx, dy: dir.dy });
+      else return `<b>${esc(r.nomeAlvo)}</b> foi desarmado de <b>${esc(nomes)}</b>${dir.dx || dir.dy ? ` (empurrado 1 quadrado a ${dir.nome})` : ""}. Sem Mestre conectado, não há como colocar o item no chão.`;
+      return `<b>${esc(r.nomeAlvo)}</b> é desarmado: <b>${esc(nomes)}</b> ${todos.length > 1 ? "caem" : "cai"} no chão, ${onde}.`;
+    }
+    ui.notifications.warn("O módulo Item Piles não está ativo: não há como colocar o item desarmado no chão.");
+    return `<b>${esc(r.nomeAlvo)}</b> foi desarmado de <b>${esc(nomes)}</b>${dir.dx || dir.dy ? `, que é empurrado 1 quadrado a ${dir.nome}` : ""}. <em>(Não há como colocar o item no chão: o módulo Item Piles não está ativo.)</em>`;
+  }
+
+  /** Teste de manobra: o atacante rola; o dono do alvo (ou o Mestre) escolhe a arma e rola; maior total vence (empate: maior bônus). */
+  static async manobraTestes(alvo, m) {
+    const nome = alvo.doc.name ?? alvo.actor.name;
+    m.nomeAtacante = nome;
+    const meu = await rolarTesteManobra(alvo.actor, m.armaAtq, `${nome} · ${m.escolhida.t}`);
+    if (!meu) return null;
+    const eu = dadosDoTeste(meu);
+    const sel = m.sel;
+    const dados = {
+      tokenUuid: sel.tokenDoc?.uuid ?? null,
+      escolher: !!sel.mestre,
+      atacanteTokenUuid: alvo.doc.uuid,
+      nomeAtacante: nome,
+      manobra: m.escolhida.t,
+      meuTotal: eu.total,
+      meuBonus: eu.bonus
+    };
+    const ator = sel.tokenDoc?.actor ?? null;
+    const quem = sel.mestre ? game.users.activeGM : usuarioDoAlvo(ator);
+    if (!quem) {
+      ui.notifications.warn("Não há ninguém conectado para fazer o teste de manobra do alvo.");
+      return null;
+    }
+    const r = quem.id === game.user.id ? await resolverManobraAlvo(dados) : await pedirManobraA(quem.id, dados);
+    if (!r || r.cancelado) return null;
+
+    const dif = eu.total - r.total;
+    let venceu = null; // true | false | null (empate)
+    if (dif > 0) venceu = true;
+    else if (dif < 0) venceu = false;
+    else if (eu.bonus !== null && r.bonus !== null && eu.bonus !== r.bonus) venceu = eu.bonus > r.bonus;
+    const margem = Math.abs(dif);
+    const fmt = (n) => String(Math.round(n * 10) / 10).replace(".", ",");
+    const linhas = [
+      `<div class="tc-linha"><i class="fa-solid fa-dice-d20"></i><span><b>${esc(nome)}</b> (${esc(eu.nomeTeste)}): ${eu.nat !== null ? `<b class="tc-dado">${eu.nat}</b> ` : ""}<small>(total</small> <b>${eu.total}</b><small>)</small></span></div>`,
+      `<div class="tc-linha"><i class="fa-solid fa-shield-halved"></i><span><b>${esc(r.nomeAlvo)}</b> (${esc(r.nomeTeste)}): ${r.nat !== null && r.nat !== undefined ? `<b class="tc-dado">${r.nat}</b> ` : ""}<small>(total</small> <b>${r.total}</b><small>)</small></span></div>`,
+      `<div class="tc-vereditos"><div class="tc-vd ${venceu === true ? "vive" : venceu === false ? "morre" : ""}"><em>${esc(m.escolhida.t)} ${eu.total} × ${r.total}</em><b><i class="fa-solid ${venceu === true ? "fa-hand-fist" : venceu === false ? "fa-ban" : "fa-scale-balanced"}"></i> ${venceu === true ? "SUCESSO" : venceu === false ? "FALHOU" : "EMPATE"}</b></div></div>`
+    ];
+    if (venceu === true) {
+      const efeitoDesarmar = m.escolhida.t === "Desarmar" ? await this.desarmarItem(m, r, margem) : null;
+      const efeitoDerrubar = m.escolhida.t === "Derrubar" && margem >= 5 ? await this.empurrarAlvo(m, r, margem, { n: 1, titulo: "Derrubar", motivo: "também é empurrado", diagonalNormal: true }) : null;
+      const efeitoEmpurrar = m.escolhida.t === "Empurrar" ? await this.empurrarAlvo(m, r, margem) : null;
+      const efeito = {
+        Agarrar: {
+          aplicada: `<b>${esc(r.nomeAlvo)}</b> recebe a condição <b>Agarrado</b> (desprevenido, imóvel e –2 nos ataques).`,
+          ja: `<b>${esc(r.nomeAlvo)}</b> já estava <b>agarrado</b>.`,
+          inexistente: `A condição Agarrado não foi encontrada no sistema: aplique-a em <b>${esc(r.nomeAlvo)}</b> manualmente (desprevenido, imóvel e –2 nos ataques).`,
+          erro: `Sem permissão para aplicar a condição: aplique Agarrado em <b>${esc(r.nomeAlvo)}</b> manualmente.`
+        }[r.condicao] ?? `<b>${esc(r.nomeAlvo)}</b> fica <b>agarrado</b> (desprevenido, imóvel e –2 nos ataques).`,
+        Derrubar: [
+          {
+            aplicada: `<b>${esc(r.nomeAlvo)}</b> fica <b>caído</b>.`,
+            ja: `<b>${esc(r.nomeAlvo)}</b> já estava <b>caído</b>.`,
+            inexistente: `A condição Caído não foi encontrada no sistema: aplique-a em <b>${esc(r.nomeAlvo)}</b> manualmente.`,
+            erro: `Sem permissão para aplicar a condição: aplique Caído em <b>${esc(r.nomeAlvo)}</b> manualmente.`
+          }[r.condicao] ?? `<b>${esc(r.nomeAlvo)}</b> fica <b>caído</b>.`,
+          efeitoDerrubar
+        ].filter(Boolean).join("<br>"),
+        Desarmar: efeitoDesarmar,
+        Empurrar: efeitoEmpurrar,
+        Quebrar: await this.quebrarItem(m, r)
+      }[m.escolhida.t];
+      if (efeito) linhas.push(`<div class="tc-linha"><i class="fa-solid fa-crosshairs"></i><span>${efeito}</span></div>`);
+    } else if (venceu === null) {
+      linhas.push(`<div class="tc-nota">Empate nos totais e nos bônus: os dois rolam de novo.</div>`);
+    }
+    return { html: `<div class="tc-bloco">${linhas.join("")}</div>`, nomeAlvo: r.nomeAlvo };
+  }
+
   static async fintar(alvo, escolha, chave) {
     const actor = alvo.actor;
     const nome = alvo.doc.name ?? actor.name;
@@ -2770,6 +3232,60 @@ class MenuAcoes {
       });
       if (!periciaFinta) return;
     }
+    let manobra = null; // { escolhida, alvoNome }
+    if (acao.especial === "manobra") {
+      const escolhida = await this.escolherManobra(acao.topicos ?? []);
+      if (!escolhida) return; // cancelou: nada é gasto
+      const marcados = [...(game.user.targets ?? [])];
+      let sel;
+      if (marcados.length === 1 && marcados[0].actor) sel = { tokenDoc: marcados[0].document };
+      else {
+        sel = await this.escolherAlvoFinta(alvo.doc, {
+          titulo: escolhida.t,
+          icone: "fa-hand-fist",
+          alcance: 3,
+          texto: `Escolha a criatura <b>adjacente</b> alvo da manobra <b>${esc(escolhida.t)}</b>.`,
+          vazio: "Ninguém adjacente. (O Mestre pode mostrar todos os tokens da cena.)"
+        });
+      }
+      if (!sel) return; // cancelou: nada é gasto
+      const armas = armasCorpoACorpo(alvo.actor);
+      let armaAtq = null;
+      if (armas.length) {
+        armaAtq = await this.escolherArma(alvo.actor, armas, {
+          titulo: escolhida.t,
+          sub: "Manobra de Combate · teste de ataque",
+          cor: "#ff6b6b",
+          icone: "fa-hand-fist",
+          texto: "Escolha a <b>arma corpo a corpo</b> do teste de manobra (sem arma, o teste é de <b>Luta</b>)."
+        });
+        if (!armaAtq) return; // cancelou: nada é gasto
+      } else {
+        ui.notifications.info(`${nome} não tem arma corpo a corpo equipada: o teste de manobra é de Luta.`);
+      }
+      let itemAlvo = null;
+      let itensExtra = [];
+      if (["Desarmar", "Quebrar"].includes(escolhida.t) && sel.tokenDoc?.actor) {
+        const quebrar = escolhida.t === "Quebrar";
+        const equipados = sel.tokenDoc.actor.items.filter((i) => (["arma", "ferramenta"].includes(normalizar(i.type)) || ehEscudo(i) || (quebrar && normalizar(i.type) === "equipamento")) && estaEquipada(i));
+        if (equipados.length) {
+          itemAlvo = await this.escolherArma(sel.tokenDoc.actor, equipados, {
+            titulo: escolhida.t,
+            sub: `Item de ${sel.tokenDoc.name}`,
+          cor: "#ff6b6b",
+            icone: "fa-hand-holding",
+            texto: quebrar ? `Escolha qual <b>item empunhado ou vestido</b> de ${esc(sel.tokenDoc.name)} você tenta quebrar.` : `Escolha qual <b>item equipado</b> de ${esc(sel.tokenDoc.name)} você tenta derrubar.`
+          });
+          if (!itemAlvo) return; // cancelou: nada é gasto
+          // escudo: cai junto com a arma correspondente (ex.: o ataque com escudo)
+          if (!quebrar && ehEscudo(itemAlvo)) {
+            const nomeEsc = normalizar(itemAlvo.name);
+            itensExtra = equipados.filter((i) => i !== itemAlvo && normalizar(i.type) === "arma" && (/escudo/.test(normalizar(i.name)) || normalizar(i.name) === nomeEsc));
+          }
+        }
+      }
+      manobra = { escolhida, sel, armaAtq, itemAlvo, itensExtra, alvoNome: sel.mestre ? "a definir pelo Mestre" : sel.tokenDoc?.name ?? "alvo" };
+    }
     let atraso = null;
     if (acao.especial === "atrasar") {
       const combat = game.combat;
@@ -2780,13 +3296,18 @@ class MenuAcoes {
     }
     let largar = null;
     if (acao.especial === "largar") {
-      if (!game.modules.get("item-piles")?.active || !game.itempiles?.API) return ui.notifications.warn("Largar um item cria um token pelo módulo Item Piles, que não está ativo.");
+      const semPiles = !game.modules.get("item-piles")?.active || !game.itempiles?.API;
+      if (semPiles) {
+        ui.notifications.warn("O módulo Item Piles não está ativo: não há como colocar o item no chão. A ação é usada normalmente.");
+        largar = { semPiles: true };
+      } else {
       if (!alvo.doc?.parent) return ui.notifications.warn("O token precisa estar em uma cena.");
       const TIPOS = ["arma", "equipamento", "consumivel", "tesouro", "ferramenta"];
       const itens = alvo.actor.items.filter((i) => TIPOS.includes(normalizar(i.type)));
       if (!itens.length) return ui.notifications.warn(`${nome} não tem itens para largar.`);
       largar = await this.escolherItemLargar(alvo.actor, itens);
       if (!largar) return;
+      }
     }
     let periciaCorrida = null;
     if (acao.especial === "corrida") {
@@ -2839,6 +3360,24 @@ class MenuAcoes {
         ui.notifications.error("Não foi possível concluir a Finta. Veja o console (F12).");
       }
     }
+    if (manobra) {
+      try {
+        const r = await this.manobraTestes(alvo, manobra);
+        if (!r) {
+          if (gastar && alvo.c && estadoAntes) {
+            ESTADO_RECENTE.delete(alvo.c.id);
+            await alvo.c.setFlag(ID, FLAG, estadoAntes);
+          }
+          ui.notifications.warn("Manobra cancelada: o teste não foi concluído e a ação padrão foi devolvida.");
+          return;
+        }
+        extra += r.html;
+        manobra.alvoNome = r.nomeAlvo ?? manobra.alvoNome;
+      } catch (err) {
+        console.error(`${ID} | erro na manobra`, err);
+        ui.notifications.error("Não foi possível concluir a manobra. Veja o console (F12).");
+      }
+    }
     if (acao.especial === "corrida") {
       try {
         const r = await this.corrida(alvo, periciaCorrida);
@@ -2863,7 +3402,8 @@ class MenuAcoes {
         ui.notifications.error("Não foi possível concluir a Corrida. Veja o console (F12).");
       }
     }
-    if (largar) extra += await this.largarItem(alvo, largar);
+    if (largar?.semPiles) extra += `<div class="tc-nota">Não há como colocar o item no chão: o módulo Item Piles não está ativo.</div>`;
+    else if (largar) extra += await this.largarItem(alvo, largar);
     if (acao.especial === "investida") {
       const r = this.investida(alvo);
       extra += r.html;
@@ -2901,7 +3441,12 @@ class MenuAcoes {
         const fmt = (n) => (Math.round(n * 100) / 100).toString().replace(".", ",");
         extra += `<div class="tc-bloco"><div class="tc-linha"><i class="fa-solid fa-hourglass-half"></i><span>Atrasa a ação ${esc(atraso.rotulo)}. Iniciativa <b>${fmt(de)}</b> → <b>${fmt(atraso.nova)}</b> pelo resto do combate.</span></div></div>`;
       }
-      if (game.settings.get(ID, "cardAcoes")) await this.enviarCard(alvo, cat, acao, custo, restam, extra, rolls);
+      if (manobra) {
+        // o card traz a regra geral e só o texto da manobra escolhida (sem a lista das outras)
+        const geral = acao.desc.replace(/\s*Estas são as manobras que você pode fazer\.?/, "");
+        const so = { ...acao, desc: geral, topicos: [manobra.escolhida] };
+        if (game.settings.get(ID, "cardAcoes")) await this.enviarCard(alvo, cat, so, custo, restam, extra, rolls);
+      } else if (game.settings.get(ID, "cardAcoes")) await this.enviarCard(alvo, cat, acao, custo, restam, extra, rolls);
     }
     if (atraso) {
       try {
@@ -3117,6 +3662,23 @@ Hooks.once("init", () => {
     default: true,
     onChange: () => { aplicarEstiloChat(); ui.chat?.render?.(true); }
   });
+  game.settings.register(ID, "empurrarComAprovacao", {
+    name: "Mestre aprova o empurrão antes de mover o token",
+    hint: "Na manobra Empurrar, quando um jogador vence, o Mestre vê um aviso (quem empurra, quem é empurrado, direção e distância) e decide se o token é movido. Desligado, o token é movido direto.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: false
+  });
+  game.settings.register(ID, "resultadoParaJogadores", {
+    name: "Mostrar acerto e erro dos ataques aos jogadores",
+    hint: "As marcas de acerto, erro, crítico e desastre (contra a Defesa do alvo) aparecem só para o Mestre. Ative para os jogadores também as verem.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: false,
+    onChange: () => ui.chat?.render?.(true)
+  });
   game.settings.register(ID, "corFichaChat", {
     name: "Usar a cor da ficha no chat",
     hint: "O chat usa a cor configurada na ficha do Hayd UI (botão Cor da Ficha; vale a cor do chat, se houver). Sem ela, usa a cor do anel do token e, por fim, a do jogador. Útil quando um jogador tem várias fichas.",
@@ -3323,7 +3885,7 @@ Hooks.once("init", () => {
 /* ---------- Organização da janela de configurações ---------- */
 
 const GRUPOS_CONFIG = [
-  ["Chat e cards", "fa-comments", ["estiloChat", "estiloChatLocal", "corFichaChat", "animarDanoTodos", "cardAcoes", "anunciarChat", "condicoesPopup"]],
+  ["Chat e cards", "fa-comments", ["estiloChat", "estiloChatLocal", "corFichaChat", "resultadoParaJogadores", "animarDanoTodos", "cardAcoes", "anunciarChat", "condicoesPopup"]],
   ["HUD", "fa-id-card", ["mostrarGM", "imagem", "layoutCombate", "menuAcoes", "escala"]],
   ["Combate e regras", "fa-swords", ["limitarMovimento", "gastoMovimentoMestre", "bloquearForaDoTurno", "gastarPorItem", "deslocamentoPadrao", "metrosPorQuadrado", "regrasParaMestre"]],
   ["Tempo do turno e som", "fa-hourglass-half", ["tempoMaximo", "passarAoFim", "somArquivo", "somVolume", "somQuemOuve"]],
@@ -3369,11 +3931,70 @@ Hooks.once("ready", () => {
   const mod = game.modules.get(ID);
   if (mod) mod.api = Object.assign(mod.api ?? {}, { gastarPorItem: (item) => AcoesHUD.aoUsarItem(item), tipoDeAcao });
   AcoesHUD.render();
-  setInterval(() => AcoesHUD.tick(), 250);
+  setInterval(() => { if (!document.hidden) AcoesHUD.tick(); }, 500);
 
   // Jogador sem permissão para avançar o combate pede ao Mestre
   if (game.combat?.started) ULTIMO_TURNO.set(game.combat.id, { round: game.combat.round, combatantId: game.combat.combatant?.id });
   game.socket.on(`module.${ID}`, async (data, userId) => {
+    if (data?.tipo === "empurrar-pedir") {
+      if (!game.user.isActiveGM) return;
+      const d = data.dados ?? {};
+      let ok = false;
+      try {
+        ok = await foundry.applications.api.DialogV2.confirm({
+          window: { title: "Empurrar: aprovar?" },
+          content: `<p><b>${esc(d.quem)}</b> venceu a manobra e quer empurrar <b>${esc(d.alvo)}</b> <b>${esc(d.metros)} m</b> a ${esc(d.dir)}.</p><p>Permitir e mover o token?</p>`,
+          yes: { label: "Permitir" },
+          no: { label: "Negar" },
+          rejectClose: false
+        });
+        if (ok) {
+          const tokenDoc = await fromUuid(d.tokenUuid);
+          if (tokenDoc) await tokenDoc.update({ x: Number(d.x), y: Number(d.y) }, { animate: true });
+          else ok = false;
+        }
+      } catch (err) {
+        console.error(`${ID} | erro ao aprovar o empurrão`, err);
+        ok = false;
+      }
+      game.socket.emit(`module.${ID}`, { tipo: "finta-resposta", reqId: data.reqId, para: userId, resultado: { ok: !!ok } });
+      return;
+    }
+    if (data?.tipo === "empurrar-mover") {
+      if (!game.user.isActiveGM) return;
+      try {
+        const tokenDoc = await fromUuid(data.tokenUuid);
+        if (tokenDoc) await tokenDoc.update({ x: Number(data.x), y: Number(data.y) }, { animate: true });
+      } catch (err) {
+        console.error(`${ID} | não foi possível mover o token empurrado`, err);
+      }
+      return;
+    }
+    if (data?.tipo === "desarmar-largar") {
+      if (!game.user.isActiveGM) return;
+      try {
+        const tokenDoc = await fromUuid(data.tokenUuid);
+        for (const u of data.itemUuids ?? [data.itemUuid]) {
+          const item = await fromUuid(u);
+          if (item && tokenDoc?.actor) await MenuAcoes.largarItem({ actor: tokenDoc.actor, doc: tokenDoc }, { item, qtd: 1 }, { dx: Number(data.dx) || 0, dy: Number(data.dy) || 0 });
+        }
+      } catch (err) {
+        console.error(`${ID} | não foi possível largar o item desarmado`, err);
+      }
+      return;
+    }
+    if (data?.tipo === "manobra-pedir") {
+      if (data.para !== game.user.id) return;
+      let resultado;
+      try {
+        resultado = await resolverManobraAlvo(data.dados);
+      } catch (err) {
+        console.error(`${ID} | erro no teste de manobra`, err);
+        resultado = { cancelado: true };
+      }
+      game.socket.emit(`module.${ID}`, { tipo: "finta-resposta", reqId: data.reqId, para: userId, resultado });
+      return;
+    }
     if (data?.tipo === "finta-resposta") {
       if (data.para === game.user.id) PEDIDOS.get(data.reqId)?.(data.resultado);
       return;
@@ -4156,8 +4777,78 @@ const hookChat = {
   on(hook, fn, sempre = false) { filaChat.push([hook, comPorteiro(fn, sempre)]); },
   primeiro(hook, fn) { filaChat.unshift([hook, comPorteiro(fn, false)]); }
 };
+// Abrir o chat redesenha todas as mensagens, e cada uma passa por ~20 ajustes: tudo de uma vez trava a tela. Mensagens recentes
+// (últimos 20 s) são ajustadas na hora; as antigas entram numa pilha processada em pedaços nos tempos livres do navegador,
+// da mais nova para a mais antiga (as que estão à vista primeiro). Todos os ajustes de uma mensagem rodam juntos e na mesma ordem.
+const PILHA_CHAT = [];
+const JOBS_CHAT = new WeakMap();
+let PILHA_ATIVA = false;
+let PILHA_NO_FIM = false;
+function rolarAoFim() {
+  try { ui.chat?.scrollBottom?.({ waitImages: false }); } catch (err) { /* sem rolagem */ }
+}
+function processarPilhaChat() {
+  if (PILHA_ATIVA) return;
+  PILHA_ATIVA = true;
+  const log = document.querySelector("#chat .chat-scroll, #chat-log, #chat .chat-log");
+  PILHA_NO_FIM = !log || log.scrollTop + log.clientHeight >= log.scrollHeight - 60;
+  const ocioso = window.requestIdleCallback ?? ((f) => setTimeout(() => f({ timeRemaining: () => 8 }), 16));
+  const passo = (limite) => {
+    do {
+      const job = PILHA_CHAT.pop();
+      if (!job) break;
+      for (const f of job) {
+        try { f(); } catch (err) { console.warn(`${ID} | ajuste do chat`, err); }
+      }
+      marcarTipos(job.el);
+    } while (PILHA_CHAT.length && limite.timeRemaining() > 3);
+    if (PILHA_CHAT.length) ocioso(passo, { timeout: 250 });
+    else {
+      PILHA_ATIVA = false;
+      if (PILHA_NO_FIM) rolarAoFim();
+    }
+  };
+  ocioso(passo, { timeout: 250 });
+}
+// Classes que dizem o que a mensagem contém (no lugar de :has() no CSS, que obriga o navegador a olhar dentro de cada mensagem)
+const MARCADAS_CHAT = new WeakSet();
+function marcarTipos(el) {
+  if (!el?.classList) return;
+  const t = (classe, seletor) => el.classList.toggle(classe, !!el.querySelector(seletor));
+  t("t20ah-m-chat", ".t20ah-chat");
+  t("t20ah-m-card", ".chat-card");
+  t("t20ah-m-cardroll", ".chat-card, .dice-roll");
+  t("t20ah-m-item", ".t20ah-item");
+  t("t20ah-m-sustain", ".t20-sustain-prompt");
+}
+function despacharChat(fn, message, html, resto) {
+  const el = html?.[0] ?? html;
+  const antiga = Date.now() - Number(message?.timestamp ?? Date.now()) > 20000;
+  if (!antiga || !(el instanceof Element)) {
+    // mensagem recente: os ajustes rodam agora e as classes são marcadas assim que todos terminarem
+    if (el instanceof Element && !MARCADAS_CHAT.has(el)) {
+      MARCADAS_CHAT.add(el);
+      queueMicrotask(() => marcarTipos(el));
+    }
+    return fn(message, html, ...resto);
+  }
+  let job = JOBS_CHAT.get(el);
+  if (!job) {
+    job = [];
+    job.el = el;
+    JOBS_CHAT.set(el, job);
+    PILHA_CHAT.push(job);
+    processarPilhaChat();
+  }
+  job.push(() => fn(message, html, ...resto));
+}
 Hooks.once("setup", () => {
-  for (const [hook, fn] of filaChat) Hooks.on(hook, fn);
+  // no Foundry v13+ o "renderChatMessage" antigo dispara junto com o "renderChatMessageHTML": registrar os dois dobrava o trabalho
+  const so_html = Number(game.release?.generation ?? 0) >= 13;
+  for (const [hook, fn] of filaChat) {
+    if (so_html && hook === "renderChatMessage") continue;
+    Hooks.on(hook, (message, html, ...resto) => despacharChat(fn, message, html, resto));
+  }
   filaChat.length = 0;
 });
 
@@ -4480,7 +5171,13 @@ let CONDICOES_CACHE = null;
 const semAcento = (t) => String(t ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const htmlSeguro = (h) => String(h ?? "").replace(/<script[\s\S]*?<\/script>/gi, "").replace(/\son\w+="[^"]*"/gi, "");
 
-async function carregarCondicoes() {
+// Uma única carga para todas as mensagens (antes, cada mensagem do chat disparava a sua própria leitura dos compêndios ao mesmo tempo)
+let CONDICOES_PROMESSA = null;
+function carregarCondicoes() {
+  CONDICOES_PROMESSA ??= montarCondicoes().catch((err) => { CONDICOES_PROMESSA = null; throw err; });
+  return CONDICOES_PROMESSA;
+}
+async function montarCondicoes() {
   if (CONDICOES_CACHE) return CONDICOES_CACHE;
   const lista = new Map();
   const adicionar = (nome, img, desc, tipo = "") => {
@@ -4562,6 +5259,10 @@ async function ligarCondicoes(container) {
   for (const raiz of alvos) {
     if (raiz.dataset.t20ahCondLink) continue;
     raiz.dataset.t20ahCondLink = "1";
+    // sem nenhuma condição no texto (e sem links de diário): nada a fazer neste bloco
+    dados.todas.lastIndex = 0;
+    if (!dados.todas.test(semAcento(raiz.textContent)) && !raiz.querySelector("a.content-link")) continue;
+    dados.todas.lastIndex = 0;
     // dentro do card de uma condição, o nome dela mesma não vira destaque (o card já fala dela)
     const proprio = semAcento(raiz.closest(".t20ah-cond")?.querySelector(".cd-titulo")?.textContent ?? "").trim();
     // links de diário que o sistema já coloca na descrição (ex.: "Esmorecido", "Lento"): ganham o pop-up no lugar da dica "Text Page"
@@ -4583,7 +5284,8 @@ async function ligarCondicoes(container) {
     while (walker.nextNode()) nos.push(walker.currentNode);
     for (const no of nos) {
       const texto = no.textContent;
-      const norm = [...texto].map((c) => c.normalize("NFD")[0].toLowerCase()).join("");
+      if (texto.length < 4 || !/[a-zà-ÿ]{4}/i.test(texto)) continue;
+      const norm = texto.replace(/[\u00c0-\u024f]/g, (c) => c.normalize("NFD")[0]).toLowerCase();
       if (norm.length !== texto.length) continue;
       dados.todas.lastIndex = 0;
       const frag = document.createDocumentFragment();
@@ -4736,6 +5438,11 @@ function abrirPopupCondicao(alvo) {
 let ULTIMO_LINK_COND = null;
 let AGUARDA_COND = false;
 document.addEventListener("pointermove", (ev) => {
+  // só importa quando o mouse está sobre o chat, um card ou o próprio pop-up: no resto da tela não custa nada
+  if (!ev.target?.closest?.("#chat, .chat-popout, .t20ah-card, #t20ah-cond-pop, .chat-message")) {
+    if (ULTIMO_LINK_COND) { ULTIMO_LINK_COND = null; fecharPopupCondicao(); }
+    return;
+  }
   if (AGUARDA_COND) return;
   AGUARDA_COND = true;
   const { clientX: x, clientY: y, target } = ev;
@@ -4805,8 +5512,9 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
     aplicar();
     // outros módulos podem acrescentar seus avisos depois: observa por alguns segundos
     if (card._t20ahExtrasObs) return;
-    const obs = new MutationObserver(() => aplicar());
-    obs.observe(card, { childList: true, subtree: true });
+    const opcoes = { childList: true, subtree: true };
+    const obs = new MutationObserver(() => { obs.disconnect(); aplicar(); obs.observe(card, opcoes); });
+    obs.observe(card, opcoes);
     card._t20ahExtrasObs = obs;
     setTimeout(() => obs.disconnect(), 6000);
   });
@@ -4827,6 +5535,50 @@ function marcarNatural(roll) {
   }
   if (nat) total.dataset.nat = nat;
   else delete total.dataset.nat;
+  embrulharCritico(total);
+}
+// acerto crítico: o valor vai num <span> para poder pulsar sem mexer no tamanho da caixa
+function embrulharCritico(total) {
+  if (!total?.classList.contains("critical") || total.querySelector(":scope > .t20ah-crit-num")) return;
+  if (!total.textContent.trim()) return;
+  const span = document.createElement("span");
+  span.className = "t20ah-crit-num";
+  span.append(...total.childNodes);
+  total.append(span);
+}
+// garante o número pulsante nos totais críticos que chegam ao chat (observa só novas mensagens do log, sem olhar atributos)
+Hooks.once("ready", () => {
+  let agendado = false;
+  const varrer = () => {
+    agendado = false;
+    if (!estiloChatLigado()) return;
+    for (const t of document.querySelectorAll(".chat-message .dice-total.critical:not(:has(> .t20ah-crit-num))")) embrulharCritico(t);
+  };
+  const ligar = () => {
+    const log = document.querySelector("#chat .chat-log, #chat-log, #chat [data-application-part='log']");
+    if (!log || log._t20ahCrit) return;
+    log._t20ahCrit = true;
+    new MutationObserver(() => { if (!agendado) { agendado = true; setTimeout(varrer, 150); } }).observe(log, { childList: true, subtree: true });
+    varrer();
+  };
+  ligar();
+  Hooks.on("renderChatLog", ligar);
+});
+// Margem de crítico do item (armas que criticam em 19, 18...): procura um número de 10 a 19 num campo "crít..." do item
+function margemDeCritico(item) {
+  let achada = 20;
+  const ler = (o, nivel = 0) => {
+    if (!o || typeof o !== "object" || nivel > 3) return;
+    for (const [k, v] of Object.entries(o)) {
+      if (/crit/i.test(k)) {
+        const m = typeof v === "number" ? v : typeof v === "string" ? Number(v.match(/(\d+)\s*[-–]\s*20/)?.[1] ?? v) : NaN;
+        if (Number.isFinite(m) && m >= 10 && m < achada) achada = m;
+      }
+      if (v && typeof v === "object" && !Array.isArray(v)) ler(v, nivel + 1);
+    }
+  };
+  ler(item?.system);
+  return achada;
 }
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
   hookChat.on(hook, (message, html) => {
@@ -4834,6 +5586,22 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
     if (!element?.querySelectorAll) return;
     // todo d20 que sai 1 é erro crítico, em qualquer rolagem do chat (ataque, perícia, teste, rolagem avulsa)
     for (const r of element.querySelectorAll(".message-content .dice-roll")) marcarNatural(r);
+    // armas com margem de crítico menor (19, 18...): o d20 que atinge a margem também é acerto crítico
+    try {
+      const card = element.querySelector(".message-content .chat-card");
+      const roll = card && rolagemDeAtaque(card);
+      const total = roll?.querySelector(".dice-total");
+      if (total && !total.classList.contains("critical") && !total.classList.contains("fumble")) {
+        const limiar = margemDeCritico(itemDaMensagem(message));
+        if (limiar < 20) {
+          const d20 = [...new Set(roll.querySelectorAll(".dice-tooltip li.roll.die.d20, .dice-tooltip .dice-rolls li.d20"))].filter((li) => !li.classList.contains("discarded") && !li.classList.contains("dropped"));
+          if (d20.length === 1 && parseInt(d20[0].textContent, 10) >= limiar) {
+            total.classList.add("critical");
+            embrulharCritico(total);
+          }
+        }
+      }
+    } catch (err) { /* sem item: segue */ }
   });
 }
 
@@ -4873,7 +5641,10 @@ function marcarResultado(card, res) {
   if (!total || !res) return;
   if (total.dataset.res !== res.k) total.dataset.res = res.k;
   // sem texto no card: o alvo e a Defesa ficam só na dica do símbolo (passar o mouse)
-  if (res.label && total.title !== res.label) total.title = res.label;
+  // jogadores veem o resultado, mas não a Defesa do alvo (só o Mestre vê "Def N")
+  const label = game.user.isGM ? res.label : (res.label ?? "").replace(/\s*[(\[]?\s*(?:def(?:esa)?\.?)\s*:?\s*\d+\s*[)\]]?/gi, "").replace(/\s{2,}/g, " ").trim();
+  if (label && total.title !== label) total.title = label;
+  else if (!label) total.removeAttribute("title");
 }
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
   hookChat.on(hook, (message, html) => {
@@ -4892,6 +5663,14 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
       }
     };
     const atualizar = () => {
+      // marcas de acerto/erro: só o Mestre vê, a menos que ele libere para os jogadores
+      const ver = game.user.isGM || game.settings.get(ID, "resultadoParaJogadores");
+      card.classList.toggle("t20ah-res-oculto", !ver);
+      if (!ver) {
+        const t = rolagemDeAtaque(card)?.querySelector(".dice-total");
+        if (t) { delete t.dataset.res; t.removeAttribute("title"); }
+        return !!card.querySelector(".t20-result-banner");
+      }
       const novo = lerBannerResultado(card);
       const res = novo ?? guardado();
       if (!res) return false;
@@ -5478,26 +6257,8 @@ function aplicarVisualHud() {
     #t20ah .t20ah-cabeca { background: linear-gradient(90deg, color-mix(in srgb, ${faixa} 35%, transparent), transparent 75%) !important; border-bottom-color: color-mix(in srgb, ${v.destaque} 25%, transparent) !important; }
   `;
 }
-// Nik's Tiny Changelogs não conhece o Tormenta20: configura PV (e PV temporário) e PM sozinho, se o Mestre ainda não configurou
-Hooks.once("ready", async () => {
-  try {
-    const TID = "niks-tiny-changelogs";
-    if (!game.user.isGM || game.system.id !== "tormenta20" || !game.modules.get(TID)?.active) return;
-    const lerCfg = (k) => game.settings.get(TID, k);
-    if (!String(lerCfg("hpPath") ?? "").trim()) {
-      await game.settings.set(TID, "autoDetectPaths", false);
-      await game.settings.set(TID, "hpPath", "system.attributes.pv.value");
-      await game.settings.set(TID, "tempHpPath", "system.attributes.pv.temp");
-    }
-    const lista = [...(lerCfg("customTrackers") ?? [])];
-    if (!lista.some((r) => r?.path === "system.attributes.pm.value")) {
-      lista.push({ name: "PM", path: "system.attributes.pm.value", msgGain: "recuperou {name}", msgLoss: "gastou {name}", icon: "fa-solid fa-droplet", color: "#4a90e2" });
-      await game.settings.set(TID, "customTrackers", lista);
-    }
-  } catch (err) { console.warn(`${ID} | não consegui configurar o Tiny Changelogs`, err); }
-});
 // Rolagem de atributo pela ficha: o sistema cria a mensagem sem nome (sem flavor nem título no card).
-// O clique no atributo é guardado e o nome entra na mensagem criada logo em seguida.
+// O clique no atributo é guardado e o nome entra no título do card criado logo em seguida.
 let ULTIMO_ATRIBUTO = null;
 Hooks.once("ready", () => {
   document.addEventListener("click", (ev) => {
@@ -5521,7 +6282,7 @@ Hooks.on("preCreateChatMessage", (message, data) => {
   if (u.ator && message.speaker?.actor && u.ator !== message.speaker.actor) return;
   if (String(message.flavor ?? data.flavor ?? "").trim()) return;
   ULTIMO_ATRIBUTO = null;
-  message.updateSource({ [`flags.${ID}.rotulo`]: u.nome }); // só o título do card (o flavor duplicaria o nome no cabeçalho)
+  message.updateSource({ [`flags.${ID}.rotulo`]: u.nome });
 });
 // card sem nome (rolagem de atributo): o nome guardado entra no título
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
@@ -5533,6 +6294,22 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
     if (nome && !nome.textContent.trim()) nome.textContent = rotulo;
   }, true);
 }
+
+// Janelas de escolha (#t20ah-escolha): arrastáveis pelo cabeçalho
+document.addEventListener("pointerdown", (ev) => {
+  if (ev.button !== 0) return;
+  const h = ev.target.closest?.("#t20ah-escolha header");
+  if (!h || ev.target.closest("button")) return;
+  const j = h.closest(".ec-janela");
+  if (!j) return;
+  const m = new DOMMatrix(getComputedStyle(j).transform);
+  const x0 = m.m41, y0 = m.m42, px = ev.clientX, py = ev.clientY;
+  const mover = (e) => { j.style.transform = `translate(${x0 + e.clientX - px}px, ${y0 + e.clientY - py}px)`; };
+  const soltar = () => { document.removeEventListener("pointermove", mover, true); document.removeEventListener("pointerup", soltar, true); };
+  document.addEventListener("pointermove", mover, true);
+  document.addEventListener("pointerup", soltar, true);
+  ev.preventDefault();
+}, true);
 
 Hooks.once("ready", aplicarVisualHud);
 

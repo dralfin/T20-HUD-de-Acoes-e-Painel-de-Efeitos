@@ -18,7 +18,6 @@
   border: 1px solid rgba(224, 184, 92, 0.45);
   border-radius: 0.9em;
   box-shadow: 0 0.6em 1.6em rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(6px);
   user-select: none;
   min-width: 19em;
   overflow: hidden;
@@ -540,7 +539,7 @@
 
 /* ---- janela de escolha da arma (Golpe de Misericórdia) ---- */
 #t20ah-escolha { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; font-family: "Signika", sans-serif; }
-#t20ah-escolha .ec-fundo { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(2px); }
+#t20ah-escolha .ec-fundo { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); }
 #t20ah-escolha .ec-janela {
   --cor: #e0b85c;
   position: relative;
@@ -1580,3 +1579,10 @@ span.t20ah-cond-link::before, span.t20ah-cond-chip::before { content: ""; flex: 
 #t20ah-cond-pop .cp-rel strong { color: color-mix(in srgb, var(--cr) 40%, #fff); letter-spacing: 0.04em; }
 #t20ah-cond-pop .cp-rel small { font-weight: 700; font-size: 0.7em; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--cr) 55%, #fff); }
 #t20ah-cond-pop .cp-rel p { grid-column: 1 / -1; margin: 0.1em 0 0; font-size: 0.9em; opacity: 0.92; }
+
+/* marcas de acerto/erro escondidas para quem não pode vê-las (opção do Mestre) */
+.chat-message .t20ah-res-oculto .t20-result-banner, .chat-message .t20ah-res-oculto .t20-defense-check { display: none !important; }
+.chat-message .t20ah-res-oculto .dice-total[data-res]::after, .chat-message .t20ah-res-oculto .dice-total[data-res]::before { display: none !important; }
+
+#t20ah-escolha header { cursor: move; user-select: none; }
+#t20ah-escolha .ec-fundo { pointer-events: auto; }
