@@ -37,7 +37,8 @@ Consulte rapidamente PV, PM, Defesa e CD das magias por meio de uma interface co
 ### 🧰 Mais telas do HUD
 
 <p align="center">
-  <img src="assets/images/hud-compacto-vida.gif" alt="HUD compacta com PV, PM, Defesa e tipos de ação">
+  <img src="assets/images/hud-compacto.png" alt="HUD compacta com PV, PM, Defesa e tipos de ação" width="48%">
+  <img src="assets/images/hud-dano-cura-mana.png" alt="Gaveta de dano, cura e mana ao lado da HUD" width="48%">
 </p>
 
 <p align="center">
@@ -49,7 +50,7 @@ Consulte rapidamente PV, PM, Defesa e CD das magias por meio de uma interface co
 </p>
 
 <p align="center">
-  <img src="assets/images/tipo-acao.gif" alt="Dica com a regra da ação Lançar uma Magia">
+  <img src="assets/images/hud-dica-acao.png" alt="Dica com a regra da ação Lançar uma Magia" width="50%">
 </p>
 
 ### 💬 Chat estilizado
@@ -65,7 +66,7 @@ Cards de ação, iniciativa, ataque, magia e condições no mesmo visual do HUD,
 <p align="center">
   <img src="assets/images/chat-ataque.png" alt="Card de ataque com rolagem de acerto, dano e botões de aplicar" width="32%">
   <img src="assets/images/chat-magia.png" alt="Card de magia com execução, alcance, alvo, duração e resistência" width="32%">
-  <img src="assets/images/Condicao.gif" alt="Pop-up de condição ao passar o mouse numa palavra">
+  <img src="assets/images/chat-condicao-popup.png" alt="Pop-up de condição ao passar o mouse numa palavra" width="32%">
 </p>
 
 <p align="center">
@@ -173,6 +174,8 @@ Quatro categorias **dentro da HUD** (**Padrão**, **Movimento**, **Completa** e 
   - **Ações de Movimento:** Levantar-se, Manipular Item, Mirar e Sacar ou Guardar Item.
   - **Ações Completas:** Corrida, Golpe de Misericórdia, Investida e Lançar uma Magia.
   - **Ações Livres:** Atrasar, Falar, Jogar-se no Chão e Largar um Item.
+  - **Acrobacia:** Escapar (completa), Levantar-se Rapidamente (movimento, só treinados), Passar por Inimigo (movimento) e Passar por Espaço Apertado (completa, só treinados): depois do card, abre a escolha da perícia (Acrobacia marcada) e rola o teste pela ficha.
+  - **Reações:** Amortecer Queda (Acrobacia, só para treinados). Reações não gastam ação e podem ser usadas fora do turno.
 - **Passe o mouse** sobre uma ação para ler a regra completa.
 - **Clique em uma ação para usá-la:** o módulo **gasta a ação correspondente** na HUD (padrão, movimento ou completa; ações livres não gastam nada) e envia ao chat um **card no mesmo estilo da HUD**, com o nome, a regra, o custo e as ações que restam.
   - No turno do personagem, a ação é gasta. Se já não houver ação disponível, aparece um aviso e o card não é enviado.
@@ -447,4 +450,26 @@ Contribuições e feedbacks são bem-vindos!
 </p>
 
 ### 🎯 Acerto e erro dos ataques
-- As marcas de acerto, erro, crítico e desastre (contra a Defesa do alvo) aparecem **só para o Mestre**. Em Configurações > **Mostrar acerto e erro dos ataques aos jogadores** (Mestre) dá para liberar para todos.
+- As marcas de acerto, erro, crítico e desastre (contra a Defesa do alvo) aparecem **só para o Mestre**. Em Configurações > **Mostrar acerto e erro dos ataques aos jogadores** (Mestre) dá para liberar para todos. Para os jogadores aparece só o resultado: a **Defesa do alvo continua oculta** (só o Mestre vê).
+
+### 🤼 Manobras de Combate
+- Na Ação Padrão, **Manobras de Combate** pergunta a manobra (Agarrar, Derrubar, Desarmar, Empurrar, Quebrar), o alvo adjacente e a arma corpo a corpo (sem arma, usa **Luta**).
+- O dono do alvo (jogador conectado) ou o Mestre escolhe a arma dele e rola o teste oposto. Vence o maior total; em empate, o maior bônus. O card mostra os dois testes, o resultado e o efeito (Empurrar calcula a distância; Derrubar e Desarmar avisam a margem de 5).
+- **Anti-metagame:** o jogador não escolhe o item do alvo. Quem responde pela criatura (o Mestre, ou o dono do alvo) escolhe a arma do teste e o item de Desarmar/Quebrar; as rolagens da ameaça saem só para o Mestre. No chat, os jogadores veem o resultado do atacante e "?" no da criatura e no sucesso/fracasso; o Mestre recebe o resultado completo em mensagem privada (a opção "resultado para jogadores" libera tudo).
+- **Quebrar** rola o dano contra o item escolhido pelo Mestre e, se o atacante vence, rola o dano da arma contra o item e mostra o total no chat (com RD/PV do item, se a ficha tiver). O dano não é aplicado sozinho.
+- **Agarrar** aplica a condição **Agarrado** no alvo quando o atacante vence. **Derrubar** aplica a condição **Caído**; com margem de 5 ou mais, você também escolhe a direção para empurrar o alvo 1 quadrado.
+- **Desarmar:** você escolhe qual item equipado do alvo derrubar. Se vencer, o item vai ao chão sob o token pelo **Item Piles** (com margem de 5 ou mais, você escolhe a direção do quadrado vizinho para onde ele é empurrado) (feito pelo Mestre conectado); sem Item Piles, o chat só avisa que o item foi desarmado.
+- **Empurrar:** se vencer, você escolhe a direção e o alvo é empurrado 1,5 m (1 quadrado) mais 1,5 m a cada 5 pontos de diferença, parando em paredes e em outros tokens. Na diagonal, cada quadrado custa o dobro da distância do empurrão. O token é movido pelo módulo (por você, se tiver permissão, senão pelo Mestre).
+- Em Configurações, **Mestre aprova o empurrão antes de mover o token** (desligado por padrão): quando um jogador vence o Empurrar, o Mestre recebe um aviso com quem empurra, quem é empurrado, direção e distância, e decide se o token é movido.
+- Sem arma corpo a corpo (ou se o ataque da arma falhar), o teste de manobra abre a escolha da **perícia** (Luta por padrão), para poderes que permitem usar outra.
+
+## Ações de perícia automatizadas
+
+Todas as ações de perícia que têm teste rolam pela ficha, com a perícia certa marcada, e mostram no card o resultado contra a CD:
+- **CD fixa** (ex.: Plano de Ação, Punga, Etiqueta): resultado no card.
+- **CD por situação** (ex.: Abrir Fechadura, Acampamento, Rastrear): o jogador escolhe a situação.
+- **CD secreta** (ex.: Informação, Idiomas, Observar, Ouvir, Procurar, Interrogar, Orientar-se): o Mestre define a CD, a rolagem vai só a ele e o resultado aparece num card privado.
+- **Testes opostos** (ex.: Assustar, Mentir, Esconder-se, Barganha): o Mestre escolhe a criatura e rola o teste dela em segredo; o jogador vê "?" no lugar do teste da criatura.
+- Itens exigidos (gazua, estojo de disfarces, equipamento de viagem) são procurados no inventário; sem eles, a penalidade é aplicada.
+- Modificadores da regra (–5, –10, CD +5…) são marcados numa janela antes do teste.
+- As regras ficam em `scripts/acoes-gen.js`.

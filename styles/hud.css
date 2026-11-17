@@ -581,6 +581,7 @@
   transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s, background 0.12s;
 }
 #t20ah-escolha .ec-arma:hover { transform: translateY(-1px); border-color: var(--cor); background: color-mix(in srgb, var(--cor) 28%, #131315); box-shadow: 0 0.3em 1em color-mix(in srgb, var(--cor) 35%, transparent); }
+#t20ah-escolha .ec-arma > i { grid-area: img; align-self: center; justify-self: center; display: flex; align-items: center; justify-content: center; width: 2.6em; text-align: center; line-height: 1; }
 #t20ah-escolha .ec-arma img { grid-area: img; width: 2.6em; height: 2.6em; object-fit: cover; border-radius: 0.4em; border: 1px solid color-mix(in srgb, var(--cor) 50%, transparent); background: #000; }
 #t20ah-escolha .ec-n { grid-area: n; font-family: "Modesto Condensed", "Signika", sans-serif; font-size: 1.15em; }
 #t20ah-escolha .ec-d { grid-area: d; font-size: 0.78em; color: #9a8a7a; }
@@ -610,11 +611,11 @@
   display: grid;
   grid-template-columns: 18.5em minmax(0, 1fr);
   column-gap: 1.1em;
-  align-items: start;
-  width: 50em;
+  align-items: stretch;
+  width: 60em;
   max-width: calc(100vw - 2em);
 }
-#t20ah .t20ah-esq { min-width: 0; }
+#t20ah .t20ah-esq { min-width: 0; align-self: start; }
 #t20ah.largo .t20ah-recursos { gap: 0.35em; }
 #t20ah.largo .t20ah-chips { margin-top: 0.4em; }
 #t20ah.largo .t20ah-sep { margin: 0.5em 0 0.45em; }
@@ -624,7 +625,8 @@
 #t20ah.largo .t20ah-espera { margin-top: 0.6em; }
 #t20ah.largo .t20ah-rodape { display: none; }
 
-#t20ah .t20ah-dir { min-width: 0; display: flex; flex-direction: column; gap: 0.5em; }
+/* a coluna de ações nunca é mais alta que a da esquerda: a lista rola por dentro */
+#t20ah .t20ah-dir { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 0.5em; contain: size; overflow: hidden; }
 #t20ah .aa-sec { --cor: #e0b85c; }
 #t20ah .aa-sec + .aa-sec {
   padding-top: 0.5em;
@@ -636,7 +638,7 @@
 #t20ah .aa-sec .aa-acao { padding: 0.17em 0.6em; font-size: 0.82em; }
 #t20ah .t20ah-dir > .aa-dica { margin-top: 0.1em; text-align: left; }
 /* fora do turno, só as ações livres podem ser usadas */
-#t20ah:not(.em-turno) .aa-sec:not(.livre) .aa-acao { opacity: 0.5; }
+#t20ah:not(.em-turno) .aa-sec:not(.livre):not(.reacao):not(.outros) .aa-acao { opacity: 0.5; }
 
 
 /* ---- identificação incorporada aos cards de ação ---- */
@@ -1586,3 +1588,37 @@ span.t20ah-cond-link::before, span.t20ah-cond-chip::before { content: ""; flex: 
 
 #t20ah-escolha header { cursor: move; user-select: none; }
 #t20ah-escolha .ec-fundo { pointer-events: auto; }
+
+/* filtro por tipo de ação + rolagem da lista */
+#t20ah .aa-filtro { display: flex; flex-wrap: wrap; gap: 0.3em; }
+#t20ah .aa-chip { display: inline-flex; align-items: center; gap: 0.35em; padding: 0.15em 0.65em; font-size: 0.78em; border-radius: 999px; cursor: pointer; color: #9a8a7a; background: transparent; border: 1px solid rgba(255, 255, 255, 0.18); opacity: 0.6; }
+#t20ah .aa-chip.on { color: var(--cor); border-color: var(--cor); background: color-mix(in srgb, var(--cor) 16%, transparent); opacity: 1; }
+#t20ah .aa-chip:hover { opacity: 1; }
+#t20ah .aa-rolagem { flex: 1 1 0; min-height: 0; overflow-y: auto; padding-right: 0.3em; display: flex; flex-direction: column; gap: 0.5em; scrollbar-width: thin; scrollbar-color: rgba(224, 184, 92, 0.5) transparent; }
+#t20ah .aa-vazio { font-size: 0.8em; color: #9a8a7a; font-style: italic; padding: 0.4em 0.2em; }
+
+/* linha de perícia / CD / treino sob o nome da ação */
+.t20ah-card .tc-tit .tc-meta { margin-top: 0.2em; font-size: 0.72em; letter-spacing: 0.08em; color: #cdbfa8; }
+#t20ah-acoes-tip .tp-meta { font-size: 0.74em; letter-spacing: 0.06em; color: #cdbfa8; margin: -0.1em 0 0.15em; }
+#t20ah-escolha header .ec-meta { display: block; margin-top: 0.2em; font-size: 0.72em; letter-spacing: 0.08em; color: #cdbfa8; font-weight: normal; }
+
+/* busca e sub-filtro de perícias */
+#t20ah .aa-busca { display: flex; align-items: center; gap: 0.45em; padding: 0.15em 0.6em; border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 999px; background: rgba(0, 0, 0, 0.25); color: #9a8a7a; font-size: 0.8em; }
+#t20ah .aa-busca:focus-within { border-color: #e0b85c; color: #e0b85c; }
+#t20ah .aa-busca-in { flex: 1; min-width: 0; height: 1.6em; padding: 0; border: 0; background: transparent; box-shadow: none; color: #f2e8d5; font: inherit; outline: none; }
+#t20ah .aa-filtro-per { align-items: center; }
+#t20ah .aa-rot { font-size: 0.7em; letter-spacing: 0.12em; text-transform: uppercase; color: #9a8a7a; }
+#t20ah .aa-chip-per { --cor: #e0b85c; }
+
+/* sub-filtro de perícias: uma linha só, rola na horizontal (sobra espaço para a lista) */
+#t20ah .aa-filtro-per { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; flex: 0 0 auto; padding-bottom: 0.25em; scrollbar-width: thin; scrollbar-color: rgba(224, 184, 92, 0.5) transparent; }
+#t20ah .aa-filtro-per > * { flex: 0 0 auto; white-space: nowrap; }
+
+/* tipos de ação + busca na mesma linha */
+#t20ah .aa-topo { display: flex; align-items: center; gap: 0.5em; flex: 0 0 auto; }
+#t20ah .aa-topo .aa-filtro { flex: 0 1 auto; }
+#t20ah .aa-topo .aa-busca { flex: 1 1 9em; min-width: 8em; }
+
+/* fora do turno (layout largo): mesma altura, mas sem interação */
+#t20ah .t20ah-botoes.fora-turno, #t20ah .t20ah-passar:disabled { pointer-events: none; opacity: 0.45; }
+#t20ah .t20ah-passar:disabled { cursor: default; }
