@@ -1622,3 +1622,178 @@ span.t20ah-cond-link::before, span.t20ah-cond-chip::before { content: ""; flex: 
 /* fora do turno (layout largo): mesma altura, mas sem interação */
 #t20ah .t20ah-botoes.fora-turno, #t20ah .t20ah-passar:disabled { pointer-events: none; opacity: 0.45; }
 #t20ah .t20ah-passar:disabled { cursor: default; }
+
+/* ação "apenas treinado" de quem não é treinado: aparece esmaecida e o clique avisa */
+#t20ah .aa-acao.nao-treinado, .t20ah-menu .aa-acao.nao-treinado { opacity: 0.45; font-style: italic; }
+
+/* rótulos nas perícias da janela de escolha */
+#t20ah-escolha .ec-tags { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.25em; }
+#t20ah-escolha .ec-tag { display: inline-flex; align-items: center; gap: 0.3em; padding: 0.05em 0.5em; border-radius: 1em; font-size: 0.66em; letter-spacing: 0.06em; text-transform: uppercase; border: 1px solid currentColor; opacity: 0.9; }
+#t20ah-escolha .ec-tag.arm { color: #e8a05a; }
+#t20ah-escolha .ec-tag.trein { color: #8fc8ff; }
+
+/* rótulos nos chips de perícia do filtro */
+.aa-tag { display: inline-flex; align-items: center; gap: 0.25em; padding: 0 0.45em; border-radius: 999px; font-size: 0.72em; letter-spacing: 0.04em; border: 1px solid currentColor; white-space: nowrap; }
+.aa-tag.arm { color: #e8a05a; }
+.aa-tag.trein { color: #8fc8ff; }
+
+.aa-acao .aa-tag { font-style: normal; margin-left: 0.35em; font-size: 0.68em; padding: 0 0.4em; vertical-align: middle; }
+
+/* rótulos só com o ícone nas ações e nos chips de perícia */
+.aa-acao .aa-tag, .aa-chip .aa-tag { border: 0; padding: 0; margin-left: 0.3em; font-size: 0.8em; background: none; }
+
+/* legenda dos ícones, no rodapé do painel de ações */
+#t20ah .aa-legenda { display: flex; flex-wrap: wrap; gap: 0.2em 1em; margin-top: 0.15em; font-size: 0.72em; color: #9a8a7a; flex: 0 0 auto; }
+#t20ah .aa-legenda i { margin-right: 0.3em; }
+#t20ah .aa-leg-arm { color: #e8a05a; }
+#t20ah .aa-leg-trein { color: #8fc8ff; }
+
+/* formulários das janelas do módulo (modificadores, números, confirmações) */
+#t20ah-escolha .ec-form { display: flex; flex-direction: column; gap: 0.4em; margin-top: 0.4em; max-height: 50vh; overflow-y: auto; }
+#t20ah-escolha .ec-check { display: flex; align-items: center; gap: 0.6em; padding: 0.4em 0.65em; border-radius: 0.5em; cursor: pointer; color: #f2e8d5; background: linear-gradient(160deg, color-mix(in srgb, var(--cor) 12%, #1a1013), #1a1013); border: 1px solid rgba(255, 255, 255, 0.12); transition: border-color 0.15s, background 0.15s; }
+#t20ah-escolha .ec-check:hover { border-color: var(--cor); }
+#t20ah-escolha .ec-check input { position: absolute; opacity: 0; pointer-events: none; }
+#t20ah-escolha .ec-cx { flex: 0 0 1.1em; height: 1.1em; border-radius: 0.3em; border: 1px solid rgba(255, 255, 255, 0.35); display: inline-grid; place-items: center; }
+#t20ah-escolha .ec-check input:checked + .ec-cx { background: var(--cor); border-color: var(--cor); }
+#t20ah-escolha .ec-check input:checked + .ec-cx::after { content: "\f00c"; font-family: "Font Awesome 6 Free", "Font Awesome 5 Free"; font-weight: 900; font-size: 0.7em; color: #1a1013; }
+#t20ah-escolha .ec-check:has(input:checked) { border-color: var(--cor); background: color-mix(in srgb, var(--cor) 24%, #131315); }
+#t20ah-escolha .ec-num-linha { display: flex; align-items: center; gap: 0.6em; color: #f2e8d5; padding: 0.2em 0.2em; }
+#t20ah-escolha .ec-num { width: 6em; padding: 0.3em 0.5em; border-radius: 0.4em; color: #f2e8d5; background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.2); font-size: 1.1em; }
+#t20ah-escolha .ec-num:focus { outline: none; border-color: var(--cor); }
+
+/* hora e lixeira dos cards do módulo (o cabeçalho padrão do chat fica escondido) */
+.chat-message.t20ah-card-message .t20ah-rodape-msg {
+  display: flex; align-items: center; justify-content: flex-end; gap: 0.5em;
+  padding: 0.1em 0.5em 0.2em; font-size: 0.72em; color: #9a8a7a; line-height: 1;
+}
+.chat-message.t20ah-card-message .t20ah-rodape-msg time { font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+.chat-message.t20ah-card-message .t20ah-lixo {
+  all: unset; cursor: pointer; display: grid; place-items: center; width: 1.6em; height: 1.6em; border-radius: 0.4em;
+  color: #9a8a7a; opacity: 0.6;
+}
+.chat-message.t20ah-card-message .t20ah-lixo:hover { opacity: 1; color: #ff6b6b; background: rgba(255, 255, 255, 0.08); }
+
+#t20ah-escolha .ec-mini { width: 1.8em; height: 1.8em; object-fit: cover; border-radius: 0.35em; border: 1px solid rgba(255, 255, 255, 0.2); flex: 0 0 auto; }
+#t20ah-escolha .ec-contador { color: #ffd76a; }
+
+#t20ah-escolha .ec-add-pac { margin-top: 0.3em; align-self: flex-start; display: inline-flex; align-items: center; gap: 0.5em; }
+
+.chat-message.t20ah-card-message .t20ah-rodape-msg.dentro { margin-left: auto; padding: 0; align-self: flex-start; flex: 0 0 auto; }
+.chat-message.t20ah-card-message .tc-topo > .t20ah-rodape-msg.dentro { align-self: flex-start; }
+
+/* seção de atalhos da HUD: armas equipadas e slots de magias/poderes (à esquerda; no layout compacto, no topo) */
+#t20ah .t20ah-corpo.grade.tres { grid-template-columns: 10.6em 18.5em minmax(0, 1fr); width: 72em; }
+#t20ah .t20ah-sec-atalhos { min-width: 0; min-height: 0; align-self: stretch; contain: size; overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; padding-right: 0.9em; border-right: 1px solid rgba(255, 255, 255, 0.1); }
+#t20ah .t20ah-sec-atalhos .t20ah-atalhos { display: flex; flex-direction: column; gap: 0.7em; }
+#t20ah .t20ah-sec-atalhos.compacto { contain: none; overflow: visible; padding: 0 0 0.5em; margin-bottom: 0.5em; border-right: none; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+#t20ah .t20ah-sec-atalhos.compacto .t20ah-atalhos { flex-direction: row; flex-wrap: wrap; gap: 0.5em 1.2em; }
+#t20ah .at-bloco { display: flex; flex-direction: column; gap: 0.35em; }
+#t20ah .at-titulo { font-size: 0.72em; letter-spacing: 0.08em; text-transform: uppercase; color: #c9a85a; display: flex; align-items: center; gap: 0.5em; white-space: nowrap; }
+#t20ah .at-grade { display: grid; grid-template-columns: repeat(3, 2.8em); gap: 0.45em; justify-content: start; }
+#t20ah .t20ah-sec-atalhos.compacto .at-grade { display: flex; flex-wrap: wrap; }
+#t20ah .at-vazio-txt { grid-column: 1 / -1; font-size: 0.78em; color: #8a7d70; font-style: italic; }
+#t20ah .at-cel { position: relative; display: inline-flex; }
+#t20ah .at-slot {
+  all: unset; box-sizing: border-box; cursor: pointer; width: 2.8em; height: 2.8em; border-radius: 0.5em; overflow: hidden;
+  display: grid; place-items: center; border: 1px solid rgba(255, 255, 255, 0.22); background: rgba(0, 0, 0, 0.35);
+  transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s;
+}
+#t20ah .at-slot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+#t20ah .at-slot:hover { transform: translateY(-1px); border-color: #ffd76a; box-shadow: 0 0 0.6em rgba(255, 215, 106, 0.35); }
+#t20ah .at-slot.arma { border-color: rgba(255, 140, 120, 0.55); }
+#t20ah .at-slot.magia { border-color: rgba(120, 170, 255, 0.6); }
+#t20ah .at-slot.poder { border-color: rgba(255, 215, 106, 0.6); }
+#t20ah .at-slot.vazio { border-style: dashed; color: #8a7d70; font-size: 0.9em; }
+#t20ah .at-slot.vazio:hover { color: #ffd76a; }
+#t20ah .at-rm {
+  all: unset; cursor: pointer; position: absolute; top: -0.35em; right: -0.35em; width: 1.3em; height: 1.3em; border-radius: 50%;
+  display: none; place-items: center; font-size: 0.7em; background: #7a2323; color: #fff; z-index: 1;
+}
+#t20ah .at-cel:hover .at-rm { display: grid; }
+#t20ah-escolha .ec-busca { width: 100%; box-sizing: border-box; margin-bottom: 0.4em; }
+
+#t20ah-acoes-tip .tp-props { margin: 0 0 0.4em; font-size: 0.85em; color: #d9ccb8; }
+#t20ah-acoes-tip .tp-linha b { color: var(--cor); font-weight: 600; }
+
+#t20ah .at-legenda { margin-top: auto; display: flex; flex-direction: column; gap: 0.15em; padding-top: 0.5em; border-top: 1px dashed rgba(255, 255, 255, 0.14); font-size: 0.68em; line-height: 1.25; color: #9a8a7a; }
+#t20ah .at-legenda b { color: #c9a85a; font-weight: 600; }
+#t20ah .t20ah-sec-atalhos.compacto .at-legenda { margin-top: 0; border-top: none; padding-top: 0; flex-direction: row; gap: 1em; align-self: center; }
+
+/* a legenda fica fora da área rolável: sempre à mostra */
+#t20ah .t20ah-sec-atalhos { display: flex; flex-direction: column; overflow: hidden; }
+#t20ah .t20ah-sec-atalhos .t20ah-atalhos { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; }
+#t20ah .t20ah-sec-atalhos .at-legenda { flex: 0 0 auto; margin-top: 0.4em; }
+#t20ah .t20ah-sec-atalhos.compacto { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 0.5em 1.2em; }
+#t20ah .t20ah-sec-atalhos.compacto .t20ah-atalhos { overflow: visible; flex: 0 1 auto; }
+
+#t20ah-acoes-tip .tp-stats { display: flex; flex-wrap: wrap; gap: 0.2em 0.9em; margin: 0 0 0.5em; line-height: 1.35; }
+#t20ah-acoes-tip .tp-stat { display: inline-flex; align-items: baseline; gap: 0.35em; }
+#t20ah-acoes-tip .tp-stat .k { font-size: 0.68em; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cor); }
+#t20ah-acoes-tip .tp-stat .v { font-size: 0.92em; color: #f2e8d5; }
+
+/* dica de item: características lado a lado, em linhas que quebram só quando falta largura */
+#t20ah-acoes-tip.tp-item { width: 27em; max-width: min(27em, calc(100vw - 2em)); }
+#t20ah-acoes-tip.tp-item .tp-stats { display: flex !important; flex-direction: row !important; flex-wrap: wrap !important; gap: 0.2em 1em !important; }
+#t20ah-acoes-tip.tp-item .tp-stat { display: inline-flex !important; flex: 0 0 auto; white-space: nowrap; }
+#t20ah-acoes-tip.tp-item .tp-stat .v { white-space: normal; }
+
+/* seção de perícias (entre a vida e as ações) */
+#t20ah .t20ah-corpo.grade.com-per { grid-template-columns: 18.5em 15.5em minmax(0, 1fr); width: 78em; }
+#t20ah .t20ah-corpo.grade.tres.com-per { grid-template-columns: 10.6em 18.5em 15.5em minmax(0, 1fr); width: 90em; }
+#t20ah .t20ah-sec-per {
+  min-width: 0; min-height: 0; align-self: stretch; contain: size; overflow-x: hidden; overflow-y: auto; scrollbar-width: thin;
+  padding: 0 0.7em 0 0.9em; border-left: 1px solid rgba(255, 255, 255, 0.1); border-right: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex; flex-direction: column; gap: 0.12em;
+}
+#t20ah .pr-titulo { margin: 0.1em 0 0.25em; font-size: 0.72em; letter-spacing: 0.1em; text-transform: uppercase; color: #c9a85a; position: sticky; top: 0; background: linear-gradient(#241619, #241619ee); padding: 0.15em 0; z-index: 1; }
+#t20ah .pr-titulo:not(:first-child) { margin-top: 0.6em; }
+#t20ah .pr-linha {
+  all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) 2.6em 2.6em; align-items: baseline; gap: 0.4em;
+  padding: 0.18em 0.45em; border-radius: 0.35em; font-size: 0.9em; color: #9a8a7a;
+}
+#t20ah .pr-linha.treinada { color: #f2e8d5; }
+#t20ah .pr-linha:hover { background: rgba(255, 215, 106, 0.14); color: #fff; }
+#t20ah .pr-n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#t20ah .pr-a { font-size: 0.72em; letter-spacing: 0.08em; color: #8a7d70; text-align: center; }
+#t20ah .pr-b { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; color: #ffd76a; }
+#t20ah .pr-linha:not(.treinada) .pr-b { color: #b7a78a; font-weight: 500; }
+
+/* barras de rolagem: sempre na cor de destaque configurada (--ouro) */
+#t20ah, #t20ah *, #t20ah-gaveta, #t20ah-gaveta *, #t20ah-acoes, #t20ah-acoes *, #t20ah-escolha, #t20ah-escolha *, #t20ah-acoes-tip, #t20ah-acoes-tip * {
+  scrollbar-width: thin !important;
+  scrollbar-color: color-mix(in srgb, var(--ouro, #e0b85c) 65%, transparent) transparent !important;
+}
+#t20ah ::-webkit-scrollbar, #t20ah-gaveta ::-webkit-scrollbar, #t20ah-acoes ::-webkit-scrollbar, #t20ah-escolha ::-webkit-scrollbar { width: 6px; height: 6px; }
+#t20ah ::-webkit-scrollbar-thumb, #t20ah-gaveta ::-webkit-scrollbar-thumb, #t20ah-acoes ::-webkit-scrollbar-thumb, #t20ah-escolha ::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--ouro, #e0b85c) 65%, transparent) !important; border-radius: 3px;
+}
+#t20ah ::-webkit-scrollbar-track, #t20ah-gaveta ::-webkit-scrollbar-track, #t20ah-acoes ::-webkit-scrollbar-track, #t20ah-escolha ::-webkit-scrollbar-track { background: transparent; }
+
+/* seção de armas: a barra de rolagem fica rente à borda da seção, como a das perícias */
+#t20ah .t20ah-sec-atalhos { padding-right: 0; }
+#t20ah .t20ah-sec-atalhos .t20ah-atalhos { padding-right: 0.6em; }
+#t20ah .t20ah-sec-atalhos .at-legenda { margin-right: 0.9em; }
+#t20ah .t20ah-sec-atalhos.compacto { padding-right: 0; }
+
+/* botões de mostrar/ocultar seções no topo da HUD */
+#t20ah .t20ah-mini[data-acao^="sec-"] { color: var(--ouro, #e0b85c); }
+#t20ah .t20ah-mini[data-acao^="sec-"].desligado { opacity: 0.5; color: #9a8a7a; text-decoration: none; }
+#t20ah .t20ah-mini[data-acao^="sec-"].desligado i { text-decoration: line-through; }
+
+/* ícones de "somente treinado" e "penalidade de armadura" antes do nome da perícia */
+#t20ah .pr-linha { grid-template-columns: 2.4em minmax(0, 1fr) 2.6em 2.6em; }
+#t20ah .pr-ic { display: inline-flex; align-items: center; justify-content: flex-end; gap: 0.25em; font-size: 0.78em; }
+#t20ah .pr-ic .pr-trein { color: #8fc8ff; }
+#t20ah .pr-ic .pr-arm { color: #e8a05a; }
+#t20ah .t20ah-corpo.grade { --w-per: 15.5em; }
+
+/* atalhos: grade de 4 colunas, slots menores (menos rolagem) */
+#t20ah .at-grade { grid-template-columns: repeat(4, 2.4em) !important; gap: 0.35em !important; }
+#t20ah .at-slot { width: 2.4em !important; height: 2.4em !important; }
+
+/* janelas do módulo: uma rolagem só (a lista), sem espaço vazio embaixo */
+#t20ah-escolha .ec-janela { display: flex; flex-direction: column; overflow: hidden; height: auto; }
+#t20ah-escolha .ec-janela > * { flex: 0 0 auto; }
+#t20ah-escolha .ec-janela > .ec-form { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; }
+#t20ah-escolha .ec-janela > .ec-lista, #t20ah-escolha .ec-janela > .ec-pericias { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+#t20ah-escolha .ec-check { position: relative; }
