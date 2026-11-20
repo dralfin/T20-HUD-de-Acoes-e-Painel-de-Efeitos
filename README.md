@@ -473,3 +473,15 @@ Todas as ações de perícia que têm teste rolam pela ficha, com a perícia cer
 - Itens exigidos (gazua, estojo de disfarces, equipamento de viagem) são procurados no inventário; sem eles, a penalidade é aplicada.
 - Modificadores da regra (–5, –10, CD +5…) são marcados numa janela antes do teste.
 - As regras ficam em `scripts/acoes-gen.js`.
+
+## Atalho da HUD
+
+- **H** abre e oculta a HUD (configurável em Configurar Controles). Sem token selecionado, a HUD abre com o seu personagem (o definido no usuário ou o primeiro que você possui), e as ações de perícia, cards e rolagens funcionam normalmente. Sem token na cena, todas as ações seguem o fluxo normal e aparecem no chat, só sem a interação com o mapa (distâncias, posição, colocar item no chão).
+
+## Ajustes recentes
+
+- **Animações para jogadores:** nas configurações, "Escolher jogadores" abre uma lista com caixas de marcar (vários jogadores de uma vez).
+- **Deixar o Mestre escolher:** Primeiros Socorros, Tratamento e Cuidados Prolongados agora enviam o pedido ao Mestre, que escolhe o personagem.
+- **Cards do módulo:** voltaram a ter a hora e a lixeira (rodapé do card).
+- **Deslocamento por manobra:** o empurrão move o token à força (não gasta movimento do turno) e o Mestre confirma antes (opção ligada por padrão).
+- **Seção de armas e atalhos:** na HUD larga, uma coluna à esquerda (armas equipadas e slots de magias e poderes) antes da coluna de vida/recursos e da de ações; no layout compacto aparece no topo. Clique usa o item; botão direito abre a ficha; o "+" adiciona magias e poderes. Dá para ocultar nas configurações do cliente.

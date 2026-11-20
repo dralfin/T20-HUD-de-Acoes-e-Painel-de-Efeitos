@@ -606,7 +606,7 @@ class AcoesHUD {
       }
       const b = ev.target.closest("button");
       if (!b || !el.contains(b)) return;
-      if (b.dataset.per) return void rolarPericiaHud(b.dataset.per);
+      if (b.dataset.per) return void rolarPericiaHud(b.dataset.per, ev);
       if (b.dataset.atItem || b.dataset.atAdd !== undefined || b.dataset.atRm !== undefined) return void atalhoClique(b, ev);
       if (b.dataset.defstep) return void this.passoDefBonus(Number(b.dataset.defstep));
       if (b.dataset.filtro) return void MenuAcoes.alternarFiltro(b.dataset.filtro);
@@ -625,7 +625,21 @@ class AcoesHUD {
       else if (b.dataset.acao === "sec-armas") game.settings.set(ID, "painelAtalhos", !cfg("painelAtalhos"));
       else if (b.dataset.acao === "sec-per") game.settings.set(ID, "periciasNaHud", !cfg("periciasNaHud"));
       else if (b.dataset.acao === "sec-acoes") game.settings.set(ID, "acoesNaHud", !cfg("acoesNaHud"));
-      else if (b.dataset.acao === "layout") game.settings.set(ID, "layoutCombate", cfg("layoutCombate") === "largo" ? "compacto" : "largo");
+      else if (b.dataset.acao === "layout") {
+        const novo = cfg("layoutCombate") === "largo" ? "compacto" : "largo";
+        (async () => {
+          try {
+            // o layout largo e o compacto dependem dos botões de Ações; se estavam desligados, liga junto
+            if (!game.settings.get(ID, "menuAcoes")) await game.settings.set(ID, "menuAcoes", true);
+            await game.settings.set(ID, "layoutCombate", novo);
+          } catch (err) {
+            console.warn(`${ID} | não foi possível trocar o layout`, err);
+            ui.notifications?.warn("T20 HUD: não foi possível trocar o layout. Veja o console (F12).");
+          } finally {
+            this.render();
+          }
+        })();
+      }
       else if (b.dataset.acao === "recolher")
         game.settings.set(ID, "recolhido", !game.settings.get(ID, "recolhido"));
     });
@@ -1267,8 +1281,8 @@ class AcoesHUD {
     ].join("");
 
     // ----- ações (só no turno do token) -----
-    // Em combate (no turno ou não): layout largo, com o painel de ações ao lado, tudo numa HUD só.
-    const largo = !!c && MenuAcoes.habilitado() && cfg("layoutCombate") === "largo";
+    // Em combate ou não: mesmo layout (largo, com o painel de ações ao lado, ou compacto). Fora de combate só não há tempo, deslocamento e Encerrar turno.
+    const largo = MenuAcoes.habilitado() && cfg("layoutCombate") === "largo";
     if (largo) MenuAcoes.catAberta = null; // o menu flutuante não é usado neste layout
     const menuLinha = MenuAcoes.habilitado() && !largo
       ? `<div class="t20ah-livro">${CATEGORIAS_ACOES.filter((cat) => categoriaVisivel(cat, t?.actor)).map(
@@ -1284,7 +1298,9 @@ class AcoesHUD {
     let btnsTurno = "";
     // No layout largo, fora do turno a coluna da esquerda mantém o mesmo tamanho (ações desabilitadas), para a HUD não mudar de altura.
     const espelho = !turno && !!c && largo;
-    if (turno || espelho) {
+    // Fora de combate, no layout largo: o mesmo bloco (invisível, só reserva o espaço) para a HUD ter a mesma altura da de combate.
+    const fantasma = !c && largo; // no compacto não reserva nada: fica compacto de verdade
+    if (turno || espelho || fantasma) {
       const e = getEstado(c);
       const limitar = cfg("limitarMovimento") && (!game.user.isGM || cfg("gastoMovimentoMestre") || cfg("regrasParaMestre"));
       const porAcao = quadradosPorAcao(actor);
@@ -1334,18 +1350,26 @@ class AcoesHUD {
              <span class="t20ah-pips">${this.pip(e.ext ? "on" : "")}</span>
            </div>`
         : "";
-      acoes = `
-        <div class="t20ah-sep"></div>
-        <div class="t20ah-botoes ${extra ? "com-extra" : ""} ${espelho ? "fora-turno" : ""}">${tiles}${tileExtra}</div>
-        ${tempoHtml}
-        ${barra}
-        ${menuLinha}
-        ${espelho
-          ? `<button type="button" class="t20ah-passar" disabled tabindex="-1"><i class="fa-solid fa-hourglass-start"></i> Aguardando o turno</button>`
-          : `<button type="button" class="t20ah-passar" data-acao="passar" title="Passa a vez para o próximo combatente">
+      const botaoPassar = espelho || fantasma
+        ? `<button type="button" class="t20ah-passar" disabled tabindex="-1"><i class="fa-solid fa-hourglass-start"></i> Aguardando o turno</button>`
+        : `<button type="button" class="t20ah-passar" data-acao="passar" title="Passa a vez para o próximo combatente">
           <i class="fa-solid fa-forward-step"></i> Encerrar turno
-        </button>`}
-        <footer class="t20ah-rodape"><i class="fa-solid fa-bolt"></i> Ações livres e reações: sem limite</footer>`;
+        </button>`;
+      const rodapeLivre = `<footer class="t20ah-rodape"><i class="fa-solid fa-bolt"></i> Ações livres e reações: sem limite</footer>`;
+      const blocoTurno = `<div class="t20ah-botoes ${extra ? "com-extra" : ""} ${espelho || fantasma ? "fora-turno" : ""}">${tiles}${tileExtra}</div>
+        ${tempoHtml}
+        ${barra}`;
+      acoes = fantasma
+        ? `<div class="t20ah-sep"></div>
+        <div class="t20ah-fantasma" aria-hidden="true" inert>${blocoTurno}</div>
+        ${menuLinha}
+        <div class="t20ah-fantasma" aria-hidden="true" inert>${botaoPassar}${rodapeLivre}</div>`
+        : `
+        <div class="t20ah-sep"></div>
+        ${blocoTurno}
+        ${menuLinha}
+        ${botaoPassar}
+        ${rodapeLivre}`;
       if (turno) resumoAcoes = `
         <i class="fa-solid fa-hand-fist ico-acao padrao ${!e.std ? "livre" : ""}" title="Ação padrão"></i>
         <i class="fa-solid fa-person-running ico-acao movimento ${!e.mov || !e.std ? "livre" : ""}" title="Ação de movimento"></i>
@@ -1366,8 +1390,8 @@ class AcoesHUD {
     el.classList.toggle("em-turno", turno);
     el.classList.toggle("largo", largo);
     const minis = `
-        ${game.user.isGM ? `<button type="button" class="t20ah-mini" data-acao="tempo" title="Definir o limite de tempo do turno${Number(cfg("tempoMaximo")) > 0 ? ` (atual: ${Number(cfg("tempoMaximo"))} s)` : " (atual: sem limite)"}"><i class="fa-solid fa-stopwatch"></i></button>` : ""}
-        ${game.user.isGM ? `<button type="button" class="t20ah-mini ${cfg("gastoMovimentoMestre") ? "" : "desligado"}" data-acao="limitarMov" title="${cfg("gastoMovimentoMestre") ? "Seu movimento GASTA ações (como o dos jogadores). Clique para mover livremente." : "Você move livremente (sem gasto de movimento). Clique para passar a gastar ações."}"><i class="fa-solid fa-shoe-prints"></i></button>` : ""}
+        ${game.user.isGM && c ? `<button type="button" class="t20ah-mini" data-acao="tempo" title="Definir o limite de tempo do turno${Number(cfg("tempoMaximo")) > 0 ? ` (atual: ${Number(cfg("tempoMaximo"))} s)` : " (atual: sem limite)"}"><i class="fa-solid fa-stopwatch"></i></button>` : ""}
+        ${game.user.isGM && c ? `<button type="button" class="t20ah-mini ${cfg("gastoMovimentoMestre") ? "" : "desligado"}" data-acao="limitarMov" title="${cfg("gastoMovimentoMestre") ? "Seu movimento GASTA ações (como o dos jogadores). Clique para mover livremente." : "Você move livremente (sem gasto de movimento). Clique para passar a gastar ações."}"><i class="fa-solid fa-shoe-prints"></i></button>` : ""}
         <button type="button" class="t20ah-mini" data-acao="visual" title="Editar o visual da HUD"><i class="fa-solid fa-sliders"></i></button>
         <button type="button" class="t20ah-mini ${cfg("painelAtalhos") ? "" : "desligado"}" data-acao="sec-armas" title="${cfg("painelAtalhos") ? "Ocultar" : "Mostrar"} a seção de armas e atalhos"><i class="fa-solid fa-hand-fist"></i></button>
         ${largo ? `<button type="button" class="t20ah-mini ${cfg("periciasNaHud") ? "" : "desligado"}" data-acao="sec-per" title="${cfg("periciasNaHud") ? "Ocultar" : "Mostrar"} a seção de perícias"><i class="fa-solid fa-dice-d20"></i></button>
@@ -1386,8 +1410,10 @@ class AcoesHUD {
         ${btnsTurno}
         ${minis}
       </header>`;
-    const secAtalhos = cfg("painelAtalhos") ? atalhosHud(actor) : "";
-    const secPericias = largo && cfg("periciasNaHud") ? secaoPericiasHud(actor) : "";
+    // as seções novas nunca podem derrubar a HUD inteira (fichas com dados diferentes): se uma falhar, só ela some
+    const seguro = (fn) => { try { return fn() ?? ""; } catch (err) { console.warn(`${ID} | não foi possível montar uma seção da HUD`, err); return ""; } };
+    const secAtalhos = cfg("painelAtalhos") ? seguro(() => atalhosHud(actor)) : "";
+    const secPericias = largo && cfg("periciasNaHud") ? seguro(() => secaoPericiasHud(actor)) : "";
     const esq = `
         <div class="t20ah-recursos">${recursos}</div>
         ${chips ? `<div class="t20ah-chips">${chips}</div>` : ""}
@@ -1399,7 +1425,9 @@ class AcoesHUD {
     const larguraCss = secDir ? `width:${larguraEm}em` : `width:auto;min-width:${larguraEm}em`;
     el.innerHTML = largo
       ? `${cabecalho}<div class="t20ah-corpo grade" style="grid-template-columns:${cols.join(" ")};${larguraCss}">${secAtalhos ? `<section class="t20ah-sec-atalhos">${secAtalhos}</section>` : ""}<div class="t20ah-esq">${esq}</div>${secPericias ? `<section class="t20ah-sec-per">${secPericias}</section>` : ""}${secDir ? `<aside class="t20ah-dir">${MenuAcoes.htmlPainel()}</aside>` : ""}</div>`
-      : `${cabecalho}<div class="t20ah-corpo">${secAtalhos ? `<section class="t20ah-sec-atalhos compacto">${secAtalhos}</section>` : ""}${esq}</div>`;
+      : secAtalhos
+        ? `${cabecalho}<div class="t20ah-corpo grade" style="grid-template-columns:12em 19em;width:auto"><section class="t20ah-sec-atalhos">${secAtalhos}</section><div class="t20ah-esq">${esq}</div></div>`
+        : `${cabecalho}<div class="t20ah-corpo">${esq}</div>`;
 
     const chaveVisual = `${doc.id}:${turno}`;
     const estavaOculto = el.classList.contains("oculto");
@@ -1842,9 +1870,21 @@ function listarPericias(actor) {
   const lista = [];
   const entradas = per && typeof per === "object" ? Object.entries(per).filter(([, v]) => v && typeof v === "object") : [];
   for (const [chave, v] of entradas) {
-    let nome = v.label ?? v.nome ?? "";
+    let nome = [v.label, v.nome, v.name, v.especialidade, v.subtitulo].find((x) => typeof x === "string" && x.trim()) ?? "";
     try { if (/^[\w-]+(\.[\w-]+)+$/.test(nome)) nome = game.i18n.localize(nome); } catch (err) { /* ignora */ }
-    nome = String(nome || NOMES_PERICIAS[chave] || chave);
+    nome = String(nome || NOMES_PERICIAS[chave] || "").trim();
+    // o "nome" que for só o código da ficha (_pc0, ofi0) não é nome de verdade
+    if (/^_?pc\d*$/i.test(nome) || /^ofi\d*$/i.test(nome)) nome = "";
+    if (!nome) {
+      // fichas de ameaça: ofi0, ofi1… são Ofícios; _pc0… são perícias extras (sem nome): só aparecem se tiverem algum valor
+      if (/^ofi/i.test(chave)) nome = "Ofício";
+      else if (/^_?pc/i.test(chave)) {
+        // espaço vazio da ficha ({ label: "", treinado: false, value: 0, outros: 0 }): não é uma perícia
+        const treinada = v.treinado === true || Number(v.treinado) > 0;
+        if (!treinada && !Number(v.value) && !Number(v.outros) && !(Array.isArray(v.bonus) && v.bonus.length)) continue;
+        nome = "Perícia extra";
+      } else nome = chave;
+    }
     lista.push({ chave, nome, bonus: bonusPericia(actor, chave, nome) });
   }
   if (!lista.length) for (const [chave, nome] of Object.entries(NOMES_PERICIAS)) lista.push({ chave, nome, bonus: null });
@@ -1855,7 +1895,7 @@ function listarPericias(actor) {
  * Rola a perícia pela rotina da própria ficha do Tormenta20 (com o diálogo e os efeitos de uso do sistema).
  * Retorna { roll, mensagem } ou null se o teste foi cancelado ou não pôde ser lido.
  */
-async function rolarPericiaNativa(actor, chave, { privada = false } = {}) {
+async function rolarPericiaNativa(actor, chave, { privada = false, evento = null } = {}) {
   // privada: a rolagem da ficha sai só para o Mestre (modo "cega"), como o teste de morte do Golpe de Misericórdia
   let modoAntes = null;
   if (privada) {
@@ -1867,14 +1907,14 @@ async function rolarPericiaNativa(actor, chave, { privada = false } = {}) {
     }
   }
   try {
-    return await rolarPericiaNativaInterna(actor, chave);
+    return await rolarPericiaNativaInterna(actor, chave, evento);
   } finally {
     if (modoAntes !== null) {
       try { await game.settings.set("core", "rollMode", modoAntes); } catch (err) { /* ignora */ }
     }
   }
 }
-async function rolarPericiaNativaInterna(actor, chave) {
+async function rolarPericiaNativaInterna(actor, chave, evento = null) {
   const fn = ["rollPericia", "rollSkill"].map((m) => actor?.[m]).find((f) => typeof f === "function");
   if (!fn) {
     ui.notifications.error("Não encontrei a rolagem de perícias na ficha deste personagem.");
@@ -1888,7 +1928,8 @@ async function rolarPericiaNativaInterna(actor, chave) {
   });
   let retorno;
   try {
-    retorno = await fn.call(actor, chave);
+    // com o evento do clique, o sistema trata o Shift como de costume (inverte o efeito do uso, como na ficha)
+    retorno = await (evento ? fn.call(actor, chave, { event: evento }) : fn.call(actor, chave));
     // a mensagem pode chegar um instante depois do fim da rotina
     for (let i = 0; i < 15 && !capturada && !(retorno?.total !== undefined || retorno?.rolls?.length); i++) {
       await new Promise((r) => setTimeout(r, 100));
@@ -6120,6 +6161,18 @@ function rotuloT20(campo, bruto) {
   return v;
 }
 
+/** Troca os @atributos de uma fórmula (1d6 + @for) pelo valor que representam na ficha e simplifica (1d6 + 3). */
+function resolverFormulaItem(item, formula) {
+  let f = String(formula ?? "");
+  if (!f.includes("@")) return f;
+  try {
+    const dados = item.getRollData?.() ?? item.actor?.getRollData?.() ?? {};
+    f = Roll.replaceFormulaData(f, dados, { missing: "0" });
+    try { f = Roll.simplifyTerms(f).formula; } catch (err) { /* mantém a fórmula já substituída */ }
+  } catch (err) { console.warn(`${ID} | não foi possível resolver a fórmula`, formula, err); }
+  return f;
+}
+
 /** Características de um item no mesmo formato do card enviado ao chat: { sub, stats: [[chave, valor]] }. */
 function caracteristicasItem(item) {
   const sy = item.system ?? {};
@@ -6154,7 +6207,8 @@ function caracteristicasItem(item) {
     try {
       const rolls = Array.isArray(sy.rolls) ? sy.rolls : Object.values(sy.rolls ?? {});
       const dano = rolls.filter((r) => /dano/.test(normalizar(r?.type ?? r?.tipo ?? r?.key ?? r?.name ?? "")))
-        .map((r) => (r.parts ?? []).map((pt) => (Array.isArray(pt) ? pt[0] : pt?.formula ?? pt)).filter(Boolean).join(" + ")).filter(Boolean);
+        .map((r) => (r.parts ?? []).map((pt) => (Array.isArray(pt) ? pt[0] : pt?.formula ?? pt)).filter(Boolean).join(" + ")).filter(Boolean)
+        .map((f) => resolverFormulaItem(item, f));
       if (dano.length) stats.push(["Dano", dano.join(" / ")]);
     } catch (err) { /* sem rolagens legíveis */ }
     const m = txt(sy.criticoM ?? sy.critico?.margem), x = txt(sy.criticoX ?? sy.critico?.multiplicador);
@@ -6213,13 +6267,13 @@ function atalhosHud(actor) {
   const grupoSlots = `<div class="at-bloco"><div class="at-titulo"><i class="fa-solid fa-wand-sparkles"></i> Magias e poderes</div><div class="at-grade">${ids.map((id) => botaoAtalho(actor.items.get(id), { slot: dono })).join("")}${
     Array.from({ length: vazios }, () => `<span class="at-cel"><button type="button" class="at-slot vazio" data-at-add aria-label="Adicionar uma magia ou poder"><i class="fa-solid fa-plus"></i></button></span>`).join("")}${
     !dono && !ids.length ? '<span class="at-vazio-txt">Sem atalhos</span>' : ""}</div></div>`;
-  return `<div class="t20ah-atalhos">${grupoArmas}${grupoSlots}</div><div class="at-legenda"><span><b>Clique</b> usar</span><span><b>Botão direito</b> ficha do item</span></div>`;
+  return `<div class="t20ah-atalhos">${grupoArmas}${grupoSlots}</div><div class="at-legenda"><span><b>Clique</b> usar</span><span><b>Shift+clique</b> usar invertido</span><span><b>Botão direito</b> ficha do item</span></div>`;
 }
 
-async function rolarPericiaHud(chave) {
+async function rolarPericiaHud(chave, ev = null) {
   const actor = AcoesHUD.alvo()?.actor;
   if (!actor) return;
-  try { await rolarPericiaNativa(actor, chave); }
+  try { await rolarPericiaNativa(actor, chave, { evento: ev }); }
   catch (err) { console.error(`${ID} | erro ao rolar a perícia`, err); }
 }
 
@@ -6235,8 +6289,8 @@ async function atalhoClique(b, ev) {
   const item = actor.items.get(b.dataset.atItem);
   if (!item) return;
   try {
-    if (ev.shiftKey || typeof item.roll !== "function") item.sheet?.render(true);
-    else await item.roll();
+    if (typeof item.roll !== "function") item.sheet?.render(true);
+    else await item.roll({ event: ev }); // Shift: o sistema inverte o efeito do uso, como na ficha
   } catch (err) {
     console.warn(`${ID} | não foi possível usar o item pelo atalho`, err);
     item.sheet?.render(true);

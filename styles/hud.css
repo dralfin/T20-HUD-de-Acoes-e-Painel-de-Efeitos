@@ -301,7 +301,7 @@
 
 #t20ah.tempo-aviso .t20ah-tempo .fill { background: linear-gradient(90deg, #a8321f, #d64545); }
 #t20ah.tempo-aviso .js-tempo-txt { color: #ff7a6b; animation: t20ah-pulso 1s ease-in-out infinite; }
-#t20ah.tempo-fim { border-color: #d64545; animation: t20ah-treme 0.5s ease-in-out 2; }
+#t20ah.tempo-fim { border-color: #d64545; }
 #t20ah.tempo-fim .js-tempo-txt { color: #ff5d4d; }
 
 @keyframes t20ah-pulso { 50% { opacity: 0.45; } }
@@ -1655,7 +1655,6 @@ span.t20ah-cond-link::before, span.t20ah-cond-chip::before { content: ""; flex: 
 #t20ah-escolha .ec-check input { position: absolute; opacity: 0; pointer-events: none; }
 #t20ah-escolha .ec-cx { flex: 0 0 1.1em; height: 1.1em; border-radius: 0.3em; border: 1px solid rgba(255, 255, 255, 0.35); display: inline-grid; place-items: center; }
 #t20ah-escolha .ec-check input:checked + .ec-cx { background: var(--cor); border-color: var(--cor); }
-#t20ah-escolha .ec-check input:checked + .ec-cx::after { content: "\f00c"; font-family: "Font Awesome 6 Free", "Font Awesome 5 Free"; font-weight: 900; font-size: 0.7em; color: #1a1013; }
 #t20ah-escolha .ec-check:has(input:checked) { border-color: var(--cor); background: color-mix(in srgb, var(--cor) 24%, #131315); }
 #t20ah-escolha .ec-num-linha { display: flex; align-items: center; gap: 0.6em; color: #f2e8d5; padding: 0.2em 0.2em; }
 #t20ah-escolha .ec-num { width: 6em; padding: 0.3em 0.5em; border-radius: 0.4em; color: #f2e8d5; background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.2); font-size: 1.1em; }
@@ -1797,3 +1796,36 @@ span.t20ah-cond-link::before, span.t20ah-cond-chip::before { content: ""; flex: 
 #t20ah-escolha .ec-janela > .ec-form { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; }
 #t20ah-escolha .ec-janela > .ec-lista, #t20ah-escolha .ec-janela > .ec-pericias { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 #t20ah-escolha .ec-check { position: relative; }
+
+/* fora de combate: reserva o espaço do bloco de turno (mesma altura da HUD em combate) sem mostrá-lo */
+#t20ah .t20ah-fantasma { visibility: hidden; pointer-events: none; }
+
+/* botões de ação (categorias e Padrão/Movimento/Completa) menores */
+#t20ah .t20ah-livro { gap: 0.3em; margin-top: 0.5em; }
+#t20ah .lv-btn { gap: 0.1em; padding: 0.22em 0.15em 0.2em; font-size: 0.68em; border-radius: 0.5em; }
+#t20ah .lv-btn i { font-size: 1.05em; }
+#t20ah .t20ah-botoes { gap: 0.3em; }
+#t20ah .t20ah-tile { gap: 0.15em; padding: 0.2em 0.3em 0.18em; border-radius: 0.5em; }
+#t20ah .t20ah-tile i { font-size: 0.95em; }
+#t20ah .t20ah-rotulo { font-size: 0.7em; letter-spacing: 0.05em; }
+#t20ah .t20ah-pips { gap: 0.15em; }
+#t20ah .pip { width: 0.42em; height: 0.42em; }
+
+/* marca de "marcado" desenhada em CSS (não depende da fonte de ícones) */
+#t20ah-escolha .ec-check input:checked + .ec-cx::after {
+  content: ""; display: block; width: 0.28em; height: 0.55em; margin-top: -0.1em;
+  border: solid #1a1013; border-width: 0 0.14em 0.14em 0; transform: rotate(45deg); font: inherit;
+}
+#t20ah-escolha .ec-cx { box-sizing: border-box; width: 1.1em; }
+
+/* cor de destaque (--ouro) nos botões de turno, nas perícias e nos atalhos */
+#t20ah .t20ah-passar {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ouro, #e0b85c) 72%, white), color-mix(in srgb, var(--ouro, #e0b85c) 88%, black));
+  border-color: color-mix(in srgb, var(--ouro, #e0b85c) 55%, white);
+}
+#t20ah .t20ah-passar:hover { box-shadow: 0 0.35em 0.9em color-mix(in srgb, var(--ouro, #e0b85c) 45%, transparent); }
+#t20ah .pr-linha:hover { background: color-mix(in srgb, var(--ouro, #e0b85c) 18%, transparent); }
+#t20ah .pr-b { color: var(--ouro, #e0b85c); }
+#t20ah .pr-titulo, #t20ah .at-titulo, #t20ah .at-legenda b { color: var(--ouro, #e0b85c); }
+#t20ah .at-slot:hover { border-color: var(--ouro, #e0b85c); box-shadow: 0 0 0.6em color-mix(in srgb, var(--ouro, #e0b85c) 40%, transparent); }
+#t20ah .at-slot.vazio:hover { color: var(--ouro, #e0b85c); }
