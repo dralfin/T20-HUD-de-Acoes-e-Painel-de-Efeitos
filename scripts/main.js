@@ -389,6 +389,7 @@ const NOMES = {
 class AcoesHUD {
   static el = null;
   static _ultimo = null;
+  static _gradLim = 0; // contador de ids dos degradês dos selos de limite de PM
   static _foto = null; // PV/PM do último desenho (para detectar perdas e ganhos)
   static _anims = []; // animações de perda/ganho ainda em andamento
   static _dano = { aberto: false, valor: "", tipo: "", ignora: false }; // menu de dano (sobrevive aos redesenhos)
@@ -607,7 +608,7 @@ class AcoesHUD {
       const b = ev.target.closest("button");
       if (!b || !el.contains(b)) return;
       if (b.dataset.per) return void rolarPericiaHud(b.dataset.per, ev);
-      if (b.dataset.atItem || b.dataset.atAdd !== undefined || b.dataset.atRm !== undefined) return void atalhoClique(b, ev);
+      if (b.dataset.atItem || b.dataset.atAddarma !== undefined || b.dataset.atRmarma !== undefined || b.dataset.atMuni !== undefined || b.dataset.atAdd !== undefined || b.dataset.atRm !== undefined) return void atalhoClique(b, ev);
       if (b.dataset.defstep) return void this.passoDefBonus(Number(b.dataset.defstep));
       if (b.dataset.filtro) return void MenuAcoes.alternarFiltro(b.dataset.filtro);
       if (b.dataset.fper) return void MenuAcoes.alternarPericia(b.dataset.fper);
@@ -617,6 +618,8 @@ class AcoesHUD {
       else if (b.dataset.acao === "reset") this.reiniciar();
       else if (b.dataset.acao === "passar") this.passarTurno();
       else if (b.dataset.acao === "visual") abrirVisualHud(b);
+      else if (b.dataset.acao === "atorMestre") escolherAtorMestre();
+      else if (b.dataset.acao === "outroMundo") configurarOutroMundo(this.alvo()?.actor);
       else if (b.dataset.acao === "tempo") this.definirTempo();
       else if (b.dataset.acao === "limitarMov") {
         if (game.user.isGM) game.settings.set(ID, "gastoMovimentoMestre", !cfg("gastoMovimentoMestre"));
@@ -729,8 +732,11 @@ class AcoesHUD {
     let doc = canvas.tokens?.controlled?.find((t) => t.actor)?.document ?? null;
     if (!doc) doc = this.combatenteAtual()?.token ?? null;
     // sem token (aberta pelo atalho): usa o personagem do jogador, mesmo sem token na cena
-    if (!doc && this._forcar) {
-      const ator = game.user.character ?? game.actors?.find((x) => x.isOwner && x.type === "character") ?? null;
+    // Mestre sem token: usa o ator escolhido para representá-lo (ao abrir pelo atalho ou quando não há nenhum token na cena)
+    const semTokensNaCena = !canvas.tokens?.placeables?.some((t) => t.actor);
+    if (!doc && (this._forcar || (game.user.isGM && semTokensNaCena))) {
+      const escolhido = game.user.isGM ? game.actors?.get(cfg("atorMestre")) ?? null : null;
+      const ator = escolhido ?? game.user.character ?? (game.user.isGM ? null : game.actors?.find((x) => x.isOwner && x.type === "character")) ?? null;
       if (ator) {
         doc = { sem: true, id: null, uuid: ator.uuid, name: ator.name, texture: { src: ator.img }, actor: ator, object: null, parent: null, width: 1 };
       }
@@ -757,7 +763,9 @@ class AcoesHUD {
     this._forcar = true;
     if (cfg("hudOculta")) game.settings.set(ID, "hudOculta", false);
     else this.render();
-    if (!this.alvo()) {
+    if (!this.alvo() && game.user.isGM && !game.actors?.get(cfg("atorMestre"))) {
+      escolherAtorMestre();
+    } else if (!this.alvo()) {
       ui.notifications.info("A HUD precisa de um token selecionado ou de um personagem definido para você (nas configurações do usuário).");
     }
   }
@@ -1230,7 +1238,68 @@ class AcoesHUD {
       }));
     }
     if (rd.achou && !chipsRD.length) chipsRD.push(escudoRD({ icone: "fa-bolt", valor: 0, titulo: "Redução de dano da ficha: nenhuma" }));
+    const lim = limitePm(actor, { magia: false });
+    const limMagia = limitePm(actor, { magia: true });
+    // selo de limite: losango colorido por categoria, com o(s) ícone(s) de identificação acima (habilidade, arcana, divina, universal)
+    const ICONE_LIM = { hab: "fa-hand-fist", arc: "fa-wand-sparkles", div: "fa-sun", uni: "fa-star", mundo: "fa-rocket" };
+    const COR_LIM = { hab: "#4aa3df", arc: "#a98ae6", div: "#e8c547", uni: "#5fc9b0", mundo: "#e07a5f" };
+    const escurecer = (hex, f) => `#${[1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * f).toString(16).padStart(2, "0")).join("")}`;
+    const seloLimite = (valor, chaves, titulo) => {
+      const cores = chaves.map((k) => COR_LIM[k]);
+      // cores bem definidas: uma categoria = cor sólida; várias = fatias de pizza, uma por categoria (a partir do topo, no sentido horário)
+      const gid = `lg${++AcoesHUD._gradLim}`;
+      const n = cores.length;
+      const ponto = (g) => `${(12 + 22 * Math.cos(((g - 90) * Math.PI) / 180)).toFixed(2)} ${(14 + 22 * Math.sin(((g - 90) * Math.PI) / 180)).toFixed(2)}`;
+      const fatias = n === 1
+        ? `<rect x="0" y="0" width="24" height="28" fill="${cores[0]}"/>`
+        : cores.map((c, i) => `<path d="M12 14 L${ponto((i / n) * 360)} A22 22 0 0 1 ${ponto(((i + 1) / n) * 360)} Z" fill="${c}"/>`).join("");
+      return `<span class="pm-lim-grupo" title="${esc(titulo)}">` +
+        `<span class="pm-lim-ico">${chaves.map((k) => `<i class="fa-solid ${ICONE_LIM[k]}" style="color:${COR_LIM[k]};filter:drop-shadow(0 0 0.25em ${COR_LIM[k]})"></i>`).join("")}</span>` +
+        `<span class="rd-escudo cd-selo pm-lim-selo"><span class="rd-corpo"><svg viewBox="0 0 24 28" aria-hidden="true"><defs><clipPath id="${gid}"><path d="M12 0.8 23.2 14 12 27.2 0.8 14z"/></clipPath></defs>` +
+        `<g clip-path="url(#${gid})">${fatias}</g><path d="M12 0.8 23.2 14 12 27.2 0.8 14z" fill="none" stroke="#0d0f14" stroke-width="1.4" stroke-linejoin="round"/></svg><b class="n${String(valor).length}">${valor}</b></span></span></span>`;
+    };
+    // um selo por valor distinto: habilidades, magias arcanas, divinas e universais; categorias com o mesmo valor dividem o selo
+    const grupos = new Map();
+    const juntar = (valor, nome, dica, chave) => {
+      const g = grupos.get(valor) ?? { nomes: [], dicas: [], chaves: [] };
+      g.nomes.push(nome);
+      g.chaves.push(chave);
+      if (dica) g.dicas.push(dica);
+      grupos.set(valor, g);
+    };
+    if (lim) juntar(lim.limite, "habilidades", `nível ${lim.nivel}`, "hab");
+    if (lim && limMagia && usaMagias(actor)) {
+      const tipos = tiposDeMagia(actor);
+      const univ = !!game.settings.get(ID, "universaisContamComo");
+      const base = limMagia.limite;
+      const partes = [`nível ${limMagia.nivel}`];
+      if (limMagia.bonus) partes.push(`+${limMagia.bonus} de ${limMagia.atributo || "atributo-chave"} (Magia Ilimitada)`);
+      if (limMagia.canal) partes.push(`+${limMagia.canal} (melhoria Canalizador)`);
+      const conta = partes.join(" ");
+      const arc = tipos.arcana || (tipos.universal && univ);
+      const div = tipos.divina || (tipos.universal && univ);
+      if (arc) juntar(base + (lim.temCajado ? 1 : 0), "magias arcanas", conta + (lim.temCajado ? " +1 (Cajado Arcano equipado)" : ""), "arc");
+      if (div) juntar(base, "magias divinas", conta, "div");
+      if (tipos.universal && !univ) juntar(base, "magias universais", conta, "uni");
+      if (!arc && !div && !tipos.universal) juntar(base, "magias", conta, "arc");
+    }
+    {
+      const om = lerOutroMundo(actor);
+      const mItem = om.ativo && om.tecnologia ? actor.items.get(om.magiaId) : null;
+      if (mItem && lim && limMagia) juntar(limMagia.limite + 2, `"${mItem.name}" (De Outro Mundo)`, "tecnologia: +2", "mundo");
+    }
+    // diagnóstico (aparece na dica dos selos de magia): o que o módulo enxergou na ficha
+    const tp = tiposDeMagia(actor);
+    const diag = ` [magias: arcanas ${tp.arcana ? "sim" : "não"}, divinas ${tp.divina ? "sim" : "não"}, universais ${tp.universal ? "sim" : "não"}; Cajado Arcano: ${lim?.itemCajado ? (lim.temCajado ? "equipado" : "na ficha, mas NÃO equipado") : "não encontrado"}]`;
+    const selosLimite = [...grupos.entries()].map(([valor, g]) => {
+      const soHab = g.nomes.length === 1 && g.nomes[0] === "habilidades";
+      const temHab = g.nomes.includes("habilidades");
+      const nomes = g.nomes.length > 1 ? `${g.nomes.slice(0, -1).join(", ")} e ${g.nomes.at(-1)}` : g.nomes[0];
+      const titulo = `Limite de PM gasto por ${nomes}: ${valor}${g.dicas.length ? ` (${[...new Set(g.dicas)].join("; ")})` : ""}.${usaMagias(actor) ? diag : ""}`;
+      return seloLimite(valor, [...new Set(g.chaves)], titulo);
+    });
     const chips = [
+      ...selosLimite,
       def != null
         ? `<span class="def-grupo" title="Defesa e bônus de defesa"><span class="def-escudo n${String(def).length}" title="Defesa total: ${defBase} da ficha${bonusDef ? ` ${bonusDef > 0 ? "+" : "−"} ${Math.abs(bonusDef)} de bônus da HUD` : ""}"><svg viewBox="0 0 24 28" aria-hidden="true"><path d="M12 1.2 22 4.6V13c0 6.6-4.3 11.2-10 13.8C6.3 24.2 2 19.6 2 13V4.6z"/></svg><b>${def}</b></span>` +
           `<span class="chip defb ${bonusDef ? "ativo" : ""}" title="Bônus de defesa (só na HUD, não altera a ficha). Digite um valor, ou +2 / -2 para somar."><button type="button" class="defstep" data-defstep="-1" title="Diminuir 1">−</button><input type="text" inputmode="numeric" autocomplete="off" data-defbonus value="${bonusDef}"><button type="button" class="defstep" data-defstep="1" title="Aumentar 1">+</button></span></span>`
@@ -1392,6 +1461,8 @@ class AcoesHUD {
     const minis = `
         ${game.user.isGM && c ? `<button type="button" class="t20ah-mini" data-acao="tempo" title="Definir o limite de tempo do turno${Number(cfg("tempoMaximo")) > 0 ? ` (atual: ${Number(cfg("tempoMaximo"))} s)` : " (atual: sem limite)"}"><i class="fa-solid fa-stopwatch"></i></button>` : ""}
         ${game.user.isGM && c ? `<button type="button" class="t20ah-mini ${cfg("gastoMovimentoMestre") ? "" : "desligado"}" data-acao="limitarMov" title="${cfg("gastoMovimentoMestre") ? "Seu movimento GASTA ações (como o dos jogadores). Clique para mover livremente." : "Você move livremente (sem gasto de movimento). Clique para passar a gastar ações."}"><i class="fa-solid fa-shoe-prints"></i></button>` : ""}
+        ${game.user.isGM && itemOutroMundo(actor) ? `<button type="button" class="t20ah-mini ${lerOutroMundo(actor).ativo ? "" : "desligado"}" data-acao="outroMundo" title="De Outro Mundo (só Mestre): ${lerOutroMundo(actor).ativo ? "benefício ativo" + (actor.items.get(lerOutroMundo(actor).magiaId)?.name ? ` — magia: ${actor.items.get(lerOutroMundo(actor).magiaId).name}` : " — sem magia escolhida") : "benefício desativado"}. Clique para configurar."><i class="fa-solid fa-rocket"></i></button>` : ""}
+        ${game.user.isGM && doc.sem ? `<button type="button" class="t20ah-mini" data-acao="atorMestre" title="Trocar o ator que representa o Mestre (sem token em cena)"><i class="fa-solid fa-user-secret"></i></button>` : ""}
         <button type="button" class="t20ah-mini" data-acao="visual" title="Editar o visual da HUD"><i class="fa-solid fa-sliders"></i></button>
         <button type="button" class="t20ah-mini ${cfg("painelAtalhos") ? "" : "desligado"}" data-acao="sec-armas" title="${cfg("painelAtalhos") ? "Ocultar" : "Mostrar"} a seção de armas e atalhos"><i class="fa-solid fa-hand-fist"></i></button>
         ${largo ? `<button type="button" class="t20ah-mini ${cfg("periciasNaHud") ? "" : "desligado"}" data-acao="sec-per" title="${cfg("periciasNaHud") ? "Ocultar" : "Mostrar"} a seção de perícias"><i class="fa-solid fa-dice-d20"></i></button>
@@ -1424,9 +1495,9 @@ class AcoesHUD {
     const larguraEm = (secAtalhos ? 12 : 0) + 18.5 + (secPericias ? 17 : 0) + (secDir ? 40 : 0) + 1.1 * (cols.length - 1);
     const larguraCss = secDir ? `width:${larguraEm}em` : `width:auto;min-width:${larguraEm}em`;
     el.innerHTML = largo
-      ? `${cabecalho}<div class="t20ah-corpo grade" style="grid-template-columns:${cols.join(" ")};${larguraCss}">${secAtalhos ? `<section class="t20ah-sec-atalhos">${secAtalhos}</section>` : ""}<div class="t20ah-esq">${esq}</div>${secPericias ? `<section class="t20ah-sec-per">${secPericias}</section>` : ""}${secDir ? `<aside class="t20ah-dir">${MenuAcoes.htmlPainel()}</aside>` : ""}</div>`
+      ? `${cabecalho}<div class="t20ah-corpo grade" style="grid-template-columns:${cols.join(" ")};${larguraCss}">${secAtalhos ? `<div class="t20ah-sec-atalhos">${secAtalhos}</div>` : ""}<div class="t20ah-esq">${esq}</div>${secPericias ? `<div class="t20ah-sec-per">${secPericias}</div>` : ""}${secDir ? `<div class="t20ah-dir">${seguro(() => MenuAcoes.htmlPainel())}</div>` : ""}</div>`
       : secAtalhos
-        ? `${cabecalho}<div class="t20ah-corpo grade" style="grid-template-columns:12em 19em;width:auto"><section class="t20ah-sec-atalhos">${secAtalhos}</section><div class="t20ah-esq">${esq}</div></div>`
+        ? `${cabecalho}<div class="t20ah-corpo grade" style="grid-template-columns:12em 19em;width:auto"><div class="t20ah-sec-atalhos">${secAtalhos}</div><div class="t20ah-esq">${esq}</div></div>`
         : `${cabecalho}<div class="t20ah-corpo">${esq}</div>`;
 
     const chaveVisual = `${doc.id}:${turno}`;
@@ -1443,6 +1514,22 @@ class AcoesHUD {
     this.atualizarTempo();
     MenuAcoes.sincronizar();
     this.renderGaveta();
+    this.medirNomesAtalhos();
+  }
+
+  /** Nomes nos atalhos: o que não cabe desliza sozinho, indo e voltando (a distância e a duração vêm da medida do texto). */
+  static medirNomesAtalhos() {
+    const medir = () => {
+      this.el?.querySelectorAll?.(".at-nome").forEach((n) => {
+        const txt = n.firstElementChild;
+        const falta = txt ? txt.offsetWidth - n.clientWidth : 0;
+        n.classList.toggle("rola", falta > 1);
+        n.style.setProperty("--desl", `${-Math.max(0, falta)}px`);
+        n.style.setProperty("--dur", `${Math.max(3, falta / 12 + 2.5)}s`);
+      });
+    };
+    medir();
+    requestAnimationFrame(medir);
   }
 
   /* ---------- Turno, timer e som ---------- */
@@ -1736,9 +1823,18 @@ function ehEscudo(item) {
 
 function estaEquipada(item) {
   const s = item.system ?? {};
-  return [s.equipado, s.equipado2?.equipado, s.equipado?.value, s.equipped].some(
-    (v) => v === true || v === 1 || (typeof v === "string" && /^(true|sim|1|equipad|mao|maos)/i.test(normalizar(v)))
-  );
+  const NEG = /^(|0|false|nao|não|no|nenhum|nenhuma|none|desequipad\w*|guardad\w*)$/;
+  const positivo = (v, prof = 0) => {
+    if (v === true) return true;
+    if (typeof v === "number") return v > 0; // 1 = uma mão, 2 = duas mãos...
+    if (typeof v === "string") return !NEG.test(normalizar(v).trim());
+    if (v && typeof v === "object" && prof < 2) {
+      for (const k of ["equipado", "equipped", "value", "ativo", "maos", "mao", "hands", "empunhadura", "grip"])
+        if (k in v && positivo(v[k], prof + 1)) return true;
+    }
+    return false;
+  };
+  return [s.equipado, s.equipado2, s.equipped, s.empunhada].some((v) => positivo(v));
 }
 
 /** "corpo" | "distancia" | "desconhecido" */
@@ -1929,7 +2025,7 @@ async function rolarPericiaNativaInterna(actor, chave, evento = null) {
   let retorno;
   try {
     // com o evento do clique, o sistema trata o Shift como de costume (inverte o efeito do uso, como na ficha)
-    retorno = await (evento ? fn.call(actor, chave, { event: evento }) : fn.call(actor, chave));
+    retorno = await (evento ? fn.call(actor, chave, { event: evento, configureDialog: !evento.shiftKey }) : fn.call(actor, chave));
     // a mensagem pode chegar um instante depois do fim da rotina
     for (let i = 0; i < 15 && !capturada && !(retorno?.total !== undefined || retorno?.rolls?.length); i++) {
       await new Promise((r) => setTimeout(r, 100));
@@ -1998,6 +2094,9 @@ async function resolverFinta(d) {
   }
   const ator = alvoDoc?.documentName === "Actor" ? alvoDoc : alvoDoc?.actor;
   if (!ator) return { cancelado: true };
+  // o alvo é de um jogador conectado: o teste de Reflexos é rolado por ele
+  const dele = await delegarAoDono(ator, "finta-pedir-dono", { ...d, tokenUuid: alvoDoc.uuid, escolher: false });
+  if (dele !== undefined) return dele ?? { cancelado: true };
 
   const k = await MenuAcoes.escolherPericia(ator, {
     cor: "#ff6b6b",
@@ -2172,6 +2271,111 @@ function pedirTipoCriatura(nomePersonagem) {
   });
 }
 
+/** Que tipos de magia o ator tem na ficha: arcana, divina e/ou universal. */
+function tiposDeMagia(actor) {
+  const r = { arcana: false, divina: false, universal: false };
+  for (const i of actor?.items ?? []) {
+    if (normalizar(i.type) !== "magia") continue;
+    const t = normalizar(i.system?.tipo ?? i.system?.tradicao ?? "");
+    // o sistema guarda "arc", "div", "uni" (Arcana, Divina, Universal); também aceita os nomes por extenso
+    if (/^arc/.test(t)) r.arcana = true;
+    else if (/^div/.test(t)) r.divina = true;
+    else if (/^uni/.test(t)) r.universal = true;
+  }
+  return r;
+}
+
+/** Poder "De Outro Mundo": item na ficha + configuração do Mestre (flag `outroMundo`: {ativo, tecnologia, magiaId}). */
+function itemOutroMundo(actor) {
+  return actor?.items?.find?.((i) => /de\s+outro\s+mundo/.test(normalizar(i.name))) ?? null;
+}
+function lerOutroMundo(actor) {
+  const f = actor?.getFlag?.(ID, "outroMundo") ?? {};
+  return { ativo: !!f.ativo, tecnologia: !!f.tecnologia, magiaId: typeof f.magiaId === "string" ? f.magiaId : "" };
+}
+/** Bônus de +2 no limite de PM da magia escolhida (só com a tecnologia ativada pelo Mestre). */
+function bonusOutroMundo(actor, item) {
+  const o = lerOutroMundo(actor);
+  return o.ativo && o.tecnologia && item && item.id === o.magiaId ? 2 : 0;
+}
+async function configurarOutroMundo(actor) {
+  if (!game.user.isGM || !actor || !itemOutroMundo(actor)) return;
+  const o = lerOutroMundo(actor);
+  const magias = actor.items.filter((i) => normalizar(i.type) === "magia").sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  const linha = (id, nome, img, extra, marcado) => `<label class="ec-check" data-nome="${esc(normalizar(nome))}"><input type="radio" name="om-magia" value="${esc(id)}" ${marcado ? "checked" : ""}><span class="ec-corpo">${img ? `<img src="${esc(img)}" width="22" height="22" style="vertical-align:middle;margin-right:.4em">` : ""}<b>${esc(nome)}</b>${extra}</span></label>`;
+  const r = await janelaModulo({
+    titulo: "De Outro Mundo", sub: actor.name, icone: "fa-rocket", ok: "Salvar",
+    texto: "Ative o benefício e diga se é uma habilidade ou uma tecnologia. Na tecnologia, o limite de PM da magia escolhida aumenta em +2 (o item Minúsculo e o efeito mágico/mundano ficam a seu critério).",
+    corpo: `<label class="ec-check"><input type="checkbox" name="om-ativo" ${o.ativo ? "checked" : ""}><span class="ec-corpo"><b>Benefício ativo</b></span></label>` +
+      `<label class="ec-check"><input type="radio" name="om-modo" value="hab" ${o.tecnologia ? "" : "checked"}><span class="ec-corpo"><b>Habilidade</b></span></label>` +
+      `<label class="ec-check"><input type="radio" name="om-modo" value="tec" ${o.tecnologia ? "checked" : ""}><span class="ec-corpo"><b>Tecnologia</b> (+2 no limite de PM da magia)</span></label>` +
+      `<div class="om-magias" style="${o.tecnologia ? "" : "display:none"}"><div style="margin:.5em 0 .2em;font-weight:600">Magia que recebe o limite extra (+2 PM)</div>` +
+      `<input type="search" class="ec-busca" placeholder="Buscar magia…">` +
+      linha("", "Nenhuma", "", "", !o.magiaId) + magias.map((m) => linha(m.id, m.name, m.img || "icons/svg/book.svg", ` <small>${esc(m.system?.circulo ? `${m.system.circulo}º círculo` : "")}</small>`, m.id === o.magiaId)).join("") + `</div>`,
+    aoCriar: (ov) => {
+      const alt = () => { const t = ov.querySelector('input[name="om-modo"]:checked')?.value === "tec"; const d = ov.querySelector(".om-magias"); if (d) d.style.display = t ? "" : "none"; };
+      ov.querySelectorAll('input[name="om-modo"]').forEach((i) => i.addEventListener("change", alt));
+      ov.querySelector(".ec-busca")?.addEventListener("input", (ev) => {
+        const q = normalizar(ev.target.value);
+        ov.querySelectorAll("label.ec-check[data-nome]").forEach((l) => { l.style.display = !q || l.dataset.nome.includes(q) ? "" : "none"; });
+      });
+    },
+    coletar: (ov) => ({
+      ativo: !!ov.querySelector('input[name="om-ativo"]')?.checked,
+      tecnologia: ov.querySelector('input[name="om-modo"]:checked')?.value === "tec",
+      magiaId: ov.querySelector('input[name="om-modo"]:checked')?.value === "tec" ? (ov.querySelector('input[name="om-magia"]:checked')?.value ?? "") : ""
+    })
+  });
+  if (!r) return;
+  await actor.setFlag(ID, "outroMundo", r);
+  AcoesHUD.render();
+}
+
+/**
+ * Limite de PM gasto de uma vez em uma magia/habilidade: o nível do personagem.
+ * Com "Magia Ilimitada" na ficha, MAGIAS (não poderes) somam também o modificador do atributo-chave de conjuração (`magia: false` ignora).
+ * Com "Cajado Arcano" equipado, magias arcanas têm +1 (`arcana: true`); `temCajado` diz se ele existe.
+ */
+function limitePm(actor, { arcana = false, magia = true } = {}) {
+  const nivel = nivelDoAtor(actor);
+  if (!nivel) return null;
+  const ilimitada = !!actor?.items?.some?.((i) => /magia\s+ilimitada/.test(normalizar(i.name)));
+  let bonus = 0;
+  let atributo = "";
+  if (ilimitada && magia) {
+    try {
+      const s = actor.system ?? {};
+      const bruta = s.attributes?.conjuracao?.value ?? s.attributes?.conjuracao;
+      const chave = typeof bruta === "string" && bruta.trim() ? normalizar(bruta).slice(0, 3) : null;
+      if (chave) {
+        const rd = actor.getRollData?.() ?? {};
+        const at = s.atributos?.[chave];
+        for (const v of [rd?.[chave], rd?.atributos?.[chave]?.value, at?.value, at?.mod, at?.total, at?.final]) {
+          const n = numOuNulo(v);
+          if (n !== null) { bonus = Math.max(0, Math.floor(n)); break; }
+        }
+        atributo = chave.toUpperCase();
+      }
+    } catch (err) { /* sem bônus */ }
+  }
+  // melhoria "Canalizador" em item equipado: +1 por item no limite de PM de magias
+  const temCanalizador = (i) => {
+    try {
+      const sy = i.system ?? {};
+      const campos = [sy.melhorias, sy.upgrades, sy.aprimoramentos, sy.encantos, sy.enchantments, sy.improvements, sy.melhoria];
+      if (campos.some((c) => c != null && /canalizador/.test(normalizar(typeof c === "string" ? c : JSON.stringify(c))))) return true;
+      return !!i.effects?.some?.((e) => /canalizador/.test(normalizar(e.name ?? e.label ?? "")));
+    } catch (err) { return false; }
+  };
+  const canalizadores = magia ? (actor?.items?.filter?.((i) => estaEquipada(i) && temCanalizador(i)) ?? []) : [];
+  const canal = canalizadores.length;
+  // o Cajado Arcano só vale equipado
+  const temCajado = !!actor?.items?.some?.((i) => /cajado\s+arcano/.test(normalizar(i.name)) && estaEquipada(i));
+  const cajado = temCajado && arcana ? 1 : 0;
+  const itemCajado = actor?.items?.find?.((i) => /cajado\s+arcano/.test(normalizar(i.name)));
+  return { limite: nivel + bonus + cajado + canal, canal, nivel, bonus, ilimitada, atributo, temCajado, cajado, itemCajado };
+}
+
 /** Nível total do personagem (campo da ficha ou soma dos níveis das classes); null se não achar. */
 function nivelDoAtor(actor) {
   const a = actor?.system?.attributes ?? {};
@@ -2323,19 +2527,32 @@ async function registrarResultadoGen(d) {
 async function resolverOpostoGen(d) {
   const g = GEN[d.acaoNome];
   const nomesP = g.oposto.pericias.map((k) => NOMES_PERICIAS[k]).join(", ");
-  const sel = await MenuAcoes.escolherAlvoFinta(null, {
-    todos: true, gm: true, titulo: d.acaoNome, icone: "fa-people-arrows",
-    texto: `<b>${esc(d.nomeJogador)}</b> usa <b>${esc(d.acaoNome)}</b> (teste ${esc(d.meuTotal)}). Escolha a criatura: o teste dela é <b>${esc(nomesP)}</b>.`
-  });
-  const ator = sel?.tokenDoc?.actor ?? sel?.actor;
+  // o alvo pode já vir escolhido (pelo jogador); senão o Mestre escolhe
+  let ator = null;
+  const refAlvo = d.tokenUuid || d.actorUuid;
+  if (refAlvo) {
+    const doc = await fromUuid(refAlvo);
+    ator = doc?.documentName === "Actor" ? doc : doc?.actor ?? null;
+  } else {
+    const sel = await MenuAcoes.escolherAlvoFinta(null, {
+      todos: true, gm: true, titulo: d.acaoNome, icone: "fa-people-arrows",
+      texto: `<b>${esc(d.nomeJogador)}</b> usa <b>${esc(d.acaoNome)}</b> (teste ${esc(d.meuTotal)}). Escolha a criatura: o teste dela é <b>${esc(nomesP)}</b>.`
+    });
+    ator = sel?.tokenDoc?.actor ?? sel?.actor ?? null;
+    if (ator) d = { ...d, tokenUuid: sel.tokenDoc?.uuid ?? null, actorUuid: ator.uuid };
+  }
   if (!ator) return { cancelado: true };
+  // o alvo é de um jogador conectado: a resistência é rolada por ele
+  const dele = await delegarAoDono(ator, "gen-oposto-dono", d);
+  if (dele !== undefined) return dele ?? { cancelado: true };
+  const rolagemPrivada = !ator.hasPlayerOwner;
   const cand = g.oposto.pericias
     .map((k) => ({ k, b: bonusPericia(ator, k, NOMES_PERICIAS[k]) }))
     .sort((x, y) => (y.b ?? -99) - (x.b ?? -99));
   let rf = null;
   let usada = cand[0];
   for (const c of cand) {
-    rf = await rolarPericiaNativa(ator, c.k, { privada: true });
+    rf = await rolarPericiaNativa(ator, c.k, { privada: rolagemPrivada });
     if (rf) { usada = c; break; }
   }
   if (!rf) return { cancelado: true };
@@ -2671,6 +2888,31 @@ const dadosDoTeste = (r) => {
   return { total, nat, bonus: nat !== null ? total - nat : null, nomeTeste: r.nome };
 };
 
+/** Jogador (não Mestre) conectado que é dono do ator, ou null. */
+function donoJogadorAtivo(ator) {
+  return game.users.find((u) => u.active && !u.isGM && ator?.testUserPermission?.(u, "OWNER")) ?? null;
+}
+
+/**
+ * Se o ator é de um jogador conectado (e não é quem está rodando isto), delega o teste a ele: a rolagem sai da conta do dono da ficha.
+ * Devolve a resposta do jogador, ou undefined se deve rolar aqui mesmo.
+ */
+async function delegarAoDono(ator, tipo, dados) {
+  const dono = donoJogadorAtivo(ator);
+  if (!dono || dono.id === game.user.id || dados.delegada) return undefined;
+  return new Promise((resolve) => {
+    const reqId = foundry.utils.randomID();
+    const t = setTimeout(() => {
+      PEDIDOS.delete(reqId);
+      ui.notifications.warn(`${dono.name} não respondeu a tempo.`);
+      resolve(null);
+    }, 300000);
+    PEDIDOS.set(reqId, (r) => { clearTimeout(t); PEDIDOS.delete(reqId); resolve(r); });
+    ui.notifications.info(`Aguardando ${dono.name} rolar o teste de ${ator.name}…`);
+    game.socket.emit(`module.${ID}`, { tipo, reqId, para: dono.id, dados: { ...dados, delegada: true } });
+  });
+}
+
 /** Quem responde pelo alvo: o jogador dono (se conectado) ou o Mestre ativo. */
 function usuarioDoAlvo(ator) {
   const dono = game.users.find((u) => u.active && !u.isGM && ator?.testUserPermission?.(u, "OWNER"));
@@ -2687,6 +2929,9 @@ async function resolverManobraAlvo(d) {
   }
   const ator = alvoDoc?.documentName === "Actor" ? alvoDoc : alvoDoc?.actor;
   if (!ator) return { cancelado: true };
+  // o alvo é de um jogador conectado: o teste de manobra é rolado por ele
+  const dele = await delegarAoDono(ator, "manobra-pedir", { ...d, tokenUuid: alvoDoc.uuid, escolher: false });
+  if (dele !== undefined) return dele ?? { cancelado: true };
   const armas = armasCorpoACorpo(ator);
   let arma = null;
   if (armas.length) {
@@ -2970,7 +3215,7 @@ class MenuAcoes {
     ).join("")}</div>
     <label class="aa-busca"><i class="fa-solid fa-magnifying-glass"></i><input type="search" class="aa-busca-in" placeholder="Buscar ação…" value="${esc(this._busca)}" autocomplete="off"></label></div>
     ${chavesPer.length ? `<div class="aa-filtro aa-filtro-per"><span class="aa-rot">Perícia</span>${chavesPer.map(
-      (k) => `<button type="button" class="aa-chip aa-chip-per ${this._periciasSel.has(k) ? "on" : ""}" data-fper="${k}" title="Mostrar só ações de ${esc(NOMES_PERICIAS[k] ?? k)}${PERICIAS_PEN_ARMADURA.has(k) ? " · Penalidade de armadura" : ""}${PERICIAS_SO_TREINADAS.has(k) ? " · Somente treinado" : ""}">${esc(NOMES_PERICIAS[k] ?? k)}${PERICIAS_PEN_ARMADURA.has(k) ? '<span class="aa-tag arm" title="Penalidade de armadura"><i class="fa-solid fa-shield-halved"></i></span>' : ""}${PERICIAS_SO_TREINADAS.has(k) ? '<span class="aa-tag trein" title="Somente treinado"><i class="fa-solid fa-graduation-cap"></i></span>' : ""}</button>`
+      (k) => `<button type="button" class="aa-chip aa-chip-per ${this._periciasSel.has(k) ? "on" : ""} ${PERICIAS_SO_TREINADAS.has(k) && !treinadoEm(ator, k) ? "nao-trein" : ""}" data-fper="${k}" title="Mostrar só ações de ${esc(NOMES_PERICIAS[k] ?? k)}${PERICIAS_PEN_ARMADURA.has(k) ? " · Penalidade de armadura" : ""}${PERICIAS_SO_TREINADAS.has(k) ? " · Somente treinado" : ""}">${esc(NOMES_PERICIAS[k] ?? k)}${PERICIAS_PEN_ARMADURA.has(k) ? '<span class="aa-tag arm" title="Penalidade de armadura"><i class="fa-solid fa-shield-halved"></i></span>' : ""}${PERICIAS_SO_TREINADAS.has(k) ? '<span class="aa-tag trein" title="Somente treinado"><i class="fa-solid fa-graduation-cap"></i></span>' : ""}</button>`
     ).join("")}</div>` : ""}`;
     return `${filtro}<div class="aa-rolagem">${this.htmlSecoes()}</div><div class="aa-dica">Clique numa ação para usá-la: ela gasta a ação do tipo e envia um card ao chat. Ações com <em>auto</em> já são gastas pelo módulo; o clique só consulta a regra.</div><div class="aa-legenda"><span><i class="fa-solid fa-shield-halved aa-leg-arm"></i> Penalidade de armadura</span><span><i class="fa-solid fa-graduation-cap aa-leg-trein"></i> Somente treinado</span></div>`;
   }
@@ -4831,7 +5076,25 @@ class MenuAcoes {
     let veredito = null;
     if (g.oposto) {
       const dados = { acaoNome: acao.nome, nomeJogador: nome, meuTotal: total, meuBonus: bonusPericia(alvo.actor, k, nomeP), alvoMod };
-      const r = game.user.isGM ? await resolverOpostoGen(dados) : await pedirAoMestre("gen-oposto-pedir", dados, "Aguardando o Mestre rolar o teste da criatura…");
+      let r;
+      if (game.user.isGM) r = await resolverOpostoGen(dados);
+      else {
+        // o jogador escolhe quem resiste (ou deixa com o Mestre); se for personagem de jogador, o próprio jogador rola
+        const nomesP = (g.oposto.pericias ?? []).map((x) => NOMES_PERICIAS[x]).join(", ");
+        const sel = await this.escolherAlvoOuMestre(alvo.doc, {
+          todos: true, gm: false, titulo: acao.nome, icone: "fa-people-arrows",
+          texto: `Escolha quem resiste a <b>${esc(acao.nome)}</b> (teste de <b>${esc(nomesP)}</b>).`
+        });
+        const docAlvo = sel?.tokenDoc ?? sel?.actor ?? null;
+        const atorAlvo = docAlvo?.documentName === "Actor" ? docAlvo : docAlvo?.actor ?? null;
+        if (!atorAlvo) r = null;
+        else {
+          const d2 = { ...dados, tokenUuid: sel.tokenDoc?.uuid ?? null, actorUuid: atorAlvo.uuid };
+          r = donoJogadorAtivo(atorAlvo)
+            ? await resolverOpostoGen(d2)
+            : await pedirAoMestre("gen-oposto-pedir", d2, "Aguardando o Mestre rolar o teste da criatura…");
+        }
+      }
       if (!r || r.cancelado) return ui.notifications.warn(`${acao.nome} cancelado: o teste da criatura não foi feito e nenhuma ação foi gasta.`);
       veredito = r.veredito;
       // o que houve (categoria de atitude, preço, se acreditou etc.) vai só no card privado do Mestre
@@ -5530,6 +5793,35 @@ Hooks.once("init", () => {
     default: true,
     onChange: () => MenuAcoes.sincronizar()
   });
+  game.settings.register(ID, "armasNaoEquipadas", {
+    name: "Jogadores podem adicionar armas não equipadas aos atalhos",
+    hint: "Se ativado, na seção de armas da HUD aparece um botão + para o jogador adicionar armas da ficha que não estão equipadas. Só o Mestre altera esta opção.",
+    scope: "world",
+    config: true,
+    restricted: true,
+    type: Boolean,
+    default: false,
+    onChange: () => AcoesHUD.render()
+  });
+  game.settings.register(ID, "universaisContamComo", {
+    name: "Magias universais contam como arcanas e divinas",
+    hint: "Se ativado, as magias universais valem como arcanas e como divinas para o limite de PM (o +1 do Cajado Arcano vale para elas). Só o Mestre altera esta opção.",
+    scope: "world",
+    config: true,
+    restricted: true,
+    type: Boolean,
+    default: false,
+    onChange: () => { AcoesHUD.render(); }
+  });
+  game.settings.register(ID, "nomesAtalhos", {
+    name: "Mostrar os nomes dos itens nos atalhos",
+    hint: "Mostra o nome ao lado do ícone de cada arma, magia e poder nos atalhos. Se o nome não couber, ele desliza ao passar o mouse para mostrar o texto todo.",
+    scope: "client",
+    config: true,
+    type: Boolean,
+    default: false,
+    onChange: () => AcoesHUD.render()
+  });
   game.settings.register(ID, "painelAtalhos", {
     name: "Seção de armas e atalhos na HUD",
     hint: "Mostra, na HUD, a seção com as armas equipadas e slots de magias e poderes. Clique usa o item; botão direito abre a ficha do item.",
@@ -5565,6 +5857,14 @@ Hooks.once("init", () => {
     type: Boolean,
     default: true,
     onChange: () => { AcoesHUD.render(); MenuAcoes.sincronizar?.(); }
+  });
+  game.settings.register(ID, "atorMestre", {
+    name: "Ator que representa o Mestre",
+    scope: "client",
+    config: false,
+    type: String,
+    default: "",
+    onChange: () => AcoesHUD.render()
   });
   game.settings.register(ID, "layoutCombate", {
     name: "Layout da HUD em combate",
@@ -5870,7 +6170,7 @@ Hooks.once("init", () => {
 
 const GRUPOS_CONFIG = [
   ["Chat e cards", "fa-comments", ["estiloChat", "estiloChatLocal", "corFichaChat", "resultadoParaJogadores", "animarDanoTodos", "menuAnimacoesJogadores", "cardAcoes", "anunciarChat", "condicoesPopup"]],
-  ["HUD", "fa-id-card", ["mostrarGM", "imagem", "layoutCombate", "menuAcoes", "mostrarNaoTreinadas", "escala"]],
+  ["HUD", "fa-id-card", ["mostrarGM", "imagem", "layoutCombate", "menuAcoes", "nomesAtalhos", "armasNaoEquipadas", "universaisContamComo", "mostrarNaoTreinadas", "escala"]],
   ["Combate e regras", "fa-swords", ["limitarMovimento", "gastoMovimentoMestre", "bloquearForaDoTurno", "gastarPorItem", "deslocamentoPadrao", "metrosPorQuadrado", "regrasParaMestre"]],
   ["Tempo do turno e som", "fa-hourglass-half", ["tempoMaximo", "passarAoFim", "somArquivo", "somVolume", "somQuemOuve"]],
   ["Painel de Efeitos (Mestre)", "fa-wand-sparkles", ["painelEfeitos"]],
@@ -6045,6 +6345,13 @@ Hooks.once("ready", () => {
       game.socket.emit(`module.${ID}`, { tipo: "finta-resposta", reqId: data.reqId, para: userId, resultado: r });
       return;
     }
+    if (data?.tipo === "gen-oposto-dono") {
+      if (data.para !== game.user.id) return;
+      let resultado;
+      try { resultado = await resolverOpostoGen(data.dados ?? {}); } catch (err) { console.error(`${ID} | erro no teste oposto`, err); resultado = { cancelado: true }; }
+      game.socket.emit(`module.${ID}`, { tipo: "finta-resposta", reqId: data.reqId, para: userId, resultado });
+      return;
+    }
     if (data?.tipo === "gen-resultado") {
       if (game.user.isActiveGM) registrarResultadoGen(data.dados ?? {});
       return;
@@ -6066,6 +6373,18 @@ Hooks.once("ready", () => {
     }
     if (data?.tipo === "finta-resposta") {
       if (data.para === game.user.id) PEDIDOS.get(data.reqId)?.(data.resultado);
+      return;
+    }
+    if (data?.tipo === "finta-pedir-dono") {
+      if (data.para !== game.user.id) return;
+      let resultado;
+      try {
+        resultado = await resolverFinta(data.dados);
+      } catch (err) {
+        console.error(`${ID} | erro no teste de Reflexos`, err);
+        resultado = { cancelado: true };
+      }
+      game.socket.emit(`module.${ID}`, { tipo: "finta-resposta", reqId: data.reqId, para: userId, resultado });
       return;
     }
     if (data?.tipo === "finta-pedir") {
@@ -6126,12 +6445,27 @@ function secaoPericiasHud(actor) {
 /* ---------- Atalhos da HUD: armas equipadas + slots livres de magias e poderes ---------- */
 
 /** Texto puro da descrição do item (sem HTML), cortado para caber numa dica. */
+/** Troca os códigos do Foundry no texto (@UUID[...]{nome}, @Compendium, [[/r 1d6]]…) pelo que eles mostram. */
+function limparEnriquecidos(t) {
+  const nomeDe = (ref) => {
+    try { return fromUuidSync(String(ref).replace(/^@?/, ""))?.name ?? null; } catch (err) { return null; }
+  };
+  return String(t)
+    .replace(/@(?:UUID|Compendium)\[([^\]]*)\]\{([^}]*)\}/gi, "$2")
+    .replace(/@(?:UUID|Compendium)\[([^\]]*)\]/gi, (m, ref) => nomeDe(ref) ?? ref.split(/[.#]/).pop() ?? "")
+    .replace(/@(?:Embed|Actor|Item|JournalEntry|Scene|Macro|RollTable)\[[^\]]*\](?:\{([^}]*)\})?/gi, (m, nome) => nome ?? "")
+    .replace(/\[\[\/?(?:r|roll|rolar|gmroll|blindroll|selfroll|publicroll|check|save|damage|heal)?\s*([^\]]*?)\]\](?:\{([^}]*)\})?/gi, (m, f, nome) => nome ?? f.trim())
+    .replace(/&Reference\[([^\]]*)\](?:\{([^}]*)\})?/gi, (m, r, nome) => nome ?? r)
+    .replace(/\s+/g, " ").trim();
+}
+
 function textoDescricaoItem(item) {
   const bruto = item.system?.description?.value ?? item.system?.descricao?.value ?? item.system?.descricao ?? item.system?.description ?? "";
   if (typeof bruto !== "string" || !bruto) return "";
   const d = document.createElement("div");
   d.innerHTML = bruto.replace(/<\/(p|div|li|h\d)>/gi, " ");
-  const t = (d.textContent ?? "").replace(/\s+/g, " ").trim();
+  let t = (d.textContent ?? "").replace(/\s+/g, " ").trim();
+  t = limparEnriquecidos(t);
   return t.length > 900 ? `${t.slice(0, 900).trimEnd()}…` : t;
 }
 
@@ -6244,30 +6578,205 @@ function caracteristicasItem(item) {
 
 const MAX_SLOTS_HUD = 30;
 
-function lerSlotsHud(actor) {
-  const v = actor.getFlag(ID, "slotsHud");
-  return Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
+/** Armas não equipadas que o jogador colocou na seção de armas (só valem com a opção do Mestre ligada). */
+function lerArmasExtrasHud(actor) {
+  if (!game.settings.get(ID, "armasNaoEquipadas")) return [];
+  const v = actor.getFlag(ID, "armasHud");
+  return (Array.isArray(v) ? v : []).filter((id) => typeof id === "string" && actor.items.get(id));
 }
 
-function botaoAtalho(item, { slot = false } = {}) {
+async function escolherArmasExtras(actor) {
+  const atuais = lerArmasExtrasHud(actor);
+  const cands = actor.items.filter((i) => normalizar(i.type) === "arma" && !estaEquipada(i) && !atuais.includes(i.id))
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  if (!cands.length) return ui.notifications.info("Não há outras armas na ficha para adicionar.");
+  const linhas = cands.map((it, i) => `<label class="ec-check" data-nome="${esc(normalizar(it.name))}"><input type="checkbox" name="w${i}"><span class="ec-cx"></span><img src="${esc(it.img || "icons/svg/item-bag.svg")}" alt="" class="ec-mini"><span>${esc(it.name)}</span></label>`).join("");
+  const r = await janelaModulo({
+    titulo: "Armas da HUD", sub: "Armas não equipadas", icone: "fa-hand-fist", ok: "Adicionar",
+    texto: "Marque as armas que devem aparecer na seção de armas, mesmo sem estarem equipadas.",
+    corpo: `<input type="search" class="ec-busca" placeholder="Buscar pelo nome…">${linhas}`,
+    aoCriar: (ov) => {
+      ov.querySelector(".ec-busca")?.addEventListener("input", (ev) => {
+        const q = normalizar(ev.target.value);
+        ov.querySelectorAll("label.ec-check").forEach((l) => { l.style.display = !q || l.dataset.nome.includes(q) ? "" : "none"; });
+      });
+    },
+    coletar: (ov) => cands.filter((it, i) => ov.querySelector(`[name="w${i}"]`)?.checked).map((it) => it.id)
+  });
+  if (!Array.isArray(r) || !r.length) return;
+  await actor.setFlag(ID, "armasHud", [...atuais, ...r]);
+  AcoesHUD.renderSoon();
+}
+
+function ehAmeaca(actor) {
+  return ["npc", "ameaca", "ameaça"].includes(normalizar(actor?.type));
+}
+function lerSlotsHud(actor) {
+  const v = actor.getFlag(ID, "slotsHud");
+  if (Array.isArray(v)) return v.filter((x) => typeof x === "string");
+  // ameaça sem atalhos definidos: preenche sozinha com os poderes e as magias da ficha (até alguém editar os slots)
+  if (ehAmeaca(actor)) {
+    return actor.items.filter((i) => ["poder", "magia"].includes(normalizar(i.type)))
+      .sort((a, b) => normalizar(a.type).localeCompare(normalizar(b.type)) || a.name.localeCompare(b.name, "pt-BR"))
+      .slice(0, MAX_SLOTS_HUD).map((i) => i.id);
+  }
+  return [];
+}
+
+/** Munição restante de uma arma (ou null se ela não usa munição). Aceita os formatos comuns: número/objeto no próprio item ou item de munição vinculado. */
+function municaoRestante(item) {
+  try {
+    const s = item.system ?? {};
+    const num = (v) => { const n = Number(v); return v !== "" && v != null && Number.isFinite(n) ? n : null; };
+    const doObjeto = (o) => {
+      if (o == null) return null;
+      if (typeof o !== "object") return num(o);
+      for (const k of ["value", "atual", "restante", "qtd", "quantidade", "quantity", "current"]) {
+        const n = num(o[k]);
+        if (n != null) return { v: n, max: num(o.max ?? o.maximo ?? o.total) };
+      }
+      return null;
+    };
+    for (const k of ["ammo", "municao", "munição", "muni"]) {
+      const o = s[k];
+      if (o == null || o === "" || o === false) continue;
+      // referência a outro item da ficha (id, uuid ou objeto com id/target)
+      const ref = typeof o === "string" ? o : (o.target ?? o.id ?? o.item ?? o.itemId ?? null);
+      if (typeof ref === "string" && ref) {
+        const alvo = item.actor?.items?.get(ref.split(".").pop()) ?? item.actor?.items?.find((i) => i.name === ref);
+        if (alvo) { const n = num(alvo.system?.qtd ?? alvo.system?.quantidade ?? alvo.system?.quantity); if (n != null) return { v: n, max: null }; }
+      }
+      const r = doObjeto(o);
+      if (r != null) return typeof r === "number" ? { v: r, max: null } : r;
+    }
+    const c = s.consume ?? s.consumo;
+    if (c && typeof c === "object" && c.target) {
+      const alvo = item.actor?.items?.get(String(c.target).split(".").pop());
+      const n = num(alvo?.system?.qtd ?? alvo?.system?.quantidade ?? alvo?.system?.quantity);
+      if (n != null) return { v: n, max: null };
+    }
+  } catch (err) { /* sem munição */ }
+  return null;
+}
+
+/** Munição escolhida na HUD para cada arma: flag { idDaArma: idDoItemDeMunição }. */
+function lerMunicaoHud(actor) {
+  const v = actor.getFlag(ID, "municaoHud");
+  return v && typeof v === "object" ? v : {};
+}
+/** Campo "Consumível" da ficha da arma (consume/consumo): { type, target, amount }. */
+function chaveConsumoArma(arma) {
+  const s = arma?.system ?? {};
+  return ["consume", "consumo"].find((k) => s[k] && typeof s[k] === "object") ?? null;
+}
+function idMunicaoDaArma(arma) {
+  const ator = arma?.actor;
+  if (!ator) return null;
+  const k = chaveConsumoArma(arma);
+  const t = k ? arma.system[k].target : null;
+  if (typeof t === "string" && t) { const id = t.split(".").pop(); if (ator.items.get(id)) return id; }
+  const f = lerMunicaoHud(ator)[arma.id];
+  return f && ator.items.get(f) ? f : null;
+}
+function qtdItem(it) {
+  const n = Number(it?.system?.qtd ?? it?.system?.quantidade ?? it?.system?.quantity);
+  return Number.isFinite(n) ? n : null;
+}
+/** Botão ao lado da arma: o item escolhido como munição (com a quantidade) ou um "+" para escolher. */
+function botaoMunicao(arma, dono) {
+  const alvo = arma.actor?.items?.get(idMunicaoDaArma(arma));
+  if (alvo) {
+    const q = qtdItem(alvo);
+    return `<span class="at-cel at-cel-muni"><button type="button" class="at-slot muni" data-at-muni="${esc(arma.id)}" aria-label="${esc(`Munição: ${alvo.name}`)}" title="${esc(`Munição: ${alvo.name}`)}">
+      <img src="${esc(alvo.img || "icons/svg/item-bag.svg")}" alt="" draggable="false"></button>${q != null ? `<span class="at-muni ${q <= 0 ? "zero" : ""}">${q}</span>` : ""}</span>`;
+  }
+  if (!dono) return "";
+  return `<span class="at-cel at-cel-muni"><button type="button" class="at-slot muni vazio" data-at-muni="${esc(arma.id)}" aria-label="Escolher a munição" title="Escolher o item usado como munição"><i class="fa-solid fa-plus"></i></button></span>`;
+}
+
+/** Janela (só Mestre) para escolher o ator que o representa quando não há token em cena. */
+async function escolherAtorMestre() {
+  if (!game.user.isGM) return;
+  const atual = cfg("atorMestre");
+  const atores = game.actors.filter((a) => a.isOwner).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  if (!atores.length) return ui.notifications.warn("Não há atores para escolher.");
+  const linha = (id, nome, img, marcado) => `<label class="ec-check" data-nome="${esc(normalizar(nome))}"><input type="radio" name="am" value="${esc(id)}" ${marcado ? "checked" : ""}><span class="ec-cx"></span>${img ? `<img src="${esc(img)}" alt="" class="ec-mini">` : ""}<span>${esc(nome)}</span></label>`;
+  const r = await janelaModulo({
+    titulo: "Ator do Mestre", sub: "Sem token em cena", icone: "fa-user-secret", ok: "Definir",
+    texto: "Escolha o ator que representa o Mestre nas ações quando não há um token dele em cena. A HUD e as rolagens usarão a ficha dele.",
+    corpo: `<input type="search" class="ec-busca" placeholder="Buscar pelo nome…">${linha("", "Nenhum", "", !atual)}${atores.map((a) => linha(a.id, a.name, a.img || "icons/svg/mystery-man.svg", a.id === atual)).join("")}`,
+    aoCriar: (ov) => {
+      ov.querySelector(".ec-busca")?.addEventListener("input", (ev) => {
+        const q = normalizar(ev.target.value);
+        ov.querySelectorAll("label.ec-check").forEach((l) => { l.style.display = !q || l.dataset.nome.includes(q) ? "" : "none"; });
+      });
+    },
+    coletar: (ov) => ov.querySelector('input[name="am"]:checked')?.value ?? null
+  });
+  if (r == null) return;
+  await game.settings.set(ID, "atorMestre", r);
+  AcoesHUD._forcar = !!r;
+  AcoesHUD.render();
+}
+
+/** Janela para escolher qual item da ficha é a munição de uma arma. */
+async function escolherMunicao(actor, arma) {
+  const atual = idMunicaoDaArma(arma) ?? "";
+  // só consumíveis do tipo munição
+  const cands = actor.items.filter((i) => normalizar(i.type) === "consumivel" && /^(ammo|ammunition|muni)/.test(normalizar(i.system?.tipo ?? i.system?.subtipo ?? "")))
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  const linha = (id, nome, img, extra, marcado, i) => `<label class="ec-check" data-nome="${esc(normalizar(nome))}"><input type="radio" name="muni" value="${esc(id)}" ${marcado ? "checked" : ""}><span class="ec-cx"></span>${img ? `<img src="${esc(img)}" alt="" class="ec-mini">` : ""}<span>${esc(nome)}${extra}</span></label>`;
+  const linhas = [linha("", "Nenhuma (remover a munição)", "", "", !atual)]
+    .concat(cands.map((it) => linha(it.id, it.name, it.img || "icons/svg/item-bag.svg", ` <small>×${qtdItem(it)}</small>`, it.id === atual))).join("");
+  const r = await janelaModulo({
+    titulo: arma.name, sub: "Munição da arma", icone: "fa-bullseye", ok: "Definir",
+    texto: cands.length ? "Escolha o consumível do tipo munição. A quantidade restante aparece na HUD." : "Este personagem não tem nenhum consumível do tipo munição.",
+    corpo: `<input type="search" class="ec-busca" placeholder="Buscar pelo nome…">${linhas}`,
+    aoCriar: (ov) => {
+      ov.querySelector(".ec-busca")?.addEventListener("input", (ev) => {
+        const q = normalizar(ev.target.value);
+        ov.querySelectorAll("label.ec-check").forEach((l) => { l.style.display = !q || l.dataset.nome.includes(q) ? "" : "none"; });
+      });
+    },
+    coletar: (ov) => ov.querySelector('input[name="muni"]:checked')?.value ?? null
+  });
+  if (r == null) return;
+  const mapa = { ...lerMunicaoHud(actor) };
+  if (r) mapa[arma.id] = r; else delete mapa[arma.id];
+  // grava também no campo "Consumível" da ficha da arma (tipo Munição + item), para aparecer lá
+  try {
+    const k = chaveConsumoArma(arma) ?? "consume";
+    const atualC = arma.system?.[k] ?? {};
+    await arma.update({ [`system.${k}.type`]: r ? "ammo" : atualC.type ?? "", [`system.${k}.target`]: r || "", [`system.${k}.amount`]: Number(atualC.amount) > 0 ? atualC.amount : 1 });
+  } catch (err) { console.warn(`${ID} | não foi possível gravar a munição na ficha da arma`, err); }
+  await actor.unsetFlag(ID, "municaoHud"); // substitui o objeto inteiro (setFlag faria merge e manteria chaves removidas)
+  if (Object.keys(mapa).length) await actor.setFlag(ID, "municaoHud", mapa);
+  AcoesHUD.renderSoon();
+}
+
+function botaoAtalho(item, { slot = false, armaExtra = false } = {}) {
   const tipo = normalizar(item.type);
   const rot = tipo === "magia" ? "Magia" : tipo === "poder" ? "Poder" : "Arma";
+  let munRest = null;
   return `<span class="at-cel"><button type="button" class="at-slot ${tipo}" data-at-item="${esc(item.id)}" aria-label="${esc(`${rot}: ${item.name}`)}">
-      <img src="${esc(item.img || "icons/svg/item-bag.svg")}" alt="" draggable="false"></button>${slot ? `<button type="button" class="at-rm" data-at-rm="${esc(item.id)}" aria-label="Tirar do slot"><i class="fa-solid fa-xmark"></i></button>` : ""}</span>`;
+      <img src="${esc(item.img || "icons/svg/item-bag.svg")}" alt="" draggable="false"></button>${cfg("nomesAtalhos") ? `<span class="at-nome" title="${esc(item.name)}"><span>${esc(item.name)}</span></span>` : ""}${tipo === "arma" && !idMunicaoDaArma(item) && (munRest = municaoRestante(item)) ? `<span class="at-muni ${munRest.v <= 0 ? "zero" : ""}" title="Munição restante">${munRest.v}${munRest.max ? `/${munRest.max}` : ""}</span>` : ""}${armaExtra ? `<button type="button" class="at-rm" data-at-rmarma="${esc(item.id)}" aria-label="Tirar da seção de armas"><i class="fa-solid fa-xmark"></i></button>` : ""}${slot ? `<button type="button" class="at-rm" data-at-rm="${esc(item.id)}" aria-label="Tirar do slot"><i class="fa-solid fa-xmark"></i></button>` : ""}</span>`;
 }
 
 function atalhosHud(actor) {
   if (!actor?.items) return "";
-  const armas = actor.items.filter((i) => normalizar(i.type) === "arma" && estaEquipada(i));
+  // ameaça: todas as armas (ataques) aparecem, equipadas ou não
+  const extras = lerArmasExtrasHud(actor);
+  const armas = actor.items.filter((i) => normalizar(i.type) === "arma" && (ehAmeaca(actor) || estaEquipada(i) || extras.includes(i.id) || /^(ataque\s+)?desarmado$/.test(normalizar(i.name).trim())));
   const ids = lerSlotsHud(actor).filter((id) => actor.items.get(id));
   const dono = actor.isOwner;
   const vazios = dono ? Math.max(0, Math.min(MAX_SLOTS_HUD - ids.length, ids.length ? 1 : 3)) : 0; // só o "+" para o próximo (3 se ainda não há nenhum)
-  const grupoArmas = `<div class="at-bloco"><div class="at-titulo"><i class="fa-solid fa-hand-fist"></i> Armas</div><div class="at-grade">${
-    armas.length ? armas.map((i) => botaoAtalho(i)).join("") : '<span class="at-vazio-txt">Nenhuma arma equipada</span>'}</div></div>`;
-  const grupoSlots = `<div class="at-bloco"><div class="at-titulo"><i class="fa-solid fa-wand-sparkles"></i> Magias e poderes</div><div class="at-grade">${ids.map((id) => botaoAtalho(actor.items.get(id), { slot: dono })).join("")}${
+  const grupoArmas = `<div class="at-bloco"><div class="at-titulo"><i class="fa-solid fa-hand-fist"></i> Armas</div><div class="at-grade ${cfg("nomesAtalhos") ? "com-nome" : ""}">${
+    armas.length ? armas.map((i) => botaoAtalho(i, { armaExtra: extras.includes(i.id) && !estaEquipada(i) && !ehAmeaca(actor) && dono }) + (tipoDeArma(i) !== "corpo" || idMunicaoDaArma(i) ? botaoMunicao(i, dono) : "")).join("") : '<span class="at-vazio-txt">Nenhuma arma equipada</span>'}${
+    dono && game.settings.get(ID, "armasNaoEquipadas") && !ehAmeaca(actor) ? `<span class="at-cel"><button type="button" class="at-slot vazio" data-at-addarma aria-label="Adicionar uma arma não equipada" title="Adicionar uma arma não equipada"><i class="fa-solid fa-plus"></i></button></span>` : ""}</div></div>`;
+  const grupoSlots = `<div class="at-bloco"><div class="at-titulo"><i class="fa-solid fa-wand-sparkles"></i> Magias e poderes</div><div class="at-grade ${cfg("nomesAtalhos") ? "com-nome" : ""}">${ids.map((id) => botaoAtalho(actor.items.get(id), { slot: dono })).join("")}${
     Array.from({ length: vazios }, () => `<span class="at-cel"><button type="button" class="at-slot vazio" data-at-add aria-label="Adicionar uma magia ou poder"><i class="fa-solid fa-plus"></i></button></span>`).join("")}${
     !dono && !ids.length ? '<span class="at-vazio-txt">Sem atalhos</span>' : ""}</div></div>`;
-  return `<div class="t20ah-atalhos">${grupoArmas}${grupoSlots}</div><div class="at-legenda"><span><b>Clique</b> usar</span><span><b>Shift+clique</b> usar invertido</span><span><b>Botão direito</b> ficha do item</span></div>`;
+  return `<div class="t20ah-atalhos">${grupoArmas}${grupoSlots}</div><div class="at-legenda"><span><b>Clique</b> usar</span><span><b>Shift+clique</b> rola direto</span><span><b>Botão direito</b> ficha do item</span></div>`;
 }
 
 async function rolarPericiaHud(chave, ev = null) {
@@ -6285,12 +6794,21 @@ async function atalhoClique(b, ev) {
     await actor.setFlag(ID, "slotsHud", ids);
     return void AcoesHUD.renderSoon();
   }
+  if (b.dataset.atAddarma !== undefined) return void escolherArmasExtras(actor);
+  if (b.dataset.atRmarma !== undefined) {
+    await actor.setFlag(ID, "armasHud", lerArmasExtrasHud(actor).filter((id) => id !== b.dataset.atRmarma));
+    return void AcoesHUD.renderSoon();
+  }
+  if (b.dataset.atMuni !== undefined) {
+    const arma = actor.items.get(b.dataset.atMuni);
+    return void (arma && actor.isOwner ? escolherMunicao(actor, arma) : null);
+  }
   if (b.dataset.atAdd !== undefined) return void escolherAtalhos(actor);
   const item = actor.items.get(b.dataset.atItem);
   if (!item) return;
   try {
     if (typeof item.roll !== "function") item.sheet?.render(true);
-    else await item.roll({ event: ev }); // Shift: o sistema inverte o efeito do uso, como na ficha
+    else await item.roll({ event: ev, configureDialog: !ev?.shiftKey }); // Shift: pula a escolha dos efeitos de uso e rola direto, como na ficha
   } catch (err) {
     console.warn(`${ID} | não foi possível usar o item pelo atalho`, err);
     item.sheet?.render(true);
@@ -6335,6 +6853,7 @@ async function escolherAtalhos(actor) {
 Hooks.on("canvasReady", () => AcoesHUD.render());
 Hooks.on("controlToken", () => AcoesHUD.renderSoon());
 Hooks.on("deleteToken", () => AcoesHUD.renderSoon());
+Hooks.on("createToken", () => AcoesHUD.renderSoon());
 Hooks.on("updateActor", (actor) => {
   if (AcoesHUD.alvo()?.actor.id === actor.id) AcoesHUD.renderSoon();
 });
@@ -8085,6 +8604,34 @@ for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
   });
 }
 
+// Card que gasta PM acima do limite (nível do personagem): acrescenta um aviso no próprio card.
+for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
+  hookChat.on(hook, (message, html) => {
+    const element = html?.[0] ?? html;
+    const botao = element?.querySelector?.(".chat-spend-mana");
+    if (!botao || element.querySelector(".t20ah-pm-aviso")) return;
+    const custo = Number(botao.value ?? botao.getAttribute("value"));
+    if (!Number.isFinite(custo) || custo <= 0) return;
+    const card = element.querySelector(".chat-card");
+    const idToken = card?.dataset?.tokenId ?? "";
+    const ator = (idToken && canvas?.tokens?.get?.(idToken.split(".").pop())?.actor) || game.actors?.get(card?.dataset?.actorId) || message.speakerActor || null;
+    const itemCard = ator?.items?.get(card?.dataset?.itemId ?? "");
+    const tipoMagia = normalizar(`${itemCard?.system?.tipo ?? ""} ${element.querySelector(".card-item-header h4")?.textContent ?? ""}`);
+    const tipoCurto = normalizar(itemCard?.system?.tipo ?? "");
+    const ehMagia = itemCard ? normalizar(itemCard.type) === "magia" : /circulo/.test(normalizar(element.querySelector(".card-item-header h4")?.textContent ?? ""));
+    const univConta = !!game.settings.get(ID, "universaisContamComo");
+    const lp = limitePm(ator, { arcana: ehMagia && (/^arc/.test(tipoCurto) || /arcana/.test(tipoMagia) || (univConta && (/^uni/.test(tipoCurto) || /universal/.test(tipoMagia)))), magia: ehMagia });
+    const limite = lp?.limite ? lp.limite + bonusOutroMundo(ator, itemCard) : lp?.limite;
+    if (!limite || custo <= limite) return;
+    const aviso = document.createElement("div");
+    aviso.className = "t20ah-pm-aviso";
+    aviso.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i><span><b>Limite de PM excedido!</b> Este gasto é de <b>${custo} PM</b>, e o limite por magia ou habilidade é de <b>${limite} PM</b> (${lp.ilimitada ? `nível ${lp.nivel} + ${lp.bonus} de ${esc(lp.atributo || "atributo-chave")}, por Magia Ilimitada` : `o nível de ${esc(ator?.name ?? "personagem")}`}${lp.cajado ? `, +1 do Cajado Arcano` : ""}${lp.canal ? `, +${lp.canal} de Canalizador` : ""}${bonusOutroMundo(ator, itemCard) ? `, +2 de De Outro Mundo` : ""}).</span>`;
+    const cab = card?.querySelector(".card-header");
+    if (cab) cab.after(aviso);
+    else (card ?? element.querySelector(".message-content"))?.prepend(aviso);
+  });
+}
+
 // Mensagem digitada (só texto, sem card nem rolagem): marcada para receber o visual de texto do módulo.
 for (const hook of ["renderChatMessage", "renderChatMessageHTML"]) {
   hookChat.on(hook, (message, html) => {
@@ -8689,6 +9236,7 @@ function abrirVisualHud(btn) {
     <label class="vp-lin"><span>Cor principal</span><input type="color" data-k="principal" value="${/^#[0-9a-f]{6}$/i.test(v.principal ?? "") ? v.principal : (TEMAS_HUD[v.tema]?.faixa ?? "#c0392b")}"></label>
     <label class="vp-lin"><span>Destaque</span><input type="color" data-k="destaque" value="${v.destaque}"></label>
     <label class="vp-lin"><span>Faixa do topo</span><input type="color" data-k="faixa" value="${/^#[0-9a-f]{6}$/i.test(v.faixa ?? "") ? v.faixa : (TEMAS_HUD[v.tema]?.faixa ?? "#c0392b")}"></label>
+    <label class="vp-lin vp-chk" title="Mostra o nome embaixo do ícone de cada arma, magia e poder nos atalhos"><span>Nomes nos atalhos</span><input type="checkbox" data-cfg="nomesAtalhos" ${cfg("nomesAtalhos") ? "checked" : ""}></label>
     <footer><button type="button" data-vp="padrao"><i class="fa-solid fa-rotate-left"></i> Restaurar padrão</button></footer>`;
   document.body.appendChild(pop);
   const r = btn.getBoundingClientRect();
@@ -8702,6 +9250,10 @@ function abrirVisualHud(btn) {
   const fora = (ev) => { if (!pop.contains(ev.target) && !ev.target.closest?.('[data-acao="visual"]')) fechar(); };
   PAINEL_VISUAL_FECHAR = fechar;
   setTimeout(() => document.addEventListener("pointerdown", fora, true), 0);
+  pop.addEventListener("change", (ev) => {
+    const c = ev.target.closest("input[data-cfg]");
+    if (c) game.settings.set(ID, c.dataset.cfg, c.checked);
+  });
   pop.addEventListener("input", (ev) => {
     const i = ev.target.closest("input[data-k]");
     if (!i) return;

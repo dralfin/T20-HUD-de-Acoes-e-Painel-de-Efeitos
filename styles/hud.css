@@ -637,8 +637,7 @@
 #t20ah .aa-sec .aa-lista { display: flex; flex-wrap: wrap; gap: 0.3em; }
 #t20ah .aa-sec .aa-acao { padding: 0.17em 0.6em; font-size: 0.82em; }
 #t20ah .t20ah-dir > .aa-dica { margin-top: 0.1em; text-align: left; }
-/* fora do turno, só as ações livres podem ser usadas */
-#t20ah:not(.em-turno) .aa-sec:not(.livre):not(.reacao):not(.outros) .aa-acao { opacity: 0.5; }
+/* os botões só ficam apagados quando exigem treino que o personagem não tem (.nao-treinado); fora do turno não se apagam */
 
 
 /* ---- identificação incorporada aos cards de ação ---- */
@@ -1829,3 +1828,70 @@ span.t20ah-cond-link::before, span.t20ah-cond-chip::before { content: ""; flex: 
 #t20ah .pr-titulo, #t20ah .at-titulo, #t20ah .at-legenda b { color: var(--ouro, #e0b85c); }
 #t20ah .at-slot:hover { border-color: var(--ouro, #e0b85c); box-shadow: 0 0 0.6em color-mix(in srgb, var(--ouro, #e0b85c) 40%, transparent); }
 #t20ah .at-slot.vazio:hover { color: var(--ouro, #e0b85c); }
+
+/* munição restante da arma, no canto do ícone */
+#t20ah .at-muni {
+  position: absolute; right: -0.15em; bottom: -0.2em; min-width: 1.35em; padding: 0 0.3em; box-sizing: border-box;
+  border-radius: 0.8em; background: rgba(0, 0, 0, 0.85); border: 1px solid var(--ouro, #e0b85c); color: var(--ouro, #e0b85c);
+  font-size: 0.72em; font-weight: 700; line-height: 1.35; text-align: center; pointer-events: none;
+}
+#t20ah .at-muni.zero { color: #ff7d7d; border-color: #d64545; }
+
+/* slot de munição ao lado da arma: menor, com a cor da munição */
+#t20ah .at-cel-muni .at-slot.muni { width: 1.9em !important; height: 1.9em !important; align-self: center; border-color: color-mix(in srgb, var(--ouro, #e0b85c) 70%, transparent); }
+#t20ah .at-cel-muni .at-slot.muni.vazio { border-style: dashed; }
+
+/* nomes nos atalhos (opção da HUD): uma etiqueta embaixo do slot; o que não cabe desliza sozinho, indo e voltando */
+#t20ah .at-grade.com-nome { grid-template-columns: repeat(2, 5.2em) !important; gap: 0.5em 0.4em !important; justify-content: start; }
+#t20ah .at-grade.com-nome .at-cel { flex-direction: column; align-items: center; width: 5.2em; min-width: 0; gap: 0.25em; }
+#t20ah .at-nome {
+  display: block; box-sizing: border-box; width: 100%; overflow: hidden; white-space: nowrap; text-align: center;
+  padding: 0.1em 0; border-radius: 0.6em; font-size: 0.74em; line-height: 1.25; color: #f2e8d5;
+  background: rgba(0, 0, 0, 0.45); border: 1px solid color-mix(in srgb, var(--ouro, #e0b85c) 45%, transparent);
+}
+#t20ah .at-nome > span { display: block; width: max-content; min-width: 100%; box-sizing: border-box; padding: 0 0.8em; text-align: center; }
+#t20ah .at-nome.rola > span { animation: at-desliza var(--dur, 5s) ease-in-out infinite alternate; }
+@keyframes at-desliza { 0%, 18% { transform: translateX(0); } 82%, 100% { transform: translateX(var(--desl, 0px)); } }
+#t20ah .at-grade.com-nome .at-cel:hover .at-nome { color: var(--ouro, #e0b85c); }
+#t20ah .at-grade.com-nome .at-muni { bottom: auto; top: 1.7em; }
+#t20ah .at-grade.com-nome .at-cel-muni { align-self: start; }
+
+#t20ah-visual-pop .vp-chk input[type="checkbox"] { accent-color: var(--ouro, #e0b85c); width: 1.1em; height: 1.1em; margin: 0; cursor: pointer; }
+
+/* filtro de perícias: só ficam apagadas as que exigem treino e o personagem não tem */
+#t20ah .aa-chip-per { opacity: 1; color: #d9cdb8; }
+#t20ah .aa-chip-per.nao-trein:not(.on) { opacity: 0.45; color: #9a8a7a; }
+#t20ah .aa-chip-per.nao-trein:not(.on):hover { opacity: 0.9; }
+#t20ah .aa-chip-per.on { color: var(--cor); }
+
+/* limite de PM por magia (= nível): selo ao lado esquerdo da defesa, igual ao selo da CD */
+#t20ah .pm-lim-selo { cursor: help; }
+#t20ah .pm-lim-selo .rd-tipo { color: color-mix(in srgb, var(--ouro, #e0b85c) 80%, #fff); }
+
+/* aviso no card do chat quando o gasto de PM passa do limite */
+.chat-message .t20ah-pm-aviso {
+  display: flex; align-items: flex-start; gap: 0.55em; margin: 0.4em 0; padding: 0.45em 0.7em; border-radius: 0.5em; font-size: 0.88em; line-height: 1.35; color: #ffd9a8;
+  background: linear-gradient(90deg, rgba(240, 138, 60, 0.28), rgba(240, 138, 60, 0.08)); border: 1px solid rgba(240, 138, 60, 0.6); border-left: 4px solid #f08a3c;
+}
+.chat-message .t20ah-pm-aviso i { margin-top: 0.15em; color: #f08a3c; }
+.chat-message .t20ah-pm-aviso b { color: #fff; }
+#t20ah .rd-escudo.cd-selo.pm-lim-selo { --cor-rd: #4aa3df; }
+#t20ah .rd-escudo.cd-selo.pm-lim-selo svg { fill: #1f3d5a; }
+#t20ah .pm-lim-selo .rd-tipo { color: #bfe3ff; }
+/* o selo do limite de PM fica colado à defesa (sem o recuo e o traço que empurram o selo da CD para a direita) */
+#t20ah .rd-escudo.cd-selo.pm-lim-selo { margin-left: 0 !important; margin-right: 0 !important; }
+#t20ah .rd-escudo.cd-selo.pm-lim-selo::before { display: none !important; }
+/* selo do limite das magias: roxo-azulado, para diferenciar do limite de habilidades */
+#t20ah .rd-escudo.cd-selo.pm-lim-selo.pm-lim-magia { --cor-rd: #a98ae6; }
+#t20ah .rd-escudo.cd-selo.pm-lim-selo.pm-lim-magia svg { fill: #3a2f5e; }
+#t20ah .pm-lim-selo.pm-lim-magia .rd-tipo { color: #e3d6ff; }
+/* os selos (limites de PM, defesa, resistências e CD) fluem na mesma linha; se não couber, a CD quebra alinhada à esquerda, sem ficar solta na direita */
+#t20ah .t20ah-chips .rd-escudo.cd-selo { margin-left: 0 !important; margin-right: 0 !important; }
+#t20ah .t20ah-chips .rd-escudo.cd-selo::before { display: none !important; }
+#t20ah .t20ah-chips { justify-content: flex-start; gap: 0.35em 0.4em; }
+
+/* selos do limite de PM: ícones de identificação acima (cada um na cor da sua categoria) e losango em degradê dessas cores */
+#t20ah .pm-lim-grupo { display: inline-flex; flex-direction: column; align-items: center; gap: 0.1em; flex: none; cursor: help; }
+#t20ah .pm-lim-ico { display: inline-flex; gap: 0.3em; min-height: 1em; font-size: 0.78em; line-height: 1; }
+#t20ah .pm-lim-grupo .rd-escudo.cd-selo.pm-lim-selo { margin: 0 !important; }
+#t20ah .pm-lim-grupo .rd-escudo.cd-selo.pm-lim-selo b { color: #fff; text-shadow: 0 1px 2px #000, 0 0 3px #000; }
